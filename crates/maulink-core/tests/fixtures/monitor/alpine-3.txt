@@ -1,0 +1,30 @@
+@@CPU@@
+cpu  700 60 240 8000 200 10 30 5 80 12
+cpu0 350 30 120 4000 100 5 15 2 40 6
+cpu1 350 30 120 4000 100 5 15 3 40 6
+@@END_CPU@@
+@@MEMORY@@
+MemTotal:        4096000 kB
+MemFree:          512000 kB
+MemAvailable:    2048000 kB
+@@END_MEMORY@@
+@@DISK@@
+Filesystem           1K-blocks      Used Available Use% Mounted on
+/dev/sda2              10485760   3145728   7340032  30% /
+@@END_DISK@@
+@@NETWORK@@
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+enp1s0: 8192 48 0 0 0 0 0 0 16384 52 0 0 0 0 0 0
+lo: 1024 16 0 0 0 0 0 0 1024 16 0 0 0 0 0 0
+@@END_NETWORK@@
+@@LOAD@@
+1.20 0.85 0.44 2/180 4321
+@@END_LOAD@@
+@@UPTIME@@
+98765.43 111222.33
+@@END_UPTIME@@
+@@SYSTEM@@
+Linux edge-02 6.6.21-0-lts x86_64
+NAME="Alpine Linux"
+@@END_SYSTEM@@

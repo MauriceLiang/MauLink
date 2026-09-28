@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MauLink Backend IPC Harness</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      body { margin: 0; background: Canvas; color: CanvasText; }
+      main { max-width: 920px; margin: 0 auto; padding: 24px; }
+      h1 { margin: 0; font-size: 24px; }
+      h2 { margin: 0 0 12px; font-size: 17px; }
+      p { margin: 6px 0 0; color: GrayText; }
+      section { margin-top: 18px; padding: 16px; border: 1px solid color-mix(in srgb, CanvasText 20%, transparent); border-radius: 10px; }
+      .row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+      .field { display: grid; gap: 4px; min-width: 150px; flex: 1; }
+      label { font-weight: 600; }
+      input, select, button { font: inherit; padding: 8px 10px; border-radius: 6px; }
+      input, select { border: 1px solid GrayText; background: Canvas; color: CanvasText; }
+      button { border: 1px solid GrayText; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .55; }
+      button.primary { background: #245fca; color: white; border-color: #245fca; }
+      .status { font-weight: 650; }
+      .challenge { margin-top: 12px; padding: 12px; border-radius: 8px; background: color-mix(in srgb, #e7a600 16%, Canvas); }
+      .challenge[hidden] { display: none; }
+      .muted { color: GrayText; }
+      pre { overflow: auto; max-height: 300px; padding: 12px; border-radius: 8px; background: color-mix(in srgb, CanvasText 8%, Canvas); white-space: pre-wrap; overflow-wrap: anywhere; }
+      progress { width: 100%; height: 12px; }
+      .spacer { flex: 1; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      @media (max-width: 600px) { main { padding: 14px; } section { padding: 12px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>MauLink 后端 IPC 调试页</h1>
+        <p>临时验收工具，不是产品 UI。终端压测会向所选 SSH 服务器写入并读取数据。</p>
+      </header>
+
+      <section aria-labelledby="server-heading">
+        <h2 id="server-heading">SSH 连接</h2>
+        <div class="row">
+          <div class="field">
+            <label for="server">已保存的服务器</label>
+            <select id="server"><option value="">加载中…</option></select>
+          </div>
+          <button id="refresh-servers" type="button">刷新列表</button>
+          <button id="connect" class="primary" type="button">连接</button>
+          <button id="disconnect" type="button" disabled>断开</button>
+        </div>
+        <div class="row" style="margin-top: 12px">
+          <span>连接状态：<span id="connection-state" class="status">未连接</span></span>
+          <span id="connection-id" class="muted mono"></span>
+        </div>
+        <div id="host-challenge" class="challenge" hidden>
+          <strong>需要确认 SSH 主机密钥</strong>
+          <p id="host-key-details" class="mono"></p>
+          <div class="row" style="margin-top: 8px">
+            <button id="trust-once" type="button">本次信任</button>
+            <button id="trust-save" type="button">信任并保存</button>
+          </div>
+        </div>
+        <div id="auth-challenge" class="challenge" hidden>
+          <strong>需要输入 SSH 凭据</strong>
+          <p id="auth-details"></p>
+          <div class="row" style="margin-top: 8px">
+            <div class="field">
+              <label for="secret">密码 / 私钥口令</label>
+              <input id="secret" type="password" autocomplete="off" />
+            </div>
+            <button id="submit-secret" type="button">提交凭据</button>
+          </div>
+        </div>
+        <div id="connection-error" class="muted"></div>
+      </section>
+
+      <section aria-labelledby="profile-heading">
+        <h2 id="profile-heading">创建临时本机 OpenSSH 测试档案</h2>
+        <p>可选：用本机 sshd 验收 Tauri IPC。私钥通过系统文件选择器提供，页面只持有短期 token。</p>
+        <div class="row" style="margin-top: 10px">
+          <div class="field"><label for="profile-name">档案名称</label><input id="profile-name" value="[IPC Harness] Local OpenSSH" /></div>
+          <div class="field"><label for="profile-host">主机</label><input id="profile-host" value="127.0.0.1" /></div>
+          <div class="field"><label for="profile-port">端口</label><input id="profile-port" type="number" min="1" max="65535" value="2222" /></div>
+          <div class="field"><label for="profile-user">用户名</label><input id="profile-user" autocomplete="username" /></div>
+        </div>
+        <div class="row" style="margin-top: 10px">
+          <button id="select-key" type="button">选择未加密私钥</button>
+          <span id="key-name" class="muted">尚未选择</span>
+          <span class="spacer"></span>
+          <button id="create-profile" type="button">创建测试档案</button>
+          <button id="delete-profile" type="button" disabled>删除测试档案</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="terminal-heading">
+        <h2 id="terminal-heading">Tauri Channel 吞吐验收</h2>
+        <p>输出使用 POSIX <span class="mono">dd</span> 与 <span class="mono">tr</span> 生成固定字节数，并通过原始控制字节标记准确统计 payload。</p>
+        <div class="row" style="margin-top: 10px">
+          <div class="field">
+            <label for="ack-mode">消费策略</label>
+            <select id="ack-mode">
+              <option value="receive">收到 IPC chunk 后立即 ACK</option>
+              <option value="parse">UTF-8 / ANSI 解析完成后 ACK</option>
+            </select>
+          </div>
+          <div class="field" style="max-width: 180px">
+            <label for="size-mib">输出大小（MiB）</label>
+            <input id="size-mib" type="number" min="1" max="8" step="1" value="1" />
+          </div>
+          <button id="run-benchmark" class="primary" type="button" disabled>运行压测</button>
+          <button id="close-terminal" type="button" disabled>关闭终端</button>
+        </div>
+        <p id="terminal-state" class="status">等待 SSH 连接</p>
+        <progress id="progress" max="1" value="0"></progress>
+        <pre id="benchmark-result">尚无压测结果</pre>
+      </section>
+
+      <section aria-labelledby="log-heading">
+        <h2 id="log-heading">IPC 调用记录</h2>
+        <pre id="log" aria-live="polite">等待操作</pre>
+      </section>
+    </main>
+
+    <script type="module">
+      const core = window.__TAURI__?.core;
+      const $ = (selector) => document.querySelector(selector);
+      const state = {
+        profiles: [], selectedKey: null, testServerId: null,
+        connectionId: null, connectionSnapshot: null, hostChallengeId: null,
+        authChallengeId: null, terminalId: null, terminalStreamId: null,
+        terminalChannel: null, inputSeq: 1, benchmark: null,
+      };
+
+      function request(payload) {
+        return { apiVersion: 1, requestId: crypto.randomUUID(), payload };
+      }
+
+      function call(command, payload, extra = {}) {
+        return core.invoke(command, { request: request(payload), ...extra });
+      }
+
+      function acknowledge(chunk) {
+        return call("terminal_ack", {
+          terminalId: chunk.terminalId,
+          streamId: chunk.streamId,
+          seq: String(chunk.seq),
+        });
+      }
+
+      function log(value) {
+        const message = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+        const previous = $("#log").textContent;
+        $("#log").textContent = `${new Date().toLocaleTimeString()} ${message}\n${previous}`.slice(0, 12000);
+      }
+
+      function showError(target, error) {
+        $(target).textContent = typeof error === "string" ? error : JSON.stringify(error, null, 2);
+        log({ error });
+      }
+
+      function refreshConnectionControls() {
+        const ready = state.connectionSnapshot?.state === "ready";
+        $("#connect").disabled = Boolean(state.connectionId);
+        $("#disconnect").disabled = !state.connectionId;
+        $("#run-benchmark").disabled = !ready || Boolean(state.benchmark);
+        $("#connection-state").textContent = state.connectionSnapshot?.state ?? "未连接";
+        $("#connection-id").textContent = state.connectionId ?? "";
+      }
+
+      async function loadServers() {
+        try {
+          const page = await call("server_list", { query: null, groupId: null, limit: 100, cursor: null });
+          state.profiles = page.items;
+          const select = $("#server");
+          const previous = select.value;
+          select.replaceChildren(new Option("选择服务器…", ""));
+          for (const profile of state.profiles) {
+            const title = `${profile.name} — ${profile.username}@${profile.host}:${profile.port} (${profile.authType})`;
+            select.add(new Option(title, profile.id));
+          }
+          if (state.profiles.some((profile) => profile.id === previous)) select.value = previous;
+          log(`已加载 ${state.profiles.length} 个服务器档案`);
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function selectPrivateKey() {
+        try {
+          const selected = await call("local_file_select", { purpose: "privateKey" });
+          state.selectedKey = selected;
+          $("#key-name").textContent = selected ? `${selected.displayName}（短期 token）` : "已取消选择";
+          log(selected ? `已选择私钥文件：${selected.displayName}` : "已取消私钥选择");
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function createTestProfile() {
+        if (!state.selectedKey) {
+          showError("#connection-error", "请先选择未加密的本机测试私钥");
+          return;
+        }
+        try {
+          const result = await call("server_create", {
+            profile: {
+              name: $("#profile-name").value.trim() || "[IPC Harness] Local OpenSSH",
+              host: $("#profile-host").value.trim(),
+              port: Number($("#profile-port").value),
+              username: $("#profile-user").value.trim(),
+              authType: "privateKey",
+              privateKeyToken: state.selectedKey.token,
+              groupId: null,
+              connectTimeoutMs: 10000,
+              keepaliveIntervalSeconds: 30,
+            },
+            credential: { mode: "clear" },
+          });
+          state.testServerId = result.server.id;
+          $("#delete-profile").disabled = false;
+          await loadServers();
+          $("#server").value = result.server.id;
+          log({ createdTestServer: result.server.id, revision: result.server.revision });
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function deleteTestProfile() {
+        const profile = state.profiles.find((item) => item.id === state.testServerId);
+        if (!profile) return;
+        try {
+          await call("server_delete", {
+            serverId: profile.id,
+            expectedRevision: profile.revision,
+            removeCredentials: true,
+          });
+          state.testServerId = null;
+          $("#delete-profile").disabled = true;
+          await loadServers();
+          log("已删除临时测试档案");
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function connect() {
+        const profile = state.profiles.find((item) => item.id === $("#server").value);
+        if (!profile) {
+          showError("#connection-error", "请选择一个已保存的服务器档案");
+          return;
+        }
+        $("#connection-error").textContent = "";
+        try {
+          const snapshot = await call("connection_start", {
+            source: { kind: "saved", serverId: profile.id, expectedRevision: profile.revision },
+            mode: "workspace",
+          });
+          state.connectionId = snapshot.connectionId;
+          state.connectionSnapshot = snapshot;
+          refreshConnectionControls();
+          log({ connectionId: snapshot.connectionId, state: snapshot.state });
+          void pollConnection();
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function pollConnection() {
+        if (!state.connectionId) return;
+        try {
+          const snapshot = await call("connection_get", { connectionId: state.connectionId });
+          const previousState = state.connectionSnapshot?.state;
+          state.connectionSnapshot = snapshot;
+          refreshConnectionControls();
+          renderChallenges(snapshot);
+          if (snapshot.state !== previousState) log({ connectionState: snapshot.state });
+          if (snapshot.error) $("#connection-error").textContent = JSON.stringify(snapshot.error, null, 2);
+          if (!["ready", "closed", "failed", "cancelled"].includes(snapshot.state)) {
+            setTimeout(pollConnection, 250);
+          }
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      function renderChallenges(snapshot) {
+        const host = snapshot.hostKeyChallenge;
+        $("#host-challenge").hidden = !host;
+        state.hostChallengeId = host?.challengeId ?? null;
+        if (host) {
+          $("#host-key-details").textContent = `${host.host}:${host.port} · ${host.algorithm}\nSHA-256 ${host.fingerprintSha256}`;
+        }
+        const auth = snapshot.authenticationChallenge;
+        $("#auth-challenge").hidden = !auth;
+        state.authChallengeId = auth?.challengeId ?? null;
+        if (auth) $("#auth-details").textContent = `凭据类型：${auth.credentialKind}`;
+      }
+
+      async function respondHostKey(decision) {
+        if (!state.hostChallengeId) return;
+        try {
+          await call("host_key_respond", {
+            connectionId: state.connectionId,
+            challengeId: state.hostChallengeId,
+            decision,
+          });
+          $("#host-challenge").hidden = true;
+          log(`主机密钥决策：${decision}`);
+          void pollConnection();
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      async function submitSecret() {
+        const secretInput = $("#secret");
+        if (!state.authChallengeId || !secretInput.value) return;
+        const secret = secretInput.value;
+        secretInput.value = "";
+        try {
+          await call("auth_respond", {
+            connectionId: state.connectionId,
+            challengeId: state.authChallengeId,
+            secret,
+          });
+          $("#auth-challenge").hidden = true;
+          log("已提交本次连接凭据（不写入调试日志）");
+          void pollConnection();
+        } catch (error) {
+          showError("#connection-error", error);
+        }
+      }
+
+      function decodeBase64(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        return bytes;
+      }
+
+      function encodeBase64(value) {
+        const bytes = new TextEncoder().encode(value);
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary);
+      }
+
+      class Utf8AnsiParser {
+        constructor() {
+          this.decoder = new TextDecoder("utf-8");
+          this.state = "text";
+          this.tail = "";
+          this.characters = 0;
+        }
+
+        consume(bytes) {
+          const decoded = this.decoder.decode(bytes, { stream: true });
+          let plain = "";
+          for (const char of decoded) {
+            if (this.state === "text") {
+              if (char === "\x1b") this.state = "escape";
+              else plain += char;
+            } else if (this.state === "escape") {
+              if (char === "[") this.state = "csi";
+              else if (char === "]") this.state = "osc";
+              else this.state = "text";
+            } else if (this.state === "csi") {
+              if (char >= "@" && char <= "~") this.state = "text";
+            } else if (this.state === "osc") {
+              if (char === "\x07") this.state = "text";
+              else if (char === "\x1b") this.state = "oscEscape";
+            } else if (this.state === "oscEscape") {
+              this.state = char === "\\" ? "text" : "osc";
+            }
+          }
+          this.characters += [...plain].length;
+          this.tail = (this.tail + plain).slice(-160);
+          return plain;
+        }
+      }
+
+      const START_MARKER = Uint8Array.from([0x1e, ...new TextEncoder().encode("MAULINK_START"), 0x1f]);
+      const DONE_MARKER = Uint8Array.from([0x1e, ...new TextEncoder().encode("MAULINK_DONE"), 0x1f]);
+
+      function indexOfBytes(haystack, needle, from = 0) {
+        for (let index = from; index <= haystack.length - needle.length; index += 1) {
+          let match = true;
+          for (let offset = 0; offset < needle.length; offset += 1) {
+            if (haystack[index + offset] !== needle[offset]) { match = false; break; }
+          }
+          if (match) return index;
+        }
+        return -1;
+      }
+
+      function concatBytes(left, right) {
+        const joined = new Uint8Array(left.length + right.length);
+        joined.set(left);
+        joined.set(right, left.length);
+        return joined;
+      }
+
+      class PayloadScanner {
+        constructor() { this.tail = new Uint8Array(); this.started = false; this.done = false; this.bytes = 0; this.startedAt = null; this.doneAt = null; }
+        consume(bytes, now) {
+          if (this.done) return;
+          const joined = concatBytes(this.tail, bytes);
+          let offset = 0;
+          if (!this.started) {
+            const marker = indexOfBytes(joined, START_MARKER);
+            if (marker < 0) {
+              this.tail = joined.slice(-START_MARKER.length + 1);
+              return;
+            }
+            this.started = true;
+            this.startedAt = now;
+            offset = marker + START_MARKER.length;
+          }
+          const end = indexOfBytes(joined, DONE_MARKER, offset);
+          if (end >= 0) {
+            this.bytes += end - offset;
+            this.done = true;
+            this.doneAt = now;
+            this.tail = new Uint8Array();
+            return;
+          }
+          const safeEnd = Math.max(offset, joined.length - DONE_MARKER.length + 1);
+          this.bytes += safeEnd - offset;
+          this.tail = joined.slice(safeEnd);
+        }
+      }
+
+      function renderBenchmark() {
+        const benchmark = state.benchmark;
+        if (!benchmark) return;
+        const elapsed = benchmark.doneAt && benchmark.startedAt ? benchmark.doneAt - benchmark.startedAt : performance.now() - benchmark.commandAt;
+        const payloadMiB = benchmark.scanner.bytes / (1024 * 1024);
+        const throughput = elapsed > 0 ? payloadMiB / (elapsed / 1000) : 0;
+        $("#progress").value = Math.min(1, benchmark.scanner.bytes / benchmark.expectedBytes);
+        $("#terminal-state").textContent = benchmark.finalized ? "压测完成" : `接收中：${benchmark.scanner.bytes.toLocaleString()} / ${benchmark.expectedBytes.toLocaleString()} payload bytes`;
+        $("#benchmark-result").textContent = JSON.stringify({
+          mode: benchmark.mode === "receive" ? "收到即 ACK" : "UTF-8 / ANSI 解析后 ACK",
+          expectedPayloadBytes: benchmark.expectedBytes,
+          measuredPayloadBytes: benchmark.scanner.bytes,
+          ipcChunks: benchmark.chunks,
+          ipcRawBytesIncludingShellControl: benchmark.rawBytes,
+          firstChunkLatencyMs: benchmark.firstChunkAt === null ? null : Number((benchmark.firstChunkAt - benchmark.commandAt).toFixed(2)),
+          payloadElapsedMs: benchmark.startedAt === null ? null : Number(elapsed.toFixed(2)),
+          payloadThroughputMiBPerSecond: Number(throughput.toFixed(2)),
+          averageAckDispatchMs: benchmark.chunks ? Number((benchmark.ackDispatchTotal / benchmark.chunks).toFixed(3)) : null,
+          averageAckRoundTripMs: benchmark.ackRoundTripCount ? Number((benchmark.ackRoundTripTotal / benchmark.ackRoundTripCount).toFixed(2)) : null,
+          utf8AnsiParsedCharacters: benchmark.parser.characters,
+          utf8AnsiParseTimeMs: Number(benchmark.parseTimeMs.toFixed(2)),
+          terminalId: state.terminalId,
+        }, null, 2);
+      }
+
+      function failBenchmark(error) {
+        $("#terminal-state").textContent = "压测失败";
+        $("#benchmark-result").textContent = JSON.stringify(error, null, 2);
+        log({ benchmarkError: error });
+        state.benchmark = null;
+        $("#run-benchmark").disabled = state.connectionSnapshot?.state !== "ready";
+        $("#close-terminal").disabled = true;
+      }
+
+      async function finishBenchmark(benchmark) {
+        if (benchmark.finalizing) return;
+        benchmark.finalizing = true;
+        const deadline = performance.now() + 10000;
+        try {
+          while (performance.now() < deadline) {
+            const snapshot = await call("terminal_get", { terminalId: state.terminalId });
+            if (["closed", "failed"].includes(snapshot.state)) {
+              if (snapshot.state === "failed") throw new Error(JSON.stringify(snapshot.error));
+              benchmark.finalized = true;
+              benchmark.snapshot = snapshot;
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          if (!benchmark.finalized) throw new Error("终端在 10 秒内未结束");
+          if (benchmark.scanner.bytes !== benchmark.expectedBytes) {
+            throw new Error(`payload 长度错误：期望 ${benchmark.expectedBytes}，收到 ${benchmark.scanner.bytes}`);
+          }
+          renderBenchmark();
+          log({ benchmarkComplete: { payloadBytes: benchmark.scanner.bytes, state: benchmark.snapshot.state } });
+          state.benchmark = null;
+          $("#terminal-state").textContent = "压测完成；可选择另一策略再次运行";
+          $("#run-benchmark").disabled = state.connectionSnapshot?.state !== "ready";
+          $("#close-terminal").disabled = true;
+        } catch (error) {
+          failBenchmark(error);
+        }
+      }
+
+      async function runBenchmark() {
+        if (state.connectionSnapshot?.state !== "ready" || state.benchmark) return;
+        const sizeMiB = Number($("#size-mib").value);
+        if (!Number.isInteger(sizeMiB) || sizeMiB < 1 || sizeMiB > 8) {
+          showError("#connection-error", "输出大小必须是 1 至 8 MiB 的整数");
+          return;
+        }
+        const mode = $("#ack-mode").value;
+        const expectedBytes = sizeMiB * 1024 * 1024;
+        const blocks = sizeMiB * 32;
+        const channel = new core.Channel();
+        const parser = new Utf8AnsiParser();
+        const scanner = new PayloadScanner();
+        let promptText = "";
+        let promptReady;
+        const promptPromise = new Promise((resolve, reject) => { promptReady = { resolve, reject }; });
+        let inputSeq = 1;
+        state.inputSeq = inputSeq;
+        state.terminalChannel = channel;
+        state.terminalId = null;
+        state.terminalStreamId = null;
+        $("#benchmark-result").textContent = "正在打开独立 PTY…";
+        $("#terminal-state").textContent = "打开 PTY";
+        $("#run-benchmark").disabled = true;
+        $("#close-terminal").disabled = false;
+
+        channel.onmessage = (chunk) => {
+          const receivedAt = performance.now();
+          let benchmark = state.benchmark;
+          let ackPromise;
+          let ackDispatchAt;
+          if (benchmark?.mode === "receive") {
+            ackDispatchAt = performance.now();
+            ackPromise = acknowledge(chunk);
+          }
+          let bytes;
+          try { bytes = decodeBase64(chunk.dataBase64); }
+          catch (error) { failBenchmark(error); return; }
+
+          if (!benchmark) {
+            const plain = parser.consume(bytes);
+            promptText = (promptText + plain).slice(-240);
+            if (/[%$#>] $/.test(promptText)) promptReady.resolve();
+            ackPromise = acknowledge(chunk);
+            ackPromise.catch(failBenchmark);
+            return;
+          }
+
+          const parseStartedAt = performance.now();
+          if (benchmark.mode === "parse") parser.consume(bytes);
+          benchmark.parseTimeMs += benchmark.mode === "parse" ? performance.now() - parseStartedAt : 0;
+          benchmark.scanner.consume(bytes, receivedAt);
+          benchmark.chunks += 1;
+          benchmark.rawBytes += chunk.byteLength;
+          if (benchmark.firstChunkAt === null) benchmark.firstChunkAt = receivedAt;
+          if (benchmark.scanner.startedAt !== null && benchmark.startedAt === null) benchmark.startedAt = benchmark.scanner.startedAt;
+          if (benchmark.scanner.doneAt !== null) benchmark.doneAt = benchmark.scanner.doneAt;
+          if (benchmark.mode === "parse") {
+            ackDispatchAt = performance.now();
+            ackPromise = acknowledge(chunk);
+          }
+          const dispatchMs = ackDispatchAt - receivedAt;
+          benchmark.ackDispatchTotal += dispatchMs;
+          ackPromise.then(() => {
+            benchmark.ackRoundTripTotal += performance.now() - receivedAt;
+            benchmark.ackRoundTripCount += 1;
+            renderBenchmark();
+          }).catch(failBenchmark);
+          renderBenchmark();
+          if (benchmark.scanner.done) void ackPromise.then(() => finishBenchmark(benchmark)).catch(failBenchmark);
+        };
+
+        try {
+          const opened = await call("terminal_open", {
+            connectionId: state.connectionId,
+            columns: 120,
+            rows: 40,
+            pixelWidth: null,
+            pixelHeight: null,
+          }, { outputChannel: channel });
+          state.terminalId = opened.terminalId;
+          state.terminalStreamId = opened.streamId;
+          await Promise.race([
+            promptPromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("10 秒内没有识别到 shell prompt")), 10000)),
+          ]);
+          const benchmark = {
+            mode, expectedBytes, parser, scanner,
+            commandAt: performance.now(), firstChunkAt: null,
+            startedAt: null, doneAt: null, chunks: 0, rawBytes: 0,
+            ackDispatchTotal: 0, ackRoundTripTotal: 0, ackRoundTripCount: 0,
+            parseTimeMs: 0, finalized: false, finalizing: false,
+          };
+          parser.characters = 0;
+          parser.tail = "";
+          state.benchmark = benchmark;
+          $("#terminal-state").textContent = "正在发送输出命令";
+          const command = `printf '\\036MAULINK_START\\037'; dd if=/dev/zero bs=32768 count=${blocks} 2>/dev/null | tr '\\000' A; printf '\\036MAULINK_DONE\\037'; exit\n`;
+          await call("terminal_write", {
+            terminalId: state.terminalId,
+            inputSeq: String(inputSeq++),
+            dataBase64: encodeBase64(command),
+          });
+          state.inputSeq = inputSeq;
+          $("#terminal-state").textContent = "压测运行中";
+          log({ benchmarkStarted: { mode, expectedBytes, terminalId: state.terminalId } });
+        } catch (error) {
+          if (state.terminalId) void call("terminal_close", { terminalId: state.terminalId }).catch(() => {});
+          failBenchmark(error);
+        }
+      }
+
+      async function closeTerminal() {
+        if (!state.terminalId) return;
+        try {
+          const snapshot = await call("terminal_close", { terminalId: state.terminalId });
+          $("#terminal-state").textContent = `终端已关闭：${snapshot.state}`;
+          log({ terminalClosed: snapshot.state });
+        } catch (error) { showError("#connection-error", error); }
+      }
+
+      async function disconnect() {
+        if (state.terminalId) await closeTerminal();
+        if (!state.connectionId) return;
+        try {
+          await call("connection_disconnect", { connectionId: state.connectionId });
+          state.connectionId = null;
+          state.connectionSnapshot = null;
+          refreshConnectionControls();
+          $("#terminal-state").textContent = "等待 SSH 连接";
+          log("SSH connection 已断开");
+        } catch (error) { showError("#connection-error", error); }
+      }
+
+      $("#refresh-servers").addEventListener("click", loadServers);
+      $("#select-key").addEventListener("click", selectPrivateKey);
+      $("#create-profile").addEventListener("click", createTestProfile);
+      $("#delete-profile").addEventListener("click", deleteTestProfile);
+      $("#connect").addEventListener("click", connect);
+      $("#disconnect").addEventListener("click", disconnect);
+      $("#trust-once").addEventListener("click", () => respondHostKey("trustOnce"));
+      $("#trust-save").addEventListener("click", () => respondHostKey("trustAndSave"));
+      $("#submit-secret").addEventListener("click", submitSecret);
+      $("#run-benchmark").addEventListener("click", runBenchmark);
+      $("#close-terminal").addEventListener("click", closeTerminal);
+
+      if (!core?.invoke || !core?.Channel) {
+        showError("#connection-error", "Tauri core API 不可用；请从本地 MauLink 调试窗口运行此页面");
+      } else {
+          await loadServers();
+      }
+    </script>
+  </body>
+</html>

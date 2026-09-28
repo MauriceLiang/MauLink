@@ -1,0 +1,30 @@
+@@CPU@@
+cpu  100 10 30 800 20 2 3 1 40 5
+cpu0 50 5 15 400 10 1 2 0 20 2
+cpu1 50 5 15 400 10 1 1 1 20 3
+@@END_CPU@@
+@@MEMORY@@
+MemTotal:       16384000 kB
+MemFree:         2048000 kB
+MemAvailable:    8192000 kB
+@@END_MEMORY@@
+@@DISK@@
+Filesystem     1024-blocks      Used Available Capacity Mounted on
+/dev/vda1          52428800 20971520  31457280      40% /
+@@END_DISK@@
+@@NETWORK@@
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+eth0: 2048 16 0 0 0 0 0 0 4096 20 0 0 0 0 0 0
+lo: 512 8 0 0 0 0 0 0 512 8 0 0 0 0 0 0
+@@END_NETWORK@@
+@@LOAD@@
+0.42 0.36 0.21 1/240 1234
+@@END_LOAD@@
+@@UPTIME@@
+123456.78 234567.89
+@@END_UPTIME@@
+@@SYSTEM@@
+Linux web-01 6.1.0-18-amd64 x86_64
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+@@END_SYSTEM@@

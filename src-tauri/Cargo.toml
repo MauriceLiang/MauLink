@@ -1,0 +1,24 @@
+[package]
+name = "maulink-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "maulink_desktop"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "maulink"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.5", features = [] }
+
+[dependencies]
+maulink-core = { path = "../crates/maulink-core" }
+serde.workspace = true
+tauri = { version = "=2.11.6", features = [] }
+tauri-plugin-dialog = "2.7"
+tokio.workspace = true
