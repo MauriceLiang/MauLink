@@ -11,7 +11,7 @@ use maulink_core::{
     MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,
     MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot, MonitorMetricQuality,
     MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus, MonitorRefreshPayload,
-    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NegotiatedAlgorithms,
+    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NegotiatedAlgorithms, ProxyType,
     RemoteFileEntry, RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload,
     SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
     ServerMutationResult, ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord,
@@ -73,6 +73,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ResourceIdPayload::export_all(&config)?;
     RevisionPayload::export_all(&config)?;
     ServerProfileDraft::export_all(&config)?;
+    ProxyType::export_all(&config)?;
     ServerCreatePayload::export_all(&config)?;
     ServerUpdatePayload::export_all(&config)?;
     ServerDeletePayload::export_all(&config)?;

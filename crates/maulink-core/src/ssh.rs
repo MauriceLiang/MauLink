@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     future::Future,
+    io,
     net::{IpAddr, SocketAddr},
     path::PathBuf,
     sync::Arc,
@@ -14,7 +15,8 @@ use russh::{
     keys::{self, PrivateKeyWithHashAlg},
 };
 use tokio::{
-    net::lookup_host,
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    net::{TcpStream, lookup_host},
     sync::{Mutex, Notify},
 };
 use tokio_util::sync::CancellationToken;
@@ -23,7 +25,8 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::{
     AppError, AuthType, ConnectionMode, ConnectionRegistry, ConnectionSnapshot, ConnectionState,
     CredentialKind, CredentialManager, ErrorCode, HostKeyCandidate, HostKeyDecision,
-    HostKeyVerifier, NegotiatedAlgorithms, ProfileStore, Secret, host_keys::normalize_host,
+    HostKeyVerifier, NegotiatedAlgorithms, ProfileStore, ProxyType, Secret,
+    host_keys::normalize_host,
 };
 
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -49,6 +52,7 @@ pub struct SshSession {
     connection_id: String,
     server_host: String,
     handle: Handle<HostKeyHandler>,
+    upstream_handles: Vec<Handle<HostKeyHandler>>,
     connections: ConnectionRegistry,
 }
 
@@ -85,6 +89,37 @@ struct SshConnectionProfile {
     private_key_path: Option<PathBuf>,
     connect_timeout_ms: u32,
     keepalive_interval_seconds: u32,
+    jump_host: Option<String>,
+    jump_port: u16,
+    proxy_type: Option<ProxyType>,
+    proxy_host: Option<String>,
+    proxy_port: Option<u16>,
+}
+
+#[derive(Clone, Copy)]
+struct ProxyTransport<'a> {
+    protocol: ProxyType,
+    host: &'a str,
+    port: u16,
+}
+
+struct StreamConnectOptions<'a> {
+    connection_id: &'a str,
+    host: &'a str,
+    port: u16,
+    keepalive_interval: Duration,
+    cancellation: &'a CancellationToken,
+    deadline: tokio::time::Instant,
+}
+
+impl SshConnectionProfile {
+    fn connect_timeout(&self) -> Duration {
+        Duration::from_millis(u64::from(self.connect_timeout_ms))
+    }
+
+    fn keepalive_interval(&self) -> Duration {
+        Duration::from_secs(u64::from(self.keepalive_interval_seconds))
+    }
 }
 
 struct ConnectionAttempt {
@@ -181,40 +216,8 @@ impl SshConnector {
             if remaining.is_zero() {
                 return Err(connection_timeout("connecting"));
             }
-            let mut config = client::Config {
-                keepalive_interval: Some(keepalive_interval),
-                keepalive_max: 3,
-                nodelay: true,
-                window_size: TERMINAL_CHANNEL_WINDOW_BYTES,
-                maximum_packet_size: 32 * 1024,
-                channel_buffer_size: TERMINAL_CHANNEL_BUFFER_MESSAGES,
-                ..client::Config::default()
-            };
-            // russh's default host-key list ends in the legacy SHA-1 ssh-rsa
-            // signature. Keep RSA SHA-2 and remove that final fallback.
-            config.preferred.key = std::borrow::Cow::Owned(
-                config
-                    .preferred
-                    .key
-                    .iter()
-                    .filter(|algorithm| {
-                        !matches!(
-                            algorithm,
-                            russh::keys::ssh_key::Algorithm::Rsa { hash: None }
-                        )
-                    })
-                    .cloned()
-                    .collect(),
-            );
-            let handler = HostKeyHandler {
-                connection_id: connection_id.to_owned(),
-                host: normalized_host.clone(),
-                port,
-                resume_state: None,
-                connections: self.connections.clone(),
-                verifier: self.host_keys.clone(),
-            };
-            let connecting = client::connect(Arc::new(config), address, handler);
+            let handler = self.host_key_handler(connection_id, &normalized_host, port);
+            let connecting = client::connect(client_config(keepalive_interval), address, handler);
             match connect_with_budget(
                 connecting,
                 &self.connections,
@@ -229,6 +232,7 @@ impl SshConnector {
                         connection_id: connection_id.to_owned(),
                         server_host: normalized_host,
                         handle,
+                        upstream_handles: Vec::new(),
                         connections: self.connections.clone(),
                     });
                 }
@@ -239,6 +243,138 @@ impl SshConnector {
             }
         }
         Err(last_error.unwrap_or_else(|| connection_timeout("connecting")))
+    }
+
+    fn host_key_handler(&self, connection_id: &str, host: &str, port: u16) -> HostKeyHandler {
+        HostKeyHandler {
+            connection_id: connection_id.to_owned(),
+            host: host.to_owned(),
+            port,
+            resume_state: None,
+            connections: self.connections.clone(),
+            verifier: self.host_keys.clone(),
+        }
+    }
+
+    async fn connect_via_proxy(
+        &self,
+        connection_id: &str,
+        host: &str,
+        port: u16,
+        proxy: ProxyTransport<'_>,
+        connect_timeout: Duration,
+        keepalive_interval: Duration,
+    ) -> Result<SshSession, AppError> {
+        let normalized_host = normalize_host(host)?;
+        let normalized_proxy_host = normalize_host(proxy.host)?;
+        if port == 0 || proxy.port == 0 {
+            return Err(validation("port", "errors.portOutOfRange"));
+        }
+        self.connections
+            .transition(connection_id, ConnectionState::Resolving)?;
+        let cancellation = self.connections.cancellation_token(connection_id)?;
+        let deadline = tokio::time::Instant::now() + connect_timeout;
+        let addresses =
+            resolve_addresses(&normalized_proxy_host, proxy.port, &cancellation, deadline).await?;
+        if addresses.is_empty() {
+            return Err(AppError::new(ErrorCode::DnsFailed, "errors.dnsFailed")
+                .with_stage("resolvingProxy"));
+        }
+        self.connections
+            .transition(connection_id, ConnectionState::Connecting)?;
+        let mut stream = connect_proxy_socket(addresses, &cancellation, deadline).await?;
+        run_proxy_handshake(
+            &mut stream,
+            proxy.protocol,
+            &normalized_host,
+            port,
+            &cancellation,
+            deadline,
+        )
+        .await?;
+        let handle = self
+            .connect_stream_handle(
+                StreamConnectOptions {
+                    connection_id,
+                    host: &normalized_host,
+                    port,
+                    keepalive_interval,
+                    cancellation: &cancellation,
+                    deadline,
+                },
+                stream,
+            )
+            .await?;
+        Ok(SshSession {
+            connection_id: connection_id.to_owned(),
+            server_host: normalized_host,
+            handle,
+            upstream_handles: Vec::new(),
+            connections: self.connections.clone(),
+        })
+    }
+
+    async fn connect_over_stream<S>(
+        &self,
+        connection_id: &str,
+        host: &str,
+        port: u16,
+        stream: S,
+        connect_timeout: Duration,
+        keepalive_interval: Duration,
+    ) -> Result<SshSession, AppError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let normalized_host = normalize_host(host)?;
+        if port == 0 {
+            return Err(validation("port", "errors.portOutOfRange"));
+        }
+        let cancellation = self.connections.cancellation_token(connection_id)?;
+        let deadline = tokio::time::Instant::now() + connect_timeout;
+        let handle = self
+            .connect_stream_handle(
+                StreamConnectOptions {
+                    connection_id,
+                    host: &normalized_host,
+                    port,
+                    keepalive_interval,
+                    cancellation: &cancellation,
+                    deadline,
+                },
+                stream,
+            )
+            .await?;
+        Ok(SshSession {
+            connection_id: connection_id.to_owned(),
+            server_host: normalized_host,
+            handle,
+            upstream_handles: Vec::new(),
+            connections: self.connections.clone(),
+        })
+    }
+
+    async fn connect_stream_handle<S>(
+        &self,
+        options: StreamConnectOptions<'_>,
+        stream: S,
+    ) -> Result<Handle<HostKeyHandler>, AppError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        let connecting = client::connect_stream(
+            client_config(options.keepalive_interval),
+            stream,
+            self.host_key_handler(options.connection_id, options.host, options.port),
+        );
+        connect_with_budget(
+            connecting,
+            &self.connections,
+            options.connection_id,
+            options.cancellation,
+            options.deadline,
+        )
+        .await
     }
 
     pub async fn authenticate_password(
@@ -299,8 +435,10 @@ impl SshConnector {
                 None
             }
         };
-        if self.connections.get(&session.connection_id)?.state == ConnectionState::VerifyingHostKey
-        {
+        if matches!(
+            self.connections.get(&session.connection_id)?.state,
+            ConnectionState::VerifyingHostKey | ConnectionState::Ready
+        ) {
             self.connections
                 .transition(&session.connection_id, ConnectionState::Authenticating)?;
         }
@@ -461,6 +599,11 @@ impl SshConnectionManager {
                 private_key_path,
                 connect_timeout_ms: profile.connect_timeout_ms,
                 keepalive_interval_seconds: profile.keepalive_interval_seconds,
+                jump_host: profile.jump_host,
+                jump_port: profile.jump_port,
+                proxy_type: profile.proxy_type,
+                proxy_host: profile.proxy_host,
+                proxy_port: profile.proxy_port,
             },
             credential_server_id: Some(server_id.clone()),
             credential: None,
@@ -490,6 +633,11 @@ impl SshConnectionManager {
                 private_key_path,
                 connect_timeout_ms: input.connect_timeout_ms,
                 keepalive_interval_seconds: input.keepalive_interval_seconds,
+                jump_host: input.jump_host,
+                jump_port: input.jump_port,
+                proxy_type: input.proxy_type,
+                proxy_host: input.proxy_host,
+                proxy_port: input.proxy_port,
             },
             credential_server_id: None,
             credential,
@@ -852,66 +1000,287 @@ impl SshConnectionManager {
             credential_server_id,
             credential,
         } = attempt;
-        let mut session = self
-            .connector
-            .connect(
+        if let Some(jump_host) = profile.jump_host.clone() {
+            self.connect_through_jump(
                 connection_id,
-                &profile.host,
-                profile.port,
-                Duration::from_millis(u64::from(profile.connect_timeout_ms)),
-                Duration::from_secs(u64::from(profile.keepalive_interval_seconds)),
+                profile,
+                &jump_host,
+                credential_server_id,
+                credential,
             )
-            .await?;
-        let authentication = async {
-            let secret = match (credential, credential_server_id) {
-                (Some(secret), _) => Some(secret),
-                (None, Some(server_id)) => {
-                    match self.credentials.load_for_authentication(server_id).await {
-                        Ok(secret) => Some(secret),
-                        Err(error)
-                            if matches!(
-                                error.code,
-                                ErrorCode::CredentialNotFound | ErrorCode::CredentialAccessDenied
-                            ) =>
-                        {
-                            None
-                        }
-                        Err(error) => return Err(error.with_stage("authenticating")),
-                    }
-                }
-                (None, None) => None,
-            };
-            match profile.auth_type {
-                AuthType::Password => {
+            .await
+        } else {
+            let proxy = proxy_transport(&profile)?;
+            let mut session = match proxy {
+                Some(proxy) => {
                     self.connector
-                        .authenticate_password(&mut session, profile.username, secret)
-                        .await
-                }
-                AuthType::PrivateKey => {
-                    let path = profile.private_key_path.ok_or_else(|| {
-                        validation("privateKeyPath", "errors.privateKeyPathInvalid")
-                    })?;
-                    let key_contents = read_private_key(path).await?;
-                    self.connector
-                        .authenticate_private_key(
-                            &mut session,
-                            profile.username,
-                            key_contents,
-                            secret,
+                        .connect_via_proxy(
+                            connection_id,
+                            &profile.host,
+                            profile.port,
+                            proxy,
+                            profile.connect_timeout(),
+                            profile.keepalive_interval(),
                         )
-                        .await
+                        .await?
+                }
+                None => {
+                    self.connector
+                        .connect(
+                            connection_id,
+                            &profile.host,
+                            profile.port,
+                            profile.connect_timeout(),
+                            profile.keepalive_interval(),
+                        )
+                        .await?
+                }
+            };
+            let authentication = async {
+                let secret = self
+                    .resolve_credential(credential, credential_server_id.as_deref())
+                    .await?;
+                let key_contents = self.read_profile_key(&profile).await?;
+                self.authenticate_profile(
+                    &mut session,
+                    &profile,
+                    profile.username.clone(),
+                    secret,
+                    key_contents.as_ref(),
+                )
+                .await
+            }
+            .await;
+            match authentication {
+                Ok(()) => Ok(session),
+                Err(error) => {
+                    session.abort_transport().await;
+                    Err(error)
                 }
             }
         }
+    }
+
+    async fn connect_through_jump(
+        &self,
+        connection_id: &str,
+        profile: SshConnectionProfile,
+        jump_host: &str,
+        credential_server_id: Option<String>,
+        credential: Option<Secret>,
+    ) -> Result<SshSession, AppError> {
+        let (jump_username, jump_address) = parse_jump_host(jump_host, &profile.username)?;
+        let proxy = proxy_transport(&profile)?;
+        let mut jump_session = match proxy {
+            Some(proxy) => {
+                self.connector
+                    .connect_via_proxy(
+                        connection_id,
+                        &jump_address,
+                        profile.jump_port,
+                        proxy,
+                        profile.connect_timeout(),
+                        profile.keepalive_interval(),
+                    )
+                    .await?
+            }
+            None => {
+                self.connector
+                    .connect(
+                        connection_id,
+                        &jump_address,
+                        profile.jump_port,
+                        profile.connect_timeout(),
+                        profile.keepalive_interval(),
+                    )
+                    .await?
+            }
+        };
+
+        let authentication = async {
+            let key_contents = self.read_profile_key(&profile).await?;
+            let mut secret = self
+                .resolve_credential(credential, credential_server_id.as_deref())
+                .await?;
+            let needs_secret = match profile.auth_type {
+                AuthType::Password => true,
+                AuthType::PrivateKey => key_contents
+                    .as_ref()
+                    .is_some_and(|contents| private_key_is_encrypted(contents.as_str())),
+            };
+            if secret.is_none() && needs_secret {
+                let kind = match profile.auth_type {
+                    AuthType::Password => CredentialKind::Password,
+                    AuthType::PrivateKey => CredentialKind::Passphrase,
+                };
+                secret = Some(
+                    self.connections
+                        .request_authentication_secret(connection_id, kind)
+                        .await?,
+                );
+            }
+            self.authenticate_profile(
+                &mut jump_session,
+                &profile,
+                jump_username,
+                secret.as_ref().map(Secret::duplicate),
+                key_contents.as_ref(),
+            )
+            .await?;
+
+            let cancellation = self.connections.cancellation_token(connection_id)?;
+            let timeout = profile.connect_timeout();
+            let channel = tokio::select! {
+                _ = cancellation.cancelled() => return Err(cancelled()),
+                result = tokio::time::timeout(timeout, jump_session.handle.channel_open_direct_tcpip(
+                    profile.host.clone(),
+                    u32::from(profile.port),
+                    "127.0.0.1",
+                    0,
+                )) => match result {
+                    Err(_) => return Err(connection_timeout("openingJumpHostTunnel")),
+                    Ok(Err(error)) => return Err(map_ssh_error(error, "openingJumpHostTunnel")),
+                    Ok(Ok(channel)) => channel,
+                }
+            };
+            let mut target_session = self
+                .connector
+                .connect_over_stream(
+                    connection_id,
+                    &profile.host,
+                    profile.port,
+                    channel.into_stream(),
+                    timeout,
+                    profile.keepalive_interval(),
+                )
+                .await?;
+            if let Err(error) = self.authenticate_profile(
+                &mut target_session,
+                &profile,
+                profile.username.clone(),
+                secret.as_ref().map(Secret::duplicate),
+                key_contents.as_ref(),
+            )
+            .await
+            {
+                target_session.abort_transport().await;
+                return Err(error);
+            }
+            Ok(target_session)
+        }
         .await;
         match authentication {
-            Ok(()) => Ok(session),
+            Ok(mut session) => {
+                session.upstream_handles.push(jump_session.handle);
+                Ok(session)
+            }
             Err(error) => {
-                session.abort_transport().await;
+                jump_session.abort_transport().await;
                 Err(error)
             }
         }
     }
+
+    async fn resolve_credential(
+        &self,
+        credential: Option<Secret>,
+        credential_server_id: Option<&str>,
+    ) -> Result<Option<Secret>, AppError> {
+        match (credential, credential_server_id) {
+            (Some(secret), _) => Ok(Some(secret)),
+            (None, Some(server_id)) => match self
+                .credentials
+                .load_for_authentication(server_id.to_owned())
+                .await
+            {
+                Ok(secret) => Ok(Some(secret)),
+                Err(error)
+                    if matches!(
+                        error.code,
+                        ErrorCode::CredentialNotFound | ErrorCode::CredentialAccessDenied
+                    ) =>
+                {
+                    Ok(None)
+                }
+                Err(error) => Err(error.with_stage("authenticating")),
+            },
+            (None, None) => Ok(None),
+        }
+    }
+
+    async fn read_profile_key(
+        &self,
+        profile: &SshConnectionProfile,
+    ) -> Result<Option<Zeroizing<String>>, AppError> {
+        match (profile.auth_type, profile.private_key_path.as_ref()) {
+            (AuthType::PrivateKey, Some(path)) => read_private_key(path.clone()).await.map(Some),
+            (AuthType::PrivateKey, None) => {
+                Err(validation("privateKeyPath", "errors.privateKeyPathInvalid"))
+            }
+            (AuthType::Password, _) => Ok(None),
+        }
+    }
+
+    async fn authenticate_profile(
+        &self,
+        session: &mut SshSession,
+        profile: &SshConnectionProfile,
+        username: String,
+        secret: Option<Secret>,
+        key_contents: Option<&Zeroizing<String>>,
+    ) -> Result<(), AppError> {
+        match profile.auth_type {
+            AuthType::Password => {
+                self.connector
+                    .authenticate_password(session, username, secret)
+                    .await
+            }
+            AuthType::PrivateKey => {
+                let key_contents = key_contents
+                    .ok_or_else(|| validation("privateKeyPath", "errors.privateKeyPathInvalid"))?;
+                self.connector
+                    .authenticate_private_key(
+                        session,
+                        username,
+                        Zeroizing::new(key_contents.as_str().to_owned()),
+                        secret,
+                    )
+                    .await
+            }
+        }
+    }
+}
+
+fn proxy_transport(profile: &SshConnectionProfile) -> Result<Option<ProxyTransport<'_>>, AppError> {
+    match (
+        profile.proxy_type,
+        profile.proxy_host.as_deref(),
+        profile.proxy_port,
+    ) {
+        (None, None, None) => Ok(None),
+        (Some(protocol), Some(host), Some(port)) if port > 0 => Ok(Some(ProxyTransport {
+            protocol,
+            host,
+            port,
+        })),
+        _ => Err(validation("proxyHost", "errors.proxyConfigurationInvalid")),
+    }
+}
+
+fn parse_jump_host(value: &str, fallback_username: &str) -> Result<(String, String), AppError> {
+    let (username, host) = match value.split_once('@') {
+        Some((username, host)) if !username.is_empty() && !host.is_empty() => {
+            if username.chars().count() > 256 || username.contains('@') {
+                return Err(validation("jumpHost", "errors.jumpHostInvalid"));
+            }
+            (username.to_owned(), host)
+        }
+        Some(_) => return Err(validation("jumpHost", "errors.jumpHostInvalid")),
+        None => (fallback_username.to_owned(), value),
+    };
+    let host =
+        normalize_host(host).map_err(|_| validation("jumpHost", "errors.jumpHostInvalid"))?;
+    Ok((username, host))
 }
 
 impl SshSession {
@@ -930,15 +1299,29 @@ impl SshSession {
                 .handle
                 .disconnect(Disconnect::ByApplication, "MauLink disconnected", "")
                 .await;
+            for handle in self.upstream_handles.iter().rev() {
+                let _ = handle
+                    .disconnect(Disconnect::ByApplication, "MauLink disconnected", "")
+                    .await;
+            }
             return Ok(());
         }
         self.connections
             .transition(&self.connection_id, ConnectionState::Disconnecting)?;
-        let disconnect_result = self
+        let mut disconnect_error = self
             .handle
             .disconnect(Disconnect::ByApplication, "MauLink disconnected", "")
             .await;
-        if let Err(error) = disconnect_result {
+        for handle in self.upstream_handles.iter().rev() {
+            if let Err(error) = handle
+                .disconnect(Disconnect::ByApplication, "MauLink disconnected", "")
+                .await
+                && disconnect_error.is_ok()
+            {
+                disconnect_error = Err(error);
+            }
+        }
+        if let Err(error) = disconnect_error {
             let app_error = map_ssh_error(error, "disconnecting");
             let _ = self
                 .connections
@@ -1090,6 +1473,11 @@ impl SshSession {
             .handle
             .disconnect(Disconnect::ByApplication, "MauLink connection closed", "")
             .await;
+        for handle in self.upstream_handles.iter().rev() {
+            let _ = handle
+                .disconnect(Disconnect::ByApplication, "MauLink connection closed", "")
+                .await;
+        }
     }
 }
 
@@ -1214,6 +1602,233 @@ async fn resolve_addresses(
         lookup
     };
     Ok(addresses)
+}
+
+fn client_config(keepalive_interval: Duration) -> Arc<client::Config> {
+    let mut config = client::Config {
+        keepalive_interval: Some(keepalive_interval),
+        keepalive_max: 3,
+        nodelay: true,
+        window_size: TERMINAL_CHANNEL_WINDOW_BYTES,
+        maximum_packet_size: 32 * 1024,
+        channel_buffer_size: TERMINAL_CHANNEL_BUFFER_MESSAGES,
+        ..client::Config::default()
+    };
+    // Keep RSA SHA-2 while removing russh's legacy SHA-1 ssh-rsa fallback.
+    config.preferred.key = std::borrow::Cow::Owned(
+        config
+            .preferred
+            .key
+            .iter()
+            .filter(|algorithm| {
+                !matches!(
+                    algorithm,
+                    russh::keys::ssh_key::Algorithm::Rsa { hash: None }
+                )
+            })
+            .cloned()
+            .collect(),
+    );
+    Arc::new(config)
+}
+
+async fn connect_proxy_socket(
+    addresses: Vec<SocketAddr>,
+    cancellation: &CancellationToken,
+    deadline: tokio::time::Instant,
+) -> Result<TcpStream, AppError> {
+    let mut last_error = None;
+    for address in addresses {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(connection_timeout("connectingProxy"));
+        }
+        let result = tokio::select! {
+            _ = cancellation.cancelled() => return Err(cancelled()),
+            result = tokio::time::timeout(remaining, TcpStream::connect(address)) => result,
+        };
+        match result {
+            Err(_) => return Err(connection_timeout("connectingProxy")),
+            Ok(Ok(stream)) => {
+                stream.set_nodelay(true).map_err(proxy_io_error)?;
+                return Ok(stream);
+            }
+            Ok(Err(error)) if error.kind() == io::ErrorKind::ConnectionRefused => {
+                last_error = Some(proxy_connection_refused());
+            }
+            Ok(Err(error)) => return Err(proxy_io_error(error)),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| connection_timeout("connectingProxy")))
+}
+
+async fn run_proxy_handshake<S>(
+    stream: &mut S,
+    protocol: ProxyType,
+    target_host: &str,
+    target_port: u16,
+    cancellation: &CancellationToken,
+    deadline: tokio::time::Instant,
+) -> Result<(), AppError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+    if remaining.is_zero() {
+        return Err(connection_timeout("connectingProxy"));
+    }
+    let handshake = async {
+        match protocol {
+            ProxyType::Socks5 => socks5_connect(stream, target_host, target_port).await,
+            ProxyType::HttpConnect => http_connect(stream, target_host, target_port).await,
+        }
+    };
+    tokio::select! {
+        _ = cancellation.cancelled() => Err(cancelled()),
+        result = tokio::time::timeout(remaining, handshake) => match result {
+            Err(_) => Err(connection_timeout("connectingProxy")),
+            Ok(result) => result,
+        }
+    }
+}
+
+async fn socks5_connect<S>(
+    stream: &mut S,
+    target_host: &str,
+    target_port: u16,
+) -> Result<(), AppError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    stream.write_all(&[5, 1, 0]).await.map_err(proxy_io_error)?;
+    let mut greeting = [0; 2];
+    stream
+        .read_exact(&mut greeting)
+        .await
+        .map_err(proxy_io_error)?;
+    if greeting != [5, 0] {
+        return Err(proxy_handshake_failed());
+    }
+
+    let mut request = vec![5, 1, 0];
+    if let Ok(address) = target_host.parse::<IpAddr>() {
+        match address {
+            IpAddr::V4(address) => {
+                request.push(1);
+                request.extend_from_slice(&address.octets());
+            }
+            IpAddr::V6(address) => {
+                request.push(4);
+                request.extend_from_slice(&address.octets());
+            }
+        }
+    } else {
+        let domain = proxy_domain_name(target_host)?;
+        let domain = domain.as_bytes();
+        let length = u8::try_from(domain.len()).map_err(|_| proxy_handshake_failed())?;
+        request.extend_from_slice(&[3, length]);
+        request.extend_from_slice(domain);
+    }
+    request.extend_from_slice(&target_port.to_be_bytes());
+    stream.write_all(&request).await.map_err(proxy_io_error)?;
+
+    let mut response = [0; 4];
+    stream
+        .read_exact(&mut response)
+        .await
+        .map_err(proxy_io_error)?;
+    if response[0] != 5 || response[1] != 0 || response[2] != 0 {
+        return Err(proxy_handshake_failed());
+    }
+    let address_length = match response[3] {
+        1 => 4,
+        4 => 16,
+        3 => {
+            let mut length = [0; 1];
+            stream
+                .read_exact(&mut length)
+                .await
+                .map_err(proxy_io_error)?;
+            usize::from(length[0])
+        }
+        _ => return Err(proxy_handshake_failed()),
+    };
+    let mut bound_address = vec![0; address_length + 2];
+    stream
+        .read_exact(&mut bound_address)
+        .await
+        .map_err(proxy_io_error)?;
+    Ok(())
+}
+
+async fn http_connect<S>(
+    stream: &mut S,
+    target_host: &str,
+    target_port: u16,
+) -> Result<(), AppError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let authority_host = match target_host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(address)) => address.to_string(),
+        Ok(IpAddr::V6(address)) => format!("[{address}]"),
+        Err(_) => proxy_domain_name(target_host)?,
+    };
+    let authority = format!("{authority_host}:{target_port}");
+    let request = format!(
+        "CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\nProxy-Connection: Keep-Alive\r\n\r\n"
+    );
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .map_err(proxy_io_error)?;
+
+    let mut headers = Vec::with_capacity(256);
+    while headers.len() < 8192 {
+        let byte = stream.read_u8().await.map_err(proxy_io_error)?;
+        headers.push(byte);
+        if headers.ends_with(b"\r\n\r\n") {
+            let response = std::str::from_utf8(&headers).map_err(|_| proxy_handshake_failed())?;
+            let status = response.lines().next().ok_or_else(proxy_handshake_failed)?;
+            let mut status_parts = status.split_ascii_whitespace();
+            let protocol = status_parts.next().unwrap_or_default();
+            let code = status_parts.next().unwrap_or_default();
+            if protocol.starts_with("HTTP/")
+                && code
+                    .parse::<u16>()
+                    .is_ok_and(|status| (200..300).contains(&status))
+            {
+                return Ok(());
+            }
+            return Err(proxy_handshake_failed());
+        }
+    }
+    Err(proxy_handshake_failed())
+}
+
+fn proxy_domain_name(host: &str) -> Result<String, AppError> {
+    idna::domain_to_ascii(host).map_err(|_| proxy_handshake_failed())
+}
+
+fn proxy_connection_refused() -> AppError {
+    AppError::new(ErrorCode::ConnectionRefused, "errors.proxyConnectionFailed")
+        .with_retry()
+        .with_stage("connectingProxy")
+}
+
+fn proxy_handshake_failed() -> AppError {
+    AppError::new(ErrorCode::ConnectionLost, "errors.proxyHandshakeFailed")
+        .with_stage("connectingProxy")
+}
+
+fn proxy_io_error(error: io::Error) -> AppError {
+    if error.kind() == io::ErrorKind::TimedOut {
+        connection_timeout("connectingProxy")
+    } else if error.kind() == io::ErrorKind::ConnectionRefused {
+        proxy_connection_refused()
+    } else {
+        proxy_handshake_failed()
+    }
 }
 
 async fn connect_with_budget<F>(
@@ -1529,6 +2144,121 @@ mod tests {
                 .expect("failed snapshot")
                 .error,
             Some(rejection)
+        );
+    }
+
+    #[tokio::test]
+    async fn socks5_proxy_opens_a_remote_dns_tunnel() {
+        let (mut stream, mut proxy_stream) = tokio::io::duplex(4096);
+        let proxy = tokio::spawn(async move {
+            let mut greeting = [0; 3];
+            proxy_stream
+                .read_exact(&mut greeting)
+                .await
+                .expect("read greeting");
+            assert_eq!(greeting, [5, 1, 0]);
+            proxy_stream
+                .write_all(&[5, 0])
+                .await
+                .expect("accept no-auth mode");
+
+            let mut request_head = [0; 5];
+            proxy_stream
+                .read_exact(&mut request_head)
+                .await
+                .expect("read SOCKS request");
+            assert_eq!(request_head, [5, 1, 0, 3, 11]);
+            let mut destination = [0; 13];
+            proxy_stream
+                .read_exact(&mut destination)
+                .await
+                .expect("read destination and port");
+            assert_eq!(&destination[..11], b"target.test");
+            assert_eq!(&destination[11..], &22_u16.to_be_bytes());
+            proxy_stream
+                .write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 22])
+                .await
+                .expect("accept tunnel");
+        });
+        run_proxy_handshake(
+            &mut stream,
+            ProxyType::Socks5,
+            "target.test",
+            22,
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + Duration::from_secs(2),
+        )
+        .await
+        .expect("complete SOCKS5 CONNECT");
+        proxy.await.expect("SOCKS proxy task");
+    }
+
+    #[tokio::test]
+    async fn http_connect_keeps_bytes_after_headers_for_the_ssh_handshake() {
+        let (mut stream, mut proxy_stream) = tokio::io::duplex(4096);
+        let proxy = tokio::spawn(async move {
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                request.push(proxy_stream.read_u8().await.expect("read CONNECT request"));
+            }
+            let request = String::from_utf8(request).expect("UTF-8 request");
+            assert!(request.starts_with("CONNECT target.test:2222 HTTP/1.1\r\n"));
+            proxy_stream
+                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\nSSH-")
+                .await
+                .expect("write proxy response and next protocol bytes");
+        });
+        run_proxy_handshake(
+            &mut stream,
+            ProxyType::HttpConnect,
+            "target.test",
+            2222,
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + Duration::from_secs(2),
+        )
+        .await
+        .expect("complete HTTP CONNECT");
+        let mut ssh_prefix = [0; 4];
+        stream
+            .read_exact(&mut ssh_prefix)
+            .await
+            .expect("read first SSH bytes without proxy overread");
+        assert_eq!(&ssh_prefix, b"SSH-");
+        proxy.await.expect("HTTP proxy task");
+    }
+
+    #[tokio::test]
+    async fn http_connect_rejects_non_success_responses() {
+        let (mut stream, mut proxy_stream) = tokio::io::duplex(4096);
+        let proxy = tokio::spawn(async move {
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                request.push(proxy_stream.read_u8().await.expect("read CONNECT request"));
+            }
+            proxy_stream
+                .write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\n\r\n")
+                .await
+                .expect("write rejection");
+        });
+        let error = run_proxy_handshake(
+            &mut stream,
+            ProxyType::HttpConnect,
+            "target.test",
+            22,
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + Duration::from_secs(2),
+        )
+        .await
+        .expect_err("proxy authentication is unsupported");
+        assert_eq!(error.message_key, "errors.proxyHandshakeFailed");
+        proxy.await.expect("HTTP proxy task");
+    }
+
+    #[test]
+    fn proxy_domain_names_use_idna_ascii() {
+        assert_eq!(
+            proxy_domain_name("bücher.example").expect("convert IDN host"),
+            "xn--bcher-kva.example"
         );
     }
 }

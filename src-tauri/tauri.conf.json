@@ -16,6 +16,13 @@
       {
         "label": "main",
         "title": "MauLink",
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 12,
+          "y": 15
+        },
         "width": 1440,
         "height": 920,
         "minWidth": 860,

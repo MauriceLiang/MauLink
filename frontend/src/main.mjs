@@ -2,6 +2,7 @@ import { createTerminalOutputConsumer, encodeBytesBase64 } from "./terminal-code
 import { joinRemotePath, parentRemotePath } from "./remote-path.mjs";
 import { formatBytes, formatPercent, formatRate as formatMonitorRate, formatUptime, qualityLabel, sparklinePath } from "./monitor-view.mjs";
 import { hydrateIcons, iconMarkup } from "./icons.mjs";
+import { setLocale, translateText } from "./i18n.mjs";
 
 const API_VERSION = 1;
 const MAX_TERMINAL_INPUT_CHUNK = 64 * 1024;
@@ -19,6 +20,8 @@ const state = {
   editingProfile: null,
   selectedKey: null,
   deleteTarget: null,
+  connectionFailureProfile: null,
+  restoreEditorAfterDeleteConfirmation: false,
   connections: new Map(),
   activeWorkspace: null,
   disconnecting: false,
@@ -118,6 +121,10 @@ const knownErrors = {
   "errors.monitorCollectionFailed": "无法读取服务器监控数据。",
   "errors.monitorHistoryRangeInvalid": "监控历史时间范围无效。",
   "errors.connectionNotReady": "SSH 连接尚未就绪。",
+  "errors.proxyConnectionFailed": "无法连接代理服务器，请检查代理地址、端口和网络。",
+  "errors.proxyHandshakeFailed": "代理拒绝或无法建立 SSH 隧道，请检查代理协议和目标访问权限。",
+  "errors.proxyConfigurationInvalid": "代理配置不完整，请检查代理类型、主机和端口。",
+  "errors.jumpHostInvalid": "跳板机格式无效，请使用 host 或 user@host。",
 };
 
 function request(payload = {}) {
@@ -131,9 +138,12 @@ function invoke(command, payload = {}, extra = {}) {
 
 function errorMessage(error) {
   if (typeof error === "string") return error;
-  if (error?.messageKey && knownErrors[error.messageKey]) return knownErrors[error.messageKey];
+  if (error?.messageKey && knownErrors[error.messageKey]) return translateText(knownErrors[error.messageKey]);
   if (error?.messageKey) return `${error.code ?? "操作失败"} · ${error.messageKey}`;
-  if (error?.code) return knownErrors[`errors.${error.code}`] ?? `${error.code}${error.stage ? ` · ${error.stage}` : ""}`;
+  if (error?.code) {
+    const message = knownErrors[`errors.${error.code}`];
+    return message ? translateText(message) : `${error.code}${error.stage ? ` · ${error.stage}` : ""}`;
+  }
   if (error instanceof Error) return error.message;
   try { return JSON.stringify(error); } catch { return "发生未知错误。"; }
 }
@@ -166,6 +176,26 @@ function openDialog(dialog) {
 
 function closeDialog(dialog) {
   if (dialog.open) dialog.close();
+}
+
+function showConnectionError(profile, error) {
+  state.connectionFailureProfile = profile;
+  setText($("#connection-error-server-name"), profile?.name || profile?.host || "SSH 服务器");
+  setText($("#connection-error-address"), `${profile?.host ?? ""}:${profile?.port ?? 22}`);
+  setText($("#connection-error-detail"), errorMessage(error ?? "SSH 连接失败。"));
+  openDialog($("#connection-error-dialog"));
+}
+
+function setServerTestResult(profile, error = null) {
+  const result = $("#test-result");
+  const succeeded = error == null;
+  result.hidden = false;
+  result.dataset.state = succeeded ? "success" : "error";
+  $("#test-result-icon").innerHTML = iconMarkup(succeeded ? "circle-check" : "circle-alert");
+  setText($("#test-result-title"), succeeded ? "连接成功" : "连接失败");
+  setText($("#test-result-detail"), succeeded
+    ? profile?.authType === "privateKey" ? "SSH 密钥认证已完成。" : "密码认证已完成。"
+    : errorMessage(error));
 }
 
 function groupLabel(groupId) {
@@ -211,6 +241,7 @@ function renderGroups() {
     const name = document.createElement("span");
     name.className = "group-filter-name";
     name.textContent = group.name;
+    if (group.id !== "all" && group.id !== "ungrouped") name.dataset.userContent = "true";
     const count = document.createElement("span");
     count.className = "group-filter-count";
     count.textContent = String(group.count);
@@ -225,7 +256,11 @@ function renderGroups() {
   const groupSelect = $("#profile-group");
   const selected = groupSelect.value;
   groupSelect.replaceChildren(new Option("未分组", ""));
-  for (const group of state.groups) groupSelect.add(new Option(group.name, group.id));
+  for (const group of state.groups) {
+    const option = new Option(group.name, group.id);
+    option.dataset.userContent = "true";
+    groupSelect.add(option);
+  }
   if (state.groups.some((group) => group.id === selected)) groupSelect.value = selected;
 }
 
@@ -236,6 +271,7 @@ function setText(element, value) {
 function renderSettings() {
   const settings = state.settings.value;
   document.documentElement.dataset.theme = settings.theme;
+  setLocale(settings.language);
   $("#setting-confirm-disconnect").checked = settings.confirmBeforeDisconnect;
   $("#setting-language").value = settings.language;
   $("#setting-terminal-font").value = settings.terminalFontFamily;
@@ -360,10 +396,14 @@ function createServerRow(profile) {
       <button class="row-action delete" type="button" data-action="delete" title="删除服务器" aria-label="删除服务器">${iconMarkup("trash-2")}</button>
     </div>`;
   hydrateIcons(row);
+  for (const selector of [".server-monogram", ".server-name", ".server-address", ".host-value"]) {
+    $(selector, row).dataset.userContent = "true";
+  }
   setText($(".server-monogram", row), (profile.name || profile.host || "S").trim().slice(0, 1).toUpperCase());
   setText($(".server-name", row), profile.name);
   setText($(".server-address", row), `${profile.username}@${profile.host}`);
   setText($(".host-value", row), `${profile.host}:${profile.port}`);
+  if (profile.groupId) $(".group-value", row).dataset.userContent = "true";
   setText($(".auth-tag", row), profile.authType === "privateKey" ? "SSH 私钥" : "密码");
   setText($(".group-value", row), groupLabel(profile.groupId));
   setText($(".key-value", row), profile.authType === "privateKey" ? (profile.hasPrivateKey ? "私钥已配置" : "需重新选择私钥") : profile.hasSavedCredential ? "凭据已安全保存" : "连接时输入凭据");
@@ -454,7 +494,15 @@ function openServerDialog(profile = null) {
   form.reset();
   setText($("#server-dialog-title"), profile ? "编辑服务器" : "添加服务器");
   setText($("#server-dialog-description"), profile ? "更新 SSH 服务器连接信息" : "连接到一台新的 SSH 服务器");
+  $("#server-cancel-button").hidden = !profile;
+  $("#save-server").hidden = !profile;
+  $("#save-server").textContent = "保存更改";
+  $("#test-connection").hidden = Boolean(profile);
+  $("#save-and-connect").hidden = Boolean(profile);
   $("#save-and-connect").textContent = profile ? "保存并连接" : "连接";
+  $("#profile-delete-row").hidden = !profile;
+  $("#test-result").hidden = true;
+  $("#test-result").removeAttribute("data-state");
   $("#profile-name").value = profile?.name ?? "";
   $("#profile-host").value = profile?.host ?? "";
   $("#profile-port").value = String(profile?.port ?? 22);
@@ -466,8 +514,12 @@ function openServerDialog(profile = null) {
   $("#toggle-secret-visibility").setAttribute("aria-pressed", "false");
   $("#toggle-secret-visibility").innerHTML = iconMarkup("eye");
   $("#profile-group").value = profile?.groupId ?? "";
-  $("#connect-timeout").value = String(Math.max(1, Math.round((profile?.connectTimeoutMs ?? 15_000) / 1000)));
   $("#keepalive").value = String(profile?.keepaliveIntervalSeconds ?? 30);
+  $("#jump-host").value = profile?.jumpHost ?? "";
+  $("#jump-port").value = String(profile?.jumpPort ?? 22);
+  $("#proxy-type").value = profile?.proxyType ?? "";
+  $("#proxy-host").value = profile?.proxyHost ?? "";
+  $("#proxy-port").value = profile?.proxyPort ? String(profile.proxyPort) : "";
   $("#remember-credential").checked = true;
   $("#clear-credential").checked = false;
   $("#remember-row").hidden = false;
@@ -477,6 +529,7 @@ function openServerDialog(profile = null) {
   $("#clear-key").hidden = true;
   $(".advanced-fields").open = false;
   hideFormError();
+  updateProxyFields();
   updateAuthFields();
   openDialog($("#server-dialog"));
   window.setTimeout(() => $("#profile-host").focus(), 30);
@@ -499,6 +552,13 @@ function updateAuthFields() {
   }
 }
 
+function updateProxyFields() {
+  const enabled = Boolean($("#proxy-type").value);
+  $("#proxy-fields").hidden = !enabled;
+  $("#proxy-host").required = enabled;
+  $("#proxy-port").required = enabled;
+}
+
 function hideFormError() {
   $("#server-form-error").hidden = true;
   $("#server-form-error").textContent = "";
@@ -514,14 +574,20 @@ function readProfileDraft() {
   const host = $("#profile-host").value.trim();
   const username = $("#profile-user").value.trim();
   const port = Number($("#profile-port").value);
-  const timeoutSeconds = Number($("#connect-timeout").value);
   const keepalive = Number($("#keepalive").value);
+  const jumpHost = $("#jump-host").value.trim();
+  const jumpPortValue = $("#jump-port").value.trim();
+  const jumpPort = jumpPortValue ? Number(jumpPortValue) : 22;
+  const proxyType = $("#proxy-type").value || null;
+  const proxyHost = $("#proxy-host").value.trim();
+  const proxyPort = Number($("#proxy-port").value);
   const authType = $("#profile-auth").value;
   if (!host) throw new Error("请输入主机地址。");
   if (!username) throw new Error("请输入 SSH 用户名。");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("端口必须是 1 到 65535 之间的整数。");
-  if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 120) throw new Error("连接超时需在 1 到 120 秒之间。");
-  if (!Number.isInteger(keepalive) || keepalive < 0 || keepalive > 600) throw new Error("保活间隔需在 0 到 600 秒之间。");
+  if (!Number.isInteger(keepalive) || keepalive < 5 || keepalive > 300) throw new Error(translateText("保活间隔需在 5 到 300 秒之间。"));
+  if (jumpHost && (!Number.isInteger(jumpPort) || jumpPort < 1 || jumpPort > 65535)) throw new Error(translateText("跳板机端口必须在 1 到 65535 之间。"));
+  if (proxyType && (!proxyHost || !Number.isInteger(proxyPort) || proxyPort < 1 || proxyPort > 65535)) throw new Error(translateText("请输入有效的代理主机和端口。"));
   if (authType === "privateKey" && !state.selectedKey && !state.editingProfile?.hasPrivateKey) throw new Error("请选择 SSH 私钥文件。");
   return {
     name: $("#profile-name").value.trim() || null,
@@ -531,8 +597,13 @@ function readProfileDraft() {
     authType,
     privateKeyToken: authType === "privateKey" ? state.selectedKey?.token ?? null : null,
     groupId: $("#profile-group").value || null,
-    connectTimeoutMs: timeoutSeconds * 1000,
+    connectTimeoutMs: state.editingProfile?.connectTimeoutMs ?? 15_000,
     keepaliveIntervalSeconds: keepalive,
+    jumpHost: jumpHost || null,
+    jumpPort,
+    proxyType,
+    proxyHost: proxyType ? proxyHost : null,
+    proxyPort: proxyType ? proxyPort : null,
   };
 }
 
@@ -543,6 +614,11 @@ function connectionIdentityChanged(profile, draft) {
     || profile.authType !== draft.authType
     || profile.connectTimeoutMs !== draft.connectTimeoutMs
     || profile.keepaliveIntervalSeconds !== draft.keepaliveIntervalSeconds
+    || profile.jumpHost !== draft.jumpHost
+    || profile.jumpPort !== draft.jumpPort
+    || profile.proxyType !== draft.proxyType
+    || profile.proxyHost !== draft.proxyHost
+    || profile.proxyPort !== draft.proxyPort
     || Boolean(draft.privateKeyToken);
 }
 
@@ -618,16 +694,22 @@ function sameConnectionSettings(profile, draft) {
     && profile.authType === draft.authType
     && profile.connectTimeoutMs === draft.connectTimeoutMs
     && profile.keepaliveIntervalSeconds === draft.keepaliveIntervalSeconds
+    && profile.jumpHost === draft.jumpHost
+    && profile.jumpPort === draft.jumpPort
+    && profile.proxyType === draft.proxyType
+    && profile.proxyHost === draft.proxyHost
+    && profile.proxyPort === draft.proxyPort
     && !state.selectedKey;
 }
 
 async function testProfileConnection() {
   hideFormError();
+  $("#test-result").hidden = true;
   let draft;
   try {
     draft = readProfileDraft();
     if (state.editingProfile && !$("#profile-secret").value && sameConnectionSettings(state.editingProfile, draft)) {
-      await startSavedConnection(state.editingProfile, "test");
+      await startSavedConnection(state.editingProfile, "test", null, true);
       return;
     }
     if (state.editingProfile?.authType === "privateKey" && draft.authType === "privateKey" && !state.selectedKey) {
@@ -644,7 +726,7 @@ function activeConnectionExists(serverId) {
   return entry && !["failed", "closed", "cancelled"].includes(entry.snapshot?.state);
 }
 
-async function startSavedConnection(profile, mode, pendingSecret = null) {
+async function startSavedConnection(profile, mode, pendingSecret = null, showTestResult = false) {
   if (activeChallengeExists()) {
     toast("请先完成当前的安全确认，再开始另一个连接。", "error");
     return;
@@ -671,6 +753,7 @@ async function startSavedConnection(profile, mode, pendingSecret = null) {
       snapshot,
       mode,
       pendingSecret,
+      showTestResult,
       workspaceOpened: false,
       rememberAfterReady: null,
       watching: true,
@@ -680,7 +763,9 @@ async function startSavedConnection(profile, mode, pendingSecret = null) {
     renderStats();
     void watchConnection(entry);
   } catch (error) {
-    toast(errorMessage(error), "error", 7000);
+    if (mode === "workspace") showConnectionError(profile, error);
+    else if (showTestResult) setServerTestResult(profile, error);
+    else toast(errorMessage(error), "error", 7000);
   }
 }
 
@@ -706,14 +791,14 @@ async function startDraftTest(profile, secret) {
       snapshot,
       mode: "test",
       pendingSecret: null,
+      showTestResult: true,
       workspaceOpened: false,
       rememberAfterReady: null,
       watching: true,
     };
-    toast("正在检查网络、SSH 主机身份和认证信息。", "success", 2400);
     void watchConnection(entry);
   } catch (error) {
-    showFormError(errorMessage(error));
+    setServerTestResult(profile, error);
   }
 }
 
@@ -762,7 +847,11 @@ async function watchConnection(entry) {
 
 function finishConnection(entry) {
   if (entry.mode === "test") {
-    if (entry.snapshot.state === "closed" && !entry.snapshot.error) toast("连接测试成功，SSH 身份验证已完成。", "success");
+    const succeeded = entry.snapshot.state === "closed" && !entry.snapshot.error;
+    if (entry.showTestResult) {
+      if (succeeded) setServerTestResult(entry.profile);
+      else setServerTestResult(entry.profile, entry.snapshot.error ?? `连接${entry.snapshot.state === "cancelled" ? "已取消" : "失败"}。`);
+    } else if (succeeded) toast("连接测试成功，SSH 身份验证已完成。", "success");
     else toast(errorMessage(entry.snapshot.error ?? `连接${entry.snapshot.state === "cancelled" ? "已取消" : "失败"}。`), "error", 7000);
     if (state.activeChallenge?.entry === entry) {
       state.activeChallenge = null;
@@ -778,7 +867,7 @@ function finishConnection(entry) {
   }
   renderAll();
   renderStats();
-  if (entry.snapshot.state === "failed") toast(errorMessage(entry.snapshot.error ?? "SSH 连接失败。"), "error", 7000);
+  if (entry.snapshot.state === "failed") showConnectionError(entry.profile, entry.snapshot.error);
   else if (entry.snapshot.state === "closed") toast("SSH 连接已断开。", "success");
 }
 
@@ -1112,7 +1201,7 @@ function renderMonitorQuality(id, quality) {
   const element = $(id);
   const status = quality?.status ?? "warmingUp";
   element.className = `monitor-quality status-${status}`;
-  element.textContent = qualityLabel(status);
+  element.textContent = qualityLabel(status, state.settings.value.language);
   element.title = quality?.errorCode ?? "";
 }
 
@@ -1220,7 +1309,7 @@ function renderMonitor() {
   setText($("#monitor-system-os"), system?.os ?? "—");
   setText($("#monitor-system-kernel"), system?.kernel ?? "—");
   setText($("#monitor-system-architecture"), system?.architecture ?? "—");
-  setText($("#monitor-system-uptime"), formatUptime(snapshot?.uptime?.seconds));
+  setText($("#monitor-system-uptime"), formatUptime(snapshot?.uptime?.seconds, state.settings.value.language));
 }
 
 async function refreshMonitor() {
@@ -1391,6 +1480,7 @@ function renderFiles(error = null) {
     glyph.innerHTML = iconMarkup(entry.fileType === "directory" ? "folder" : isLink ? "arrow-up-right" : "file");
     const name = document.createElement("span");
     name.className = "file-name-text";
+    name.dataset.userContent = "true";
     name.textContent = entry.name;
     nameCell.append(glyph, name);
     const type = document.createElement("span");
@@ -1528,6 +1618,7 @@ function renderTransfers() {
     direction.innerHTML = iconMarkup(transfer.direction === "upload" ? "upload" : "download");
     const name = document.createElement("span");
     name.className = "transfer-file-name";
+    name.dataset.userContent = "true";
     name.textContent = transfer.fileName;
     name.title = transfer.fileName;
     file.append(direction, name);
@@ -1747,6 +1838,9 @@ function enterWorkspace(entry) {
   }
   state.activeWorkspace = entry;
   if ($(".app-shell").classList.contains("is-focused")) setTerminalFocus(false);
+  $("#workspace-server-name").dataset.userContent = entry.profile?.name || entry.profile?.host ? "true" : "false";
+  $("#workspace-server-address").dataset.userContent = "true";
+  $("#workspace-server-monogram").dataset.userContent = "true";
   setText($("#workspace-server-name"), entry.profile?.name ?? entry.profile?.host ?? "服务器工作区");
   setText($("#workspace-server-address"), `${entry.profile?.username ?? ""}@${entry.profile?.host ?? ""}:${entry.profile?.port ?? 22}`);
   setText($("#workspace-server-monogram"), (entry.profile?.name ?? entry.profile?.host ?? "S").slice(0, 1).toUpperCase());
@@ -2015,8 +2109,8 @@ async function watchTerminal(terminal) {
         terminal.watching = false;
         await terminal.outputPending.catch(() => {});
         const ending = snapshot.state === "failed"
-          ? `[终端已停止：${errorMessage(snapshot.error ?? "连接错误")}]`
-          : "[远程 Shell 已结束]";
+          ? translateText(`[终端已停止：${errorMessage(snapshot.error ?? "连接错误")}]`)
+          : `[${translateText("远程 Shell 已结束")}]`;
         terminal.instance.write(`\r\n\u001b[90m${ending}\u001b[0m\r\n`);
         renderTerminalTabs();
         if (snapshot.state === "failed") toast(errorMessage(snapshot.error ?? "终端已停止。"), "error", 7000);
@@ -2025,7 +2119,7 @@ async function watchTerminal(terminal) {
     } catch (error) {
       terminal.watching = false;
       terminal.state = "failed";
-      terminal.instance.write(`\r\n\u001b[31m[无法读取终端状态：${errorMessage(error)}]\u001b[0m\r\n`);
+      terminal.instance.write(`\r\n\u001b[31m${translateText(`[无法读取终端状态：${errorMessage(error)}]`)}\u001b[0m\r\n`);
       renderTerminalTabs();
       return;
     }
@@ -2182,6 +2276,7 @@ async function deleteServer() {
   try {
     await invoke("server_delete", { serverId: profile.id, expectedRevision: profile.revision, removeCredentials: true });
     state.deleteTarget = null;
+    state.restoreEditorAfterDeleteConfirmation = false;
     closeDialog($("#confirm-dialog"));
     await loadData();
     toast("服务器与已保存凭据已删除。");
@@ -2248,6 +2343,7 @@ function bindEvents() {
   });
   $("#global-search").addEventListener("input", (event) => updateServerSearch(event.target.value, "global"));
   $("#profile-auth").addEventListener("change", updateAuthFields);
+  $("#proxy-type").addEventListener("change", updateProxyFields);
   for (const choice of $$('[data-auth-type-choice]')) {
     choice.addEventListener("click", () => {
       $("#profile-auth").value = choice.dataset.authTypeChoice;
@@ -2275,9 +2371,34 @@ function bindEvents() {
   });
   $("#test-connection").addEventListener("click", () => void testProfileConnection());
   $("#save-and-connect").addEventListener("click", () => void saveProfile(true));
+  $("#edit-delete-button").addEventListener("click", () => {
+    const profile = state.editingProfile;
+    if (!profile) return;
+    state.restoreEditorAfterDeleteConfirmation = true;
+    closeDialog($("#server-dialog"));
+    openDeleteDialog(profile);
+  });
+  $("#connection-error-close").addEventListener("click", () => {
+    state.connectionFailureProfile = null;
+    closeDialog($("#connection-error-dialog"));
+  });
+  $("#connection-error-retry").addEventListener("click", () => {
+    const profile = state.connectionFailureProfile;
+    closeDialog($("#connection-error-dialog"));
+    if (profile) void startSavedConnection(profile, "workspace");
+  });
+  $("#connection-error-edit").addEventListener("click", () => {
+    const profile = state.connectionFailureProfile;
+    closeDialog($("#connection-error-dialog"));
+    if (profile) openServerDialog(profile);
+  });
   $("#group-form").addEventListener("submit", (event) => void createGroup(event));
   $("#confirm-delete").addEventListener("click", () => void deleteServer());
-  $("#cancel-delete").addEventListener("click", () => closeDialog($("#confirm-dialog")));
+  $("#cancel-delete").addEventListener("click", () => {
+    closeDialog($("#confirm-dialog"));
+    if (state.restoreEditorAfterDeleteConfirmation && state.deleteTarget) openServerDialog(state.deleteTarget);
+    state.restoreEditorAfterDeleteConfirmation = false;
+  });
   $("#trust-host-once").addEventListener("click", () => void respondHostKey("trustOnce"));
   $("#trust-host-save").addEventListener("click", () => void respondHostKey("trustAndSave"));
   $("#reject-host-key").addEventListener("click", () => void respondHostKey("reject"));
@@ -2317,6 +2438,7 @@ function bindEvents() {
     for (const choice of $$("[data-language-choice]")) {
       choice.setAttribute("aria-pressed", String(choice.dataset.languageChoice === event.currentTarget.value));
     }
+    setLocale(event.currentTarget.value);
     void saveSettings({ language: event.currentTarget.value });
   });
   for (const choice of $$("[data-language-choice]")) {

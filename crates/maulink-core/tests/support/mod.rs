@@ -129,6 +129,7 @@ impl OpenSshFixture {
              PasswordAuthentication yes\n\
              KbdInteractiveAuthentication no\n\
              PubkeyAuthentication yes\n\
+             AllowTcpForwarding yes\n\
              PermitRootLogin prohibit-password\n\
              StrictModes no\n\
              UsePAM no\n\

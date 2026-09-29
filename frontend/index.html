@@ -11,9 +11,9 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
-        <a class="brand" href="#servers-page" aria-label="MauLink 服务器工作台"><span class="brand-mark"><span data-icon="server" aria-hidden="true"></span></span><span class="brand-name">MauLink</span></a>
-        <label class="global-search" for="global-search"><span data-icon="search" aria-hidden="true"></span><input id="global-search" type="search" placeholder="搜索服务器名称、主机或用户名" autocomplete="off" /><kbd>⌘ K</kbd></label>
+      <header class="topbar" data-tauri-drag-region>
+        <div class="brand-group" data-tauri-drag-region><a class="brand" href="#servers-page" aria-label="MauLink 服务器工作台" data-tauri-drag-region><span class="brand-mark"><span data-icon="terminal" aria-hidden="true"></span></span><span class="brand-name">MauLink</span></a><button class="icon-button brand-home-button" id="nav-servers" type="button" aria-label="服务器" title="服务器"><span data-icon="house" aria-hidden="true"></span></button></div>
+        <label class="global-search" for="global-search"><span data-icon="search" aria-hidden="true"></span><input id="global-search" type="search" placeholder="搜索服务器或主机…" autocomplete="off" /><kbd>⌘ K</kbd></label>
         <div class="topbar-actions"><button class="button button-primary" id="add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><button class="icon-button topbar-icon-button" id="nav-settings" type="button" aria-label="设置" title="设置"><span data-icon="settings-2" aria-hidden="true"></span></button><button class="icon-button topbar-icon-button" id="about-button" type="button" aria-label="关于 MauLink" title="关于 MauLink"><span data-icon="info" aria-hidden="true"></span></button></div>
         <span id="breadcrumb-current" hidden>服务器</span>
       </header>
@@ -24,7 +24,6 @@
           <div class="group-list" id="group-list" aria-label="按分组筛选服务器"></div>
           <section class="server-section" id="server-section" aria-label="服务器列表"><div class="sidebar-section-heading server-list-heading"><span>已保存</span><span id="nav-server-count">0</span></div><div class="filter-caption" id="filter-caption" hidden></div><div class="server-list" id="server-list" aria-live="polite"></div></section>
           <div class="sidebar-bottom"><button class="sidebar-add-server" id="sidebar-add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><button class="nav-item workspace-nav" id="nav-workspace" type="button" disabled><span class="nav-icon" data-icon="terminal" aria-hidden="true"></span><span>当前工作区</span><span class="nav-live-dot" id="nav-live-dot" hidden></span></button><div class="local-status"><span class="status-indicator" id="backend-indicator"></span><span id="backend-label">正在连接本地服务</span></div><div class="app-version"><span>MauLink Desktop</span><span id="app-version">—</span></div></div>
-          <button id="nav-servers" class="sr-only" type="button" aria-current="page">服务器</button>
         </aside>
         <div class="main-shell">
           <main>
@@ -196,7 +195,7 @@
                     <button class="theme-choice" type="button" data-theme-choice="light" aria-pressed="true"><span class="theme-preview theme-preview-light" aria-hidden="true"><i class="preview-sidebar"></i><i class="preview-topbar"></i><i class="preview-line"></i><i class="preview-button"></i></span><span class="theme-choice-label"><i class="choice-radio"></i>浅色</span></button>
                     <button class="theme-choice" type="button" data-theme-choice="dark" aria-pressed="false"><span class="theme-preview theme-preview-dark" aria-hidden="true"><i class="preview-sidebar"></i><i class="preview-topbar"></i><i class="preview-line"></i><i class="preview-button"></i></span><span class="theme-choice-label"><i class="choice-radio"></i>深色</span></button>
                   </div></div>
-                  <div class="appearance-language-block"><h3>语言</h3><p>切换后立即生效。当前界面文本仍以简体中文为主。</p><div class="language-options" role="group" aria-label="界面语言"><button class="language-choice" type="button" data-language-choice="zh-CN" aria-pressed="true"><i class="choice-radio"></i>简体中文</button><button class="language-choice" type="button" data-language-choice="en" aria-pressed="false">English</button></div></div>
+                  <div class="appearance-language-block"><h3>语言</h3><p>切换后立即生效。界面会为更长或更短的文本预留空间。</p><div class="language-options" role="group" aria-label="界面语言"><button class="language-choice" type="button" data-language-choice="zh-CN" aria-pressed="true"><i class="choice-radio"></i>简体中文</button><button class="language-choice" type="button" data-language-choice="en" aria-pressed="false">English</button></div></div>
                 </section>
                 <section class="settings-section" id="settings-section-general" data-settings-section="general" aria-labelledby="settings-general-title" hidden>
                   <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="settings-2"></span></div><div><h2 id="settings-general-title">通用</h2><p>管理连接工作区时的确认行为。</p></div></div>
@@ -211,7 +210,7 @@
                 </section>
                 <section class="settings-section" id="settings-section-language" data-settings-section="language" aria-labelledby="settings-language-title" hidden>
                   <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="languages"></span></div><div><h2 id="settings-language-title">语言</h2><p>设置 MauLink 的界面语言偏好。</p></div></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-language"><strong>界面语言</strong><small>当前完整界面提供简体中文。</small></label><select id="setting-language" class="settings-select"><option value="zh-CN">简体中文</option><option value="en">English（尚未完整翻译）</option></select></div>
+                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-language"><strong>界面语言</strong><small>提供简体中文和 English。</small></label><select id="setting-language" class="settings-select"><option value="zh-CN">简体中文</option><option value="en">English</option></select></div>
                 </section>
                 <footer class="settings-footer"><span id="settings-save-state" role="status" aria-live="polite">设置会自动保存</span><span>MauLink <span id="settings-version">0.1</span></span></footer>
               </div>
@@ -226,19 +225,33 @@
       <form id="server-form" class="modal-card" novalidate>
         <div class="modal-header"><div><h2 id="server-dialog-title">添加服务器</h2><p id="server-dialog-description">连接到一台新的 SSH 服务器</p></div><button class="icon-button modal-close" type="button" data-close="server-dialog" aria-label="关闭">×</button></div>
         <div class="form-grid">
-          <label class="form-field field-full"><span>服务器名称 <small>可选</small></span><input id="profile-name" name="name" maxlength="64" placeholder="例如：生产环境 · Web 01" /></label>
-          <label class="form-field field-host"><span>主机地址</span><input id="profile-host" name="host" required autocomplete="off" placeholder="192.168.1.10 或 host.example.com" /></label>
+          <label class="form-field field-full"><span>服务器名称 <small>可选</small></span><input id="profile-name" name="name" maxlength="64" placeholder="例如 Production Web" /></label>
+          <label class="form-field field-host"><span>主机地址</span><input id="profile-host" name="host" required autocomplete="off" placeholder="192.168.1.10" /></label>
           <label class="form-field field-port"><span>端口</span><input id="profile-port" name="port" type="number" min="1" max="65535" value="22" required /></label>
           <label class="form-field field-full"><span>用户名</span><input id="profile-user" name="username" required autocomplete="username" placeholder="root" /></label>
           <div class="form-field auth-method-field field-full"><span id="auth-method-label">认证方式</span><div class="auth-segmented" role="group" aria-labelledby="auth-method-label"><button class="auth-segment" type="button" data-auth-type-choice="password" aria-pressed="true">密码</button><button class="auth-segment" type="button" data-auth-type-choice="privateKey" aria-pressed="false">SSH 密钥</button></div><select class="sr-only" id="profile-auth" name="authType" aria-hidden="true" tabindex="-1"><option value="password">密码</option><option value="privateKey">SSH 私钥</option></select></div>
           <div class="form-field field-full" id="secret-field"><label class="secret-field-label" id="secret-label" for="profile-secret">密码</label><span class="secret-input-wrap"><input id="profile-secret" name="secret" type="password" autocomplete="new-password" placeholder="输入 SSH 密码" /><button class="secret-visibility-button" id="toggle-secret-visibility" type="button" aria-label="显示密码" aria-pressed="false"><span data-icon="eye" aria-hidden="true"></span></button></span></div>
           <div class="key-picker field-full" id="key-picker" hidden><div><span class="form-label">私钥文件</span><span class="key-description" id="key-description">私钥路径由系统文件选择器读取，不会暴露给页面。</span></div><div class="key-picker-actions"><span class="selected-key" id="selected-key">尚未选择文件</span><button class="button button-secondary button-small" id="select-key" type="button">选择私钥</button><button class="text-button" id="clear-key" type="button" hidden>移除</button></div></div>
-          <label class="credential-note field-full" id="remember-row"><input id="remember-credential" type="checkbox" checked /><span class="credential-note-copy">凭据将安全保存至系统钥匙串 / Windows 凭据管理器中</span></label>
+          <div class="credential-note field-full" id="remember-row"><span class="credential-note-icon" data-icon="lock-keyhole" aria-hidden="true"></span><span class="credential-note-copy">凭据将安全保存至系统钥匙串 / Windows 凭据管理器中</span><input id="remember-credential" type="checkbox" checked hidden /></div>
           <label class="credential-note clear-credential-row field-full" id="clear-credential-row" hidden><input id="clear-credential" type="checkbox" /><span class="credential-note-copy">移除已保存凭据，连接时再次输入密码或私钥口令</span></label>
-          <details class="advanced-fields field-full"><summary><span>高级</span><small>超时 · 保活 · 分组</small></summary><div class="advanced-grid"><label class="form-field"><span>连接超时（秒）</span><input id="connect-timeout" type="number" min="1" max="120" value="15" /></label><label class="form-field"><span>保活间隔（秒）</span><input id="keepalive" type="number" min="0" max="600" value="30" /></label><label class="form-field group-field"><span>分组</span><select id="profile-group"><option value="">未分组</option></select></label></div></details>
+          <select id="profile-group" hidden><option value="">未分组</option></select>
+          <details class="advanced-fields field-full"><summary><span>高级</span><small>跳板机 · 代理 · 保持连接</small></summary><div class="advanced-grid">
+            <label class="form-field field-full"><span>跳板机</span><input id="jump-host" autocomplete="off" placeholder="user@bastion.example.com" /></label>
+            <div class="advanced-connection-row field-full">
+              <label class="form-field"><span>跳板机端口</span><input id="jump-port" type="number" min="1" max="65535" value="22" /></label>
+              <label class="form-field"><span>代理</span><select id="proxy-type"><option value="">无</option><option value="socks5">SOCKS5</option><option value="httpConnect">HTTP CONNECT</option></select></label>
+            </div>
+            <div class="proxy-endpoint-row field-full" id="proxy-fields" hidden><label class="form-field"><span>代理主机</span><input id="proxy-host" autocomplete="off" placeholder="proxy.example.com" /></label><label class="form-field"><span>代理端口</span><input id="proxy-port" type="number" min="1" max="65535" placeholder="1080" /></label></div>
+            <label class="form-field field-full"><span>保活间隔（秒）</span><input id="keepalive" type="number" min="5" max="300" value="30" /></label>
+          </div></details>
         </div>
+        <div class="test-result field-full" id="test-result" role="status" aria-live="polite" hidden>
+          <span class="test-result-icon" id="test-result-icon" aria-hidden="true"></span>
+          <div><strong id="test-result-title"></strong><small id="test-result-detail"></small></div>
+        </div>
+        <div class="server-delete-row field-full" id="profile-delete-row" hidden><div><strong>删除服务器</strong><span>从 MauLink 中移除此服务器及其配置</span></div><button class="button button-secondary button-small" id="edit-delete-button" type="button">删除</button></div>
         <div class="form-error" id="server-form-error" role="alert" hidden></div>
-        <div class="modal-footer"><span class="modal-footer-spacer"></span><button class="text-button save-server-button" id="save-server" type="submit">保存</button><button class="button button-tertiary" id="test-connection" type="button">测试连接</button><button class="button button-primary" id="save-and-connect" type="button">连接</button></div>
+        <div class="modal-footer"><button class="button button-tertiary server-cancel-button" id="server-cancel-button" type="button" data-close="server-dialog">取消</button><button class="button button-primary save-server-button" id="save-server" type="submit">保存</button><button class="button button-tertiary" id="test-connection" type="button">测试连接</button><button class="button button-primary" id="save-and-connect" type="button">连接</button></div>
       </form>
     </dialog>
 
@@ -258,6 +271,25 @@
         <details class="danger-advanced" id="host-key-advanced" hidden><summary>高级操作</summary><p>只有在确认服务器已更换主机密钥且变更可信时，才更新保存的指纹。</p><button class="button button-danger" id="update-host-key" type="button">更新指纹并继续</button></details>
         <div class="challenge-actions" id="host-key-actions" hidden><button class="button button-tertiary" id="reject-host-key" type="button">取消连接</button><span></span><button class="button button-secondary" id="trust-host-once" type="button">仅本次信任</button><button class="button button-primary" id="trust-host-save" type="button">信任并保存</button></div>
         <div class="challenge-actions auth-actions" id="auth-actions" hidden><button class="button button-tertiary" id="cancel-auth" type="button">取消连接</button><span></span><button class="button button-primary" id="submit-auth" type="button">继续连接</button></div>
+      </section>
+    </dialog>
+
+    <dialog class="modal-dialog connection-error-modal" id="connection-error-dialog" aria-labelledby="connection-error-title">
+      <section class="modal-card">
+        <header class="connection-error-header">
+          <span class="connection-error-icon" data-icon="circle-alert" aria-hidden="true"></span>
+          <div><h2 id="connection-error-title"><span>无法连接到</span> <span id="connection-error-server-name" data-user-content="true"></span></h2><p id="connection-error-address" data-user-content="true"></p></div>
+          <button class="icon-button modal-close" id="connection-error-close" type="button" aria-label="关闭">×</button>
+        </header>
+        <p class="connection-error-summary">无法建立 SSH 连接。</p>
+        <p class="connection-error-causes-title">可能的原因：</p>
+        <ul class="connection-error-causes"><li>服务器未运行</li><li>SSH 服务未运行</li><li>端口无法访问</li><li>网络连接问题</li></ul>
+        <details class="connection-error-details" open><summary>查看详情</summary><div class="connection-error-detail" id="connection-error-detail" role="alert"></div></details>
+        <div class="modal-footer">
+          <span class="modal-footer-spacer"></span>
+          <button class="button button-primary" id="connection-error-retry" type="button">重试</button>
+          <button class="button button-secondary" id="connection-error-edit" type="button">编辑连接</button>
+        </div>
       </section>
     </dialog>
 

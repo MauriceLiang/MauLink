@@ -483,6 +483,20 @@ pub struct ServerProfileDraft {
     pub group_id: Option<String>,
     pub connect_timeout_ms: u32,
     pub keepalive_interval_seconds: u32,
+    #[serde(default)]
+    pub jump_host: Option<String>,
+    #[serde(default = "default_jump_port")]
+    pub jump_port: u16,
+    #[serde(default)]
+    pub proxy_type: Option<crate::ProxyType>,
+    #[serde(default)]
+    pub proxy_host: Option<String>,
+    #[serde(default)]
+    pub proxy_port: Option<u16>,
+}
+
+const fn default_jump_port() -> u16 {
+    22
 }
 
 #[derive(Debug, Deserialize, TS)]

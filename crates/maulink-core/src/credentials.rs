@@ -60,6 +60,10 @@ impl Secret {
         &self.0
     }
 
+    pub(crate) fn duplicate(&self) -> Self {
+        Self(self.0.clone())
+    }
+
     pub(crate) fn into_utf8_string(mut self) -> Result<Zeroizing<String>, AppError> {
         let value = std::str::from_utf8(&self.0)
             .map(str::to_owned)
@@ -744,8 +748,10 @@ async fn update_server_transaction(
                      SET name = ?1, host = ?2, port = ?3, username = ?4, auth_type = ?5,
                          private_key_path = ?6, private_key_path_encoding = ?7, group_id = ?8,
                          connect_timeout_ms = ?9, keepalive_interval_s = ?10,
-                         credential_ref_id = ?11, revision = revision + 1, updated_at_ms = ?12
-                     WHERE id = ?13 AND revision = ?14",
+                         jump_host = ?11, jump_port = ?12, proxy_type = ?13,
+                         proxy_host = ?14, proxy_port = ?15, credential_ref_id = ?16,
+                         revision = revision + 1, updated_at_ms = ?17
+                     WHERE id = ?18 AND revision = ?19",
                     params![
                         input.name.as_deref().expect("validated name"),
                         input.host,
@@ -763,6 +769,11 @@ async fn update_server_transaction(
                         input.group_id,
                         input.connect_timeout_ms,
                         input.keepalive_interval_seconds,
+                        input.jump_host,
+                        input.jump_port,
+                        input.proxy_type.map(crate::ProxyType::as_database_value),
+                        input.proxy_host,
+                        input.proxy_port,
                         new_credential,
                         now,
                         server_id,
@@ -1170,6 +1181,11 @@ mod tests {
             group_id: None,
             connect_timeout_ms: 15_000,
             keepalive_interval_seconds: 30,
+            jump_host: None,
+            jump_port: 22,
+            proxy_type: None,
+            proxy_host: None,
+            proxy_port: None,
         }
     }
 
@@ -1386,6 +1402,11 @@ mod tests {
             .expect("save credential");
         let mut changed = password_input();
         changed.host = "changed.example.test".to_owned();
+        changed.jump_host = Some("bastion@bastion.example.test".to_owned());
+        changed.jump_port = 2222;
+        changed.proxy_type = Some(crate::ProxyType::HttpConnect);
+        changed.proxy_host = Some("proxy.example.test".to_owned());
+        changed.proxy_port = Some(8080);
 
         let error = manager
             .update_server(
@@ -1444,6 +1465,16 @@ mod tests {
             .await
             .expect("clear old credential while changing identity");
         assert_eq!(updated.server.host, "changed.example.test");
+        assert_eq!(
+            updated.server.jump_host.as_deref(),
+            Some("bastion@bastion.example.test")
+        );
+        assert_eq!(updated.server.jump_port, 2222);
+        assert_eq!(
+            updated.server.proxy_type,
+            Some(crate::ProxyType::HttpConnect)
+        );
+        assert_eq!(updated.server.proxy_port, Some(8080));
         assert_eq!(updated.server.revision, 3);
         assert!(!updated.server.has_saved_credential);
         assert!(updated.credential_cleanup_pending);

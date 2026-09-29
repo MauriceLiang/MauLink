@@ -33,6 +33,30 @@ impl AuthType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ProxyType {
+    Socks5,
+    HttpConnect,
+}
+
+impl ProxyType {
+    pub(crate) fn as_database_value(self) -> &'static str {
+        match self {
+            Self::Socks5 => "socks5",
+            Self::HttpConnect => "http_connect",
+        }
+    }
+
+    fn from_database_value(value: &str) -> Result<Self, AppError> {
+        match value {
+            "socks5" => Ok(Self::Socks5),
+            "http_connect" => Ok(Self::HttpConnect),
+            _ => Err(storage_corrupt()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PathEncoding {
@@ -104,6 +128,16 @@ pub struct ServerProfileInput {
     pub group_id: Option<String>,
     pub connect_timeout_ms: u32,
     pub keepalive_interval_seconds: u32,
+    #[serde(default)]
+    pub jump_host: Option<String>,
+    #[serde(default = "default_jump_port")]
+    pub jump_port: u16,
+    #[serde(default)]
+    pub proxy_type: Option<ProxyType>,
+    #[serde(default)]
+    pub proxy_host: Option<String>,
+    #[serde(default)]
+    pub proxy_port: Option<u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -120,11 +154,20 @@ pub struct ServerProfile {
     pub has_saved_credential: bool,
     pub connect_timeout_ms: u32,
     pub keepalive_interval_seconds: u32,
+    pub jump_host: Option<String>,
+    pub jump_port: u16,
+    pub proxy_type: Option<ProxyType>,
+    pub proxy_host: Option<String>,
+    pub proxy_port: Option<u16>,
     pub revision: u32,
     #[ts(type = "number")]
     pub created_at_ms: i64,
     #[ts(type = "number")]
     pub updated_at_ms: i64,
+}
+
+const fn default_jump_port() -> u16 {
+    22
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -320,8 +363,10 @@ impl ProfileStore {
                         "INSERT INTO servers
                          (id, name, host, port, username, auth_type, private_key_path,
                           private_key_path_encoding, group_id, connect_timeout_ms,
-                          keepalive_interval_s, revision, created_at_ms, updated_at_ms)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 1, ?12, ?12)",
+                          keepalive_interval_s, jump_host, jump_port, proxy_type, proxy_host,
+                          proxy_port, revision, created_at_ms, updated_at_ms)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+                                 ?14, ?15, ?16, 1, ?17, ?17)",
                         params![
                             server_id,
                             input.name.as_deref().expect("validated name"),
@@ -340,6 +385,11 @@ impl ProfileStore {
                             input.group_id,
                             input.connect_timeout_ms,
                             input.keepalive_interval_seconds,
+                            input.jump_host,
+                            input.jump_port,
+                            input.proxy_type.map(ProxyType::as_database_value),
+                            input.proxy_host,
+                            input.proxy_port,
                             now,
                         ],
                     )
@@ -462,11 +512,14 @@ impl ProfileStore {
                         "SELECT s.id, s.name, s.host, s.port, s.username, s.auth_type,
                                 s.private_key_path, s.private_key_path_encoding, s.group_id,
                                 s.credential_ref_id IS NOT NULL, s.connect_timeout_ms,
-                                s.keepalive_interval_s, s.revision, s.created_at_ms, s.updated_at_ms
+                                s.keepalive_interval_s, s.jump_host, s.jump_port, s.proxy_type,
+                                s.proxy_host, s.proxy_port, s.revision, s.created_at_ms, s.updated_at_ms
                          FROM servers s
                          LEFT JOIN server_groups g ON g.id = s.group_id
                          WHERE (?1 IS NULL OR s.name COLLATE NOCASE LIKE ?1 ESCAPE '\\'
                                 OR s.host COLLATE NOCASE LIKE ?1 ESCAPE '\\'
+                                OR s.jump_host COLLATE NOCASE LIKE ?1 ESCAPE '\\'
+                                OR s.proxy_host COLLATE NOCASE LIKE ?1 ESCAPE '\\'
                                 OR g.name COLLATE NOCASE LIKE ?1 ESCAPE '\\')
                            AND (?2 IS NULL OR s.group_id = ?2)
                          ORDER BY s.updated_at_ms DESC, s.id
@@ -524,8 +577,10 @@ impl ProfileStore {
                          SET name = ?1, host = ?2, port = ?3, username = ?4, auth_type = ?5,
                              private_key_path = ?6, private_key_path_encoding = ?7, group_id = ?8,
                              connect_timeout_ms = ?9, keepalive_interval_s = ?10,
-                             revision = revision + 1, updated_at_ms = ?11
-                         WHERE id = ?12 AND revision = ?13",
+                             jump_host = ?11, jump_port = ?12, proxy_type = ?13,
+                             proxy_host = ?14, proxy_port = ?15,
+                             revision = revision + 1, updated_at_ms = ?16
+                         WHERE id = ?17 AND revision = ?18",
                         params![
                             input.name.as_deref().expect("validated name"),
                             input.host,
@@ -543,6 +598,11 @@ impl ProfileStore {
                             input.group_id,
                             input.connect_timeout_ms,
                             input.keepalive_interval_seconds,
+                            input.jump_host,
+                            input.jump_port,
+                            input.proxy_type.map(ProxyType::as_database_value),
+                            input.proxy_host,
+                            input.proxy_port,
                             now,
                             server_id,
                             expected_revision,
@@ -658,6 +718,24 @@ pub(crate) fn validate_server_input(
             "errors.keepaliveOutOfRange",
         ));
     }
+    input.jump_host = input.jump_host.map(validate_jump_host).transpose()?;
+    if input.jump_port == 0 {
+        return Err(validation("jumpPort", "errors.portOutOfRange"));
+    }
+    match (
+        input.proxy_type,
+        input.proxy_host.as_mut(),
+        input.proxy_port,
+    ) {
+        (None, None, None) => {}
+        (Some(_), Some(host), Some(port)) => {
+            *host = validate_network_host("proxyHost", host.clone())?;
+            if port == 0 {
+                return Err(validation("proxyPort", "errors.portOutOfRange"));
+            }
+        }
+        _ => return Err(validation("proxyHost", "errors.proxyConfigurationInvalid")),
+    }
     match (input.auth_type, &input.private_key_path) {
         (AuthType::Password, Some(_)) | (AuthType::PrivateKey, None) => {
             return Err(validation("privateKeyPath", "errors.privateKeyPathInvalid"));
@@ -676,6 +754,48 @@ pub(crate) fn validate_server_input(
     };
     input.name = Some(name);
     Ok(input)
+}
+
+fn validate_network_host(field: &'static str, host: String) -> Result<String, AppError> {
+    let host = host.trim().to_owned();
+    if host.is_empty()
+        || host.chars().count() > 253
+        || host.chars().any(char::is_whitespace)
+        || host.chars().any(char::is_control)
+        || host.contains('@')
+        || host.contains('/')
+        || host.contains('\\')
+        || host.contains("://")
+    {
+        return Err(validation(field, "errors.hostInvalid"));
+    }
+    Ok(host)
+}
+
+fn validate_jump_host(value: String) -> Result<String, AppError> {
+    let jump_host = value.trim();
+    if jump_host.is_empty()
+        || jump_host.chars().count() > 512
+        || jump_host.chars().any(char::is_control)
+        || jump_host.chars().any(char::is_whitespace)
+    {
+        return Err(validation("jumpHost", "errors.jumpHostInvalid"));
+    }
+    let (username, host) = match jump_host.split_once('@') {
+        Some((username, host)) if !username.is_empty() && !host.is_empty() => {
+            if username.chars().count() > 256 || username.contains('@') {
+                return Err(validation("jumpHost", "errors.jumpHostInvalid"));
+            }
+            (Some(username), host)
+        }
+        Some(_) => return Err(validation("jumpHost", "errors.jumpHostInvalid")),
+        None => (None, jump_host),
+    };
+    if username.is_some_and(|username| username.contains(['\0', '\r', '\n'])) {
+        return Err(validation("jumpHost", "errors.jumpHostInvalid"));
+    }
+    validate_network_host("jumpHost", host.to_owned())?;
+    Ok(jump_host.to_owned())
 }
 
 fn escape_like_pattern(value: &str) -> String {
@@ -834,7 +954,8 @@ pub(crate) fn get_server(
         .query_row(
             "SELECT id, name, host, port, username, auth_type, private_key_path,
                     private_key_path_encoding, group_id, credential_ref_id IS NOT NULL,
-                    connect_timeout_ms, keepalive_interval_s, revision, created_at_ms, updated_at_ms
+                    connect_timeout_ms, keepalive_interval_s, jump_host, jump_port, proxy_type,
+                    proxy_host, proxy_port, revision, created_at_ms, updated_at_ms
              FROM servers WHERE id = ?1",
             [server_id],
             map_server_row,
@@ -858,6 +979,11 @@ type RawServerRow = (
     bool,
     u32,
     u32,
+    Option<String>,
+    u16,
+    Option<String>,
+    Option<String>,
+    Option<u16>,
     u32,
     i64,
     i64,
@@ -880,6 +1006,11 @@ fn map_server_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawServerRow> {
         row.get(12)?,
         row.get(13)?,
         row.get(14)?,
+        row.get(15)?,
+        row.get(16)?,
+        row.get(17)?,
+        row.get(18)?,
+        row.get(19)?,
     ))
 }
 
@@ -908,9 +1039,17 @@ impl TryFrom<RawServerRow> for ServerProfile {
             has_saved_credential: raw.9,
             connect_timeout_ms: raw.10,
             keepalive_interval_seconds: raw.11,
-            revision: raw.12,
-            created_at_ms: raw.13,
-            updated_at_ms: raw.14,
+            jump_host: raw.12,
+            jump_port: raw.13,
+            proxy_type: raw
+                .14
+                .map(|value| ProxyType::from_database_value(&value))
+                .transpose()?,
+            proxy_host: raw.15,
+            proxy_port: raw.16,
+            revision: raw.17,
+            created_at_ms: raw.18,
+            updated_at_ms: raw.19,
         })
     }
 }
@@ -974,7 +1113,78 @@ mod tests {
             group_id,
             connect_timeout_ms: 15_000,
             keepalive_interval_seconds: 30,
+            jump_host: None,
+            jump_port: 22,
+            proxy_type: None,
+            proxy_host: None,
+            proxy_port: None,
         }
+    }
+
+    #[tokio::test]
+    async fn server_profile_persists_jump_host_and_proxy_settings() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = Database::open(directory.path().join("test.sqlite3")).expect("database");
+        let store = ProfileStore::new(database);
+        let mut input = password_server(None);
+        input.jump_host = Some("bastion-user@bastion.example.test".to_owned());
+        input.jump_port = 2222;
+        input.proxy_type = Some(ProxyType::Socks5);
+        input.proxy_host = Some("proxy.example.test".to_owned());
+        input.proxy_port = Some(1080);
+
+        let created = store
+            .create_server(input.clone())
+            .await
+            .expect("create advanced server profile");
+        assert_eq!(
+            created.jump_host.as_deref(),
+            Some("bastion-user@bastion.example.test")
+        );
+        assert_eq!(created.jump_port, 2222);
+        assert_eq!(created.proxy_type, Some(ProxyType::Socks5));
+        assert_eq!(created.proxy_host.as_deref(), Some("proxy.example.test"));
+        assert_eq!(created.proxy_port, Some(1080));
+
+        input.proxy_type = Some(ProxyType::HttpConnect);
+        input.proxy_port = Some(8080);
+        let updated = store
+            .update_server(created.id, created.revision, input)
+            .await
+            .expect("update advanced server profile");
+        assert_eq!(updated.proxy_type, Some(ProxyType::HttpConnect));
+        assert_eq!(updated.proxy_port, Some(8080));
+
+        let listed = store
+            .list_servers(ServerListQuery::default())
+            .await
+            .expect("list advanced server profile");
+        assert_eq!(listed.items[0].jump_port, 2222);
+        assert_eq!(
+            listed.items[0].proxy_host.as_deref(),
+            Some("proxy.example.test")
+        );
+    }
+
+    #[test]
+    fn rejects_incomplete_and_unsafe_proxy_and_jump_settings() {
+        let mut input = password_server(None);
+        input.proxy_type = Some(ProxyType::Socks5);
+        assert_eq!(
+            validate_server_input(input)
+                .expect_err("proxy endpoint is required")
+                .message_key,
+            "errors.proxyConfigurationInvalid"
+        );
+
+        let mut input = password_server(None);
+        input.jump_host = Some("user@host.example.test\r\nInjected".to_owned());
+        assert_eq!(
+            validate_server_input(input)
+                .expect_err("jump host cannot inject a header")
+                .message_key,
+            "errors.jumpHostInvalid"
+        );
     }
 
     #[tokio::test]

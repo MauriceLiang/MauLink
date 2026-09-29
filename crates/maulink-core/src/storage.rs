@@ -11,11 +11,12 @@ use tokio::sync::oneshot;
 
 use crate::{AppError, ErrorCode};
 
-const CURRENT_SCHEMA_VERSION: i64 = 2;
+const CURRENT_SCHEMA_VERSION: i64 = 3;
 const REQUEST_QUEUE_CAPACITY: usize = 32;
 const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
 const PROFILE_LIST_REVISION_MIGRATION: &str =
     include_str!("../migrations/0002_profile_list_revision.sql");
+const ADVANCED_SSH_MIGRATION: &str = include_str!("../migrations/0003_advanced_ssh.sql");
 
 type Job = Box<dyn FnOnce(&mut Connection) + Send + 'static>;
 
@@ -190,6 +191,11 @@ fn migrate(connection: &mut Connection, from_version: i64) -> Result<(), AppErro
             .execute_batch(PROFILE_LIST_REVISION_MIGRATION)
             .map_err(|_| migration_error("errors.migrationFailed"))?;
     }
+    if from_version < 3 {
+        transaction
+            .execute_batch(ADVANCED_SSH_MIGRATION)
+            .map_err(|_| migration_error("errors.migrationFailed"))?;
+    }
     transaction
         .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
         .map_err(|_| migration_error("errors.migrationFailed"))?;
@@ -321,6 +327,65 @@ mod tests {
             })
             .count();
         assert_eq!(backup_count, 1);
+    }
+
+    #[test]
+    fn migrates_version_two_profiles_with_safe_advanced_defaults() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("maulink.sqlite3");
+        let connection = Connection::open(&path).expect("open old database");
+        connection
+            .execute_batch(INITIAL_MIGRATION)
+            .expect("create initial schema");
+        connection
+            .execute_batch(PROFILE_LIST_REVISION_MIGRATION)
+            .expect("create version two schema");
+        connection
+            .execute(
+                "INSERT INTO servers
+                 (id, name, host, port, username, auth_type, created_at_ms, updated_at_ms)
+                 VALUES ('server-id', 'legacy', 'legacy.example.test', 22, 'user', 'password', 1, 1)",
+                [],
+            )
+            .expect("insert legacy server");
+        connection
+            .pragma_update(None, "user_version", 2_i64)
+            .expect("mark version two");
+        drop(connection);
+
+        drop(Database::open(&path).expect("migrate version two database"));
+        let connection = Connection::open(&path).expect("open migrated database");
+        let (jump_host, jump_port, proxy_type, proxy_host, proxy_port): (
+            Option<String>,
+            u16,
+            Option<String>,
+            Option<String>,
+            Option<u16>,
+        ) = connection
+            .query_row(
+                "SELECT jump_host, jump_port, proxy_type, proxy_host, proxy_port
+                 FROM servers WHERE id = 'server-id'",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .expect("read migrated server");
+        assert_eq!(jump_host, None);
+        assert_eq!(jump_port, 22);
+        assert_eq!(proxy_type, None);
+        assert_eq!(proxy_host, None);
+        assert_eq!(proxy_port, None);
+        let version: i64 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("read migrated version");
+        assert_eq!(version, 3);
     }
 
     #[test]

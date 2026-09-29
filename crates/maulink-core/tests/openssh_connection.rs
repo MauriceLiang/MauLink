@@ -13,6 +13,8 @@ use maulink_core::{
     HostKeyVerifier, PathEncoding, ProfileStore, Secret, SecureStore, SecureStoreError,
     ServerProfileInput, SshConnectionManager, SshConnector, StoredPath,
 };
+mod support;
+use support::OpenSshFixture;
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -165,6 +167,48 @@ async fn connects_to_isolated_openssh_and_checks_authentication_errors() {
         );
         session.disconnect().await.expect("close failed session");
     }
+}
+
+#[tokio::test]
+#[ignore = "starts an isolated loopback OpenSSH service"]
+async fn manager_authenticates_the_destination_through_a_jump_host() {
+    let fixture = OpenSshFixture::start();
+    let directory = tempfile::tempdir().expect("temporary database directory");
+    let database = Database::open(directory.path().join("jump-host.sqlite3")).expect("database");
+    let profiles = ProfileStore::new(database.clone());
+    let credentials = CredentialManager::new(
+        database.clone(),
+        CredentialWorker::new(Arc::new(EmptySecureStore)).expect("credential worker"),
+    );
+    let registry = ConnectionRegistry::default();
+    let verifier = HostKeyVerifier::new(HostKeyStore::new(database), registry.clone());
+    let connector = SshConnector::new(registry.clone(), verifier);
+    let manager = SshConnectionManager::new(profiles, credentials, registry.clone(), connector);
+    let mut input = profile_input(
+        &fixture.host,
+        fixture.port,
+        &fixture.username,
+        &fixture.private_key,
+    );
+    input.jump_host = Some(format!("{}@{}", fixture.username, fixture.host));
+    input.jump_port = fixture.port;
+
+    let started = manager
+        .start_draft_test(input, None)
+        .await
+        .expect("start jump-host connection test");
+    let challenge = wait_for_manager_host_key(&manager, &started.connection_id).await;
+    assert_eq!(challenge.host, fixture.host);
+    assert_eq!(challenge.port, fixture.port);
+    manager
+        .respond_host_key(
+            &started.connection_id,
+            &challenge.challenge_id,
+            HostKeyDecision::TrustAndSave,
+        )
+        .expect("trust jump and destination fixture host key");
+    let finished = wait_for_manager_terminal(&manager, &started.connection_id).await;
+    assert_eq!(finished.state, ConnectionState::Closed);
 }
 
 async fn verify_trust_once_rejection_and_host_key_cancellation(host: &str, port: u16) {
@@ -388,6 +432,11 @@ fn profile_input(host: &str, port: u16, username: &str, private_key: &Path) -> S
         group_id: None,
         connect_timeout_ms: 15_000,
         keepalive_interval_seconds: 30,
+        jump_host: None,
+        jump_port: 22,
+        proxy_type: None,
+        proxy_host: None,
+        proxy_port: None,
     }
 }
 

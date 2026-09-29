@@ -36,7 +36,7 @@ export function formatPercent(value) {
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
-export function formatUptime(value) {
+export function formatUptime(value, locale = "zh-CN") {
   if (value == null) return "—";
   let seconds;
   try { seconds = BigInt(value); } catch { return "—"; }
@@ -44,17 +44,25 @@ export function formatUptime(value) {
   const days = seconds / 86_400n;
   const hours = (seconds % 86_400n) / 3_600n;
   const minutes = (seconds % 3_600n) / 60n;
+  if (locale === "en") return days > 0n ? `${days}d ${hours}h` : `${hours}h ${minutes}m`;
   return days > 0n ? `${days} 天 ${hours} 小时` : `${hours} 小时 ${minutes} 分钟`;
 }
 
-export function qualityLabel(status) {
-  return ({
+export function qualityLabel(status, locale = "zh-CN") {
+  const labels = locale === "en" ? {
+    ok: "Normal",
+    warmingUp: "Sampling",
+    stale: "Data is stale",
+    unsupported: "Unsupported",
+    error: "Temporarily unavailable",
+  } : {
     ok: "正常",
     warmingUp: "正在采样",
     stale: "数据已过期",
     unsupported: "不支持",
     error: "暂不可用",
-  })[status] ?? "等待数据";
+  };
+  return labels[status] ?? (locale === "en" ? "Waiting for data" : "等待数据");
 }
 
 export function sparklinePath(samples, width = 220, height = 42) {

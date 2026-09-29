@@ -15,9 +15,16 @@ test("formats percentages, uptime, and missing values without inventing zero", (
   assert.equal(formatPercent(37.25), "37.3%");
   assert.equal(formatPercent(null), "—");
   assert.equal(formatUptime("90061"), "1 天 1 小时");
+  assert.equal(formatUptime("90061", "en"), "1d 1h");
   assert.equal(formatUptime(null), "—");
   assert.equal(qualityLabel("warmingUp"), "正在采样");
+  assert.equal(qualityLabel("warmingUp", "en"), "Sampling");
   assert.equal(qualityLabel("unsupported"), "不支持");
+  assert.equal(qualityLabel("ok", "en"), "Normal");
+  assert.equal(qualityLabel("stale", "en"), "Data is stale");
+  assert.equal(qualityLabel("unsupported", "en"), "Unsupported");
+  assert.equal(qualityLabel("error", "en"), "Temporarily unavailable");
+  assert.equal(qualityLabel("unknown", "en"), "Waiting for data");
 });
 
 test("creates bounded sparkline paths for empty, single, constant, and varying data", () => {

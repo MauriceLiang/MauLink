@@ -168,6 +168,11 @@ pub async fn server_update(
             || current.auth_type != payload.profile.auth_type
             || current.connect_timeout_ms != payload.profile.connect_timeout_ms
             || current.keepalive_interval_seconds != payload.profile.keepalive_interval_seconds
+            || current.jump_host != payload.profile.jump_host
+            || current.jump_port != payload.profile.jump_port
+            || current.proxy_type != payload.profile.proxy_type
+            || current.proxy_host != payload.profile.proxy_host
+            || current.proxy_port != payload.profile.proxy_port
             || payload.profile.private_key_token.is_some()
             || !matches!(&payload.credential, CredentialUpdate::Keep);
         if connection_fields_changed {
@@ -650,5 +655,10 @@ fn profile_input_with_path(
         group_id: profile.group_id,
         connect_timeout_ms: profile.connect_timeout_ms,
         keepalive_interval_seconds: profile.keepalive_interval_seconds,
+        jump_host: profile.jump_host,
+        jump_port: profile.jump_port,
+        proxy_type: profile.proxy_type,
+        proxy_host: profile.proxy_host,
+        proxy_port: profile.proxy_port,
     }
 }

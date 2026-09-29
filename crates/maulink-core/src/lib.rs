@@ -47,8 +47,8 @@ pub use host_keys::{HostKeyCandidate, HostKeyCheck, HostKeyRecord, HostKeyStore,
 pub use local_files::{LocalFilePurpose, LocalFileRegistry, SelectedLocalFile};
 pub use monitor::MonitorManager;
 pub use profiles::{
-    AuthType, Group, GroupCreate, GroupUpdate, PathEncoding, ProfileStore, ServerListPage,
-    ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,
+    AuthType, Group, GroupCreate, GroupUpdate, PathEncoding, ProfileStore, ProxyType,
+    ServerListPage, ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,
 };
 pub use settings::{
     AppSettings, CursorStyle, Language, SettingsRecord, SettingsService, SettingsUpdate, Theme,

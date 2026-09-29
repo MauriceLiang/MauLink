@@ -331,6 +331,11 @@ fn profile_input(fixture: &OpenSshFixture) -> ServerProfileInput {
         group_id: None,
         connect_timeout_ms: 10_000,
         keepalive_interval_seconds: 30,
+        jump_host: None,
+        jump_port: 22,
+        proxy_type: None,
+        proxy_host: None,
+        proxy_port: None,
     }
 }
 
