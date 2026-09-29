@@ -20,6 +20,10 @@ const iconNodes = {
   ["line", { x1: "6", x2: "6.01", y1: "6", y2: "6", key: "16zg32" }],
   ["line", { x1: "6", x2: "6.01", y1: "18", y2: "18", key: "nzw8ys" }]
 ],
+  'house': [
+  ["path", { d: "M3 10.182 12 3l9 7.182V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z", key: "1q8ayb" }],
+  ["path", { d: "M9 22v-9h6v9", key: "1u9r1e" }]
+],
   'settings-2': [
   ["path", { d: "M14 17H5", key: "gfn3mx" }],
   ["path", { d: "M19 7h-9", key: "6i9tg" }],
