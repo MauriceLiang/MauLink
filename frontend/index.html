@@ -29,6 +29,11 @@
           <main>
             <section id="servers-page" class="page servers-page">
               <section class="welcome-card" id="welcome-card" aria-labelledby="welcome-title"><div class="welcome-icon" aria-hidden="true"><span data-icon="server"></span></div><div class="welcome-copy"><span class="welcome-kicker">REMOTE WORKSPACE</span><h1 id="welcome-title">欢迎使用 MauLink</h1><p id="welcome-description">添加一台服务器，开始你的远程工作。</p><div class="welcome-actions"><button class="button button-primary" id="welcome-add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><a class="welcome-link" href="https://github.com" target="_blank" rel="noreferrer">了解更多<span data-icon="arrow-up-right" aria-hidden="true"></span></a></div></div></section>
+              <section class="server-home-view" id="server-home-view" aria-labelledby="server-home-title" hidden>
+                <header class="server-home-heading"><h1 id="server-home-title">服务器</h1></header>
+                <p class="server-home-lead">选择一台服务器打开工作区，或添加新服务器。</p>
+                <div class="server-home-list" id="server-home-list" aria-live="polite"></div>
+              </section>
               <div class="legacy-stats" hidden aria-hidden="true"><span id="stat-total">0</span><span id="stat-connected">0</span><span id="stat-groups">0</span><span id="footer-version">0.1</span></div>
             </section>
           <section id="workspace-page" class="page workspace-page" hidden>

@@ -328,9 +328,22 @@ function renderStats() {
 }
 
 function renderConnectionStatus(profile) {
+  const entry = connectionFor(profile.id);
+  const homeCard = $(`.home-server-card[data-server-id="${CSS.escape(profile.id)}"]`);
+  if (homeCard) {
+    const state = entry?.snapshot?.state;
+    const ready = state === "ready";
+    const pending = Boolean(entry && !["ready", "failed", "closed", "cancelled"].includes(state));
+    const status = $(".home-server-status-dot", homeCard);
+    status.classList.toggle("is-ready", ready);
+    status.classList.toggle("is-pending", pending);
+    status.setAttribute("aria-label", ready ? "已连接" : pending ? connectionStateLabel(state) : "未连接");
+    const button = $(".home-server-open", homeCard);
+    button.textContent = ready ? "打开工作区" : pending ? "连接中…" : "打开";
+    button.disabled = pending;
+  }
   const row = $(`.server-row[data-server-id="${CSS.escape(profile.id)}"]`);
   if (!row) return;
-  const entry = connectionFor(profile.id);
   row.classList.toggle("is-selected", state.activeWorkspace?.profile?.id === profile.id);
   const status = $(".server-connection", row);
   const button = $("[data-action='connect']", row);
@@ -423,6 +436,44 @@ function createServerRow(profile) {
   return row;
 }
 
+function createHomeServerCard(profile) {
+  const card = document.createElement("article");
+  card.className = "home-server-card";
+  card.dataset.serverId = profile.id;
+
+  const status = document.createElement("span");
+  status.className = "home-server-status-dot";
+  status.setAttribute("role", "img");
+  status.setAttribute("aria-label", "未连接");
+
+  const details = document.createElement("div");
+  details.className = "home-server-details";
+  const name = document.createElement("div");
+  name.className = "home-server-name";
+  name.dataset.userContent = "true";
+  name.textContent = profile.name || profile.host;
+  const address = document.createElement("div");
+  address.className = "home-server-address";
+  address.dataset.userContent = "true";
+  address.textContent = `${profile.username}@${profile.host}`;
+  details.append(name, address);
+
+  const button = document.createElement("button");
+  button.className = "button button-secondary home-server-open";
+  button.type = "button";
+  button.textContent = "打开";
+  button.addEventListener("click", () => void startSavedConnection(profile, "workspace"));
+
+  card.append(status, details, button);
+  return card;
+}
+
+function renderHomeServers() {
+  const list = $("#server-home-list");
+  list.replaceChildren(...state.profiles.map(createHomeServerCard));
+  for (const profile of state.profiles) renderConnectionStatus(profile);
+}
+
 function renderServers() {
   const list = $("#server-list");
   list.replaceChildren();
@@ -451,10 +502,12 @@ function renderServers() {
 function renderAll() {
   const hasProfiles = state.profiles.length > 0;
   document.body.classList.toggle("has-profiles", hasProfiles);
-  $("#welcome-card").classList.toggle("has-profiles", hasProfiles);
+  $("#welcome-card").hidden = hasProfiles;
+  $("#server-home-view").hidden = !hasProfiles;
   setText($("#welcome-title"), hasProfiles ? "选择一台服务器" : "欢迎使用 MauLink");
   setText($("#welcome-description"), hasProfiles ? "从左侧选择服务器，即可进入远程工作区。" : "添加一台服务器，开始你的远程工作。");
   $("#welcome-add-server").hidden = hasProfiles;
+  renderHomeServers();
   renderGroups();
   renderStats();
   renderServers();
