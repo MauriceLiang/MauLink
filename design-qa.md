@@ -1,38 +1,34 @@
-# MauLink UI implementation design QA
+# MauLink UI 精修检查
 
-**Delivery status: source-aligned implementation and macOS app build are ready for the user's visual check.**
+**最终验收状态：blocked。** 前端改造、自动化检查和 macOS Release 构建已完成；本轮没有启动桌面窗口，因此尚无实现截图可与设计稿逐屏比对，不能确认像素级视觉验收。
 
-## Design references
+## 对照材料
 
-- `UI/slides.pdf` contains 34 English and Simplified Chinese screens, including workspace, empty home, server dialogs, monitor, settings, file management, and connection/security states.
-- `UI设计.pdf` is the 68-page export of the same English and Chinese screen set; `UI/页面原型.html` supplies the editable source layout and component styling.
-- Desktop artboards are 1440 × 900. The Tauri window is configured for 1440 × 920 with a 48 px shared toolbar and native macOS traffic lights.
+- `UI/index.html`：可交互中文原型，包含浅色/深色主题与连接、文件、监控、设置等状态。
+- `UI/MauLink_UI_描述文档_v0.1.md`：双语界面、主题 token、桌面尺寸、信息层级和状态规范。
+- `UI/slides.pdf`：73 页中文与英文设计画面，作为页面外观对照。
 
-## Updated implementation
+## 本轮改动
 
-- The native macOS close, minimize, and zoom controls overlay the shared brand toolbar beside the MauLink logo; no separate black title strip or CSS-drawn traffic lights are used.
-- The toolbar, sidebar, server workspace, terminal/files split, quick-monitor column, full Files and Monitor views, settings shell, and Chinese/English labels follow the supplied artboards. The quick-monitor column spans the terminal and file-list rows.
-- The add-server form follows the supplied order and dimensions. Its footer contains Test Connection and Connect; Edit Server contains Cancel and Save Changes plus the separate delete action. The new design has no visible Group field, so editing keeps the existing group assignment in a hidden form value.
-- Advanced connection settings use a full-width Jump Host field, an 88 px Jump Port field beside Proxy, and full-width Keep Alive. The card follows the reference neutral fill, 1 px border, 10 px radius, and 16 px inset.
-- Jump-host and proxy values persist through the versioned SQLite migration, TypeScript contracts, Tauri commands, and SSH connection manager. Connections support one SSH jump host and no-auth SOCKS5 or HTTP CONNECT; a configured proxy can carry either the jump-host connection or a direct target connection.
-- Static UI strings, accessibility labels, placeholders, titles, and runtime messages have English mappings. Monitor status and app-generated terminal notices follow the selected language; server names, addresses, remote paths, and remote terminal output remain literal.
+- 工作区按原型收敛为 46 px 标题区、38 px 终端标签栏、268 px 快速监控栏和 250 px 文件区；选中终端标签改为强调色底，不再使用下划线状态。
+- 添加服务器弹窗调整到原型的 560 px 宽度、16 px 标题、38 px 输入控件；认证切换区和深色主题共用主题 token。
+- 将深色主题色值对齐设计文档，补齐弹窗、表单、文件区、监控卡片和连接错误状态的暗色表面与文字颜色。
+- 连接错误详情改为默认折叠，并添加静态契约测试，确保用户主动展开后才看到原始诊断信息。
 
-## Known gaps
+## 设计源差异与未验收项
 
-- The source prototype requests Inter and JetBrains Mono from Google Fonts. Those font files are not bundled with the app, and the Tauri content security policy blocks remote fonts; system font fallbacks are used. Exact text metrics may differ from the prototype.
-- No post-change macOS window screenshot is available. Exact visual parity, text wrapping, and native traffic-light alignment remain for the user's manual check in the delivered app.
-- SOCKS5 and HTTP CONNECT handshake tests use in-memory streams. The ignored local OpenSSH jump-host integration test was attempted, but its fixture could not reserve a loopback port (`Operation not permitted`). A live SSH/SFTP path and Tauri IPC were not exercised. The user chose to skip the MauLink Backend Harness IPC measurement after its launch was not approved.
-- Proxy authentication is not shown in the supplied design and is not implemented. Jump-host authentication reuses the profile's credential and private key, with an optional `user@host` username override.
+- 可交互 HTML 的浅色终端 token 为 `#FBFBFD`，但 PDF 的浅色工作区画面将终端展示为黑底。本实现保留 PDF 中的黑底终端外观；如以 HTML token 为最终规范，这一处仍需统一设计源。
+- PDF 原型展示了模拟的进程/线程列表，设计说明限定快速监控指标，当前后端也没有进程列表数据接口；本实现没有把模拟数据带入真实界面。
+- Inter 与 JetBrains Mono 字体依赖远程 Google Fonts，而桌面 CSP 不允许远程字体；应用继续使用本机系统字体回退，字形宽度可能略有差异。
+- 由于没有本轮应用窗口截图，弹窗换行、原生 macOS 红绿灯对齐、桌面密度及中文/英文画面还需在实际运行窗口验收。
 
-## Checks performed
+## 检查结果
 
-- `node --check frontend/src/main.mjs` and `node --check frontend/src/i18n.mjs` — passed.
-- `node --test frontend/tests/*.test.mjs` — 13 passed, 0 failed.
-- `cargo fmt --all -- --check` — passed.
-- Static markup audit — 242 unique IDs, no duplicates, and no unresolved literal `main.mjs` ID selectors.
-- Static bilingual audit — all 202 unique Chinese text, ARIA, placeholder, and title values in `frontend/index.html` translate to English.
-- `cargo test --package maulink-core --locked --offline` — 64 unit tests and 4 contract tests passed; 1 native credential-store test and OpenSSH integration tests are ignored by default.
-- `cargo check --package maulink-desktop --locked --offline` — passed.
-- `cargo build --release --package maulink-desktop --locked --offline` — passed; the release executable was installed into `target/release/bundle/macos/MauLink.app` and ad-hoc signed for local testing.
-- `codesign --verify --deep --strict --verbose=2 target/release/bundle/macos/MauLink.app` and `plutil -lint .../Contents/Info.plist` — passed.
-- `git diff --check` — passed.
+- `node --check frontend/src/main.mjs`、`node --check frontend/src/i18n.mjs`：通过。
+- `node --test frontend/tests/*.test.mjs`：15 项通过，0 项失败。
+- CSS 语法解析器 `tinycss2` 未安装，完整解析检查未能运行；CSS 括号/引号平衡检查通过。
+- `cargo build --release --package maulink-desktop --locked --offline`：通过。
+- macOS `.app` ad-hoc 签名验证：通过；`Info.plist` lint：通过。
+- `git diff --check`：通过。
+
+构建位置：[`target/release/bundle/macos/MauLink.app`](/Users/mauriceliang/Documents/code/MauLink/target/release/bundle/macos/MauLink.app)
