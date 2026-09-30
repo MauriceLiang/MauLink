@@ -3,6 +3,8 @@ import { joinRemotePath, parentRemotePath } from "./remote-path.mjs";
 import { formatBytes, formatPercent, formatRate as formatMonitorRate, formatUptime, qualityLabel, sparklinePath } from "./monitor-view.mjs";
 import { hydrateIcons, iconMarkup } from "./icons.mjs";
 import { setLocale, translateText } from "./i18n.mjs";
+import { filterPaletteCommands, movePaletteSelection } from "./command-palette.mjs";
+import { copyTerminalSelection, isTerminalCopyOnSelectEnabled, setTerminalCopyOnSelectEnabled } from "./terminal-preferences.mjs";
 
 const API_VERSION = 1;
 const MAX_TERMINAL_INPUT_CHUNK = 64 * 1024;
@@ -11,6 +13,10 @@ const core = window.__TAURI__?.core;
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+let closeServerActionMenu = null;
+let closeFileActionMenu = null;
+const commandPaletteState = { commands: [], visible: [], activeIndex: -1, returnFocus: null, restoreFocus: true };
+let terminalClipboardWarningShown = false;
 
 const state = {
   profiles: [],
@@ -46,6 +52,7 @@ const state = {
     action: null,
     transfers: new Map(),
     transferOrder: [],
+    dismissedTransferIds: new Set(),
   },
   monitor: {
     snapshot: null,
@@ -178,6 +185,310 @@ function closeDialog(dialog) {
   if (dialog.open) dialog.close();
 }
 
+function dismissServerActionMenu() {
+  closeServerActionMenu?.();
+  closeServerActionMenu = null;
+}
+
+function dismissFileActionMenu() {
+  closeFileActionMenu?.();
+  closeFileActionMenu = null;
+}
+
+function showServerActionMenu(profile, x, y, returnFocus) {
+  dismissServerActionMenu();
+  dismissFileActionMenu();
+  const menu = document.createElement("div");
+  menu.className = "server-context-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", translateText("服务器操作"));
+  menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - 200))}px`;
+  menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - 88))}px`;
+  menu.innerHTML = `
+    <button class="server-context-menu-item" type="button" role="menuitem" data-menu-action="edit">${iconMarkup("pencil")}<span>${translateText("编辑服务器")}</span></button>
+    <button class="server-context-menu-item is-danger" type="button" role="menuitem" data-menu-action="delete">${iconMarkup("trash-2")}<span>${translateText("删除服务器")}</span></button>`;
+  document.body.append(menu);
+
+  const controller = new AbortController();
+  const close = (restoreFocus = false) => {
+    controller.abort();
+    menu.remove();
+    if (closeServerActionMenu === close) closeServerActionMenu = null;
+    returnFocus.setAttribute("aria-expanded", "false");
+    if (restoreFocus) returnFocus.focus();
+  };
+  closeServerActionMenu = close;
+  document.addEventListener("pointerdown", (event) => {
+    if (!menu.contains(event.target)) close();
+  }, { signal: controller.signal });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close(true);
+    }
+  }, { signal: controller.signal });
+  menu.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-menu-action]")?.dataset.menuAction;
+    if (!action) return;
+    close();
+    if (action === "edit") openServerDialog(profile);
+    else openDeleteDialog(profile);
+  });
+  menu.querySelector("button")?.focus();
+}
+
+function showFileActionMenu(entry, x, y, returnFocus) {
+  dismissFileActionMenu();
+  dismissServerActionMenu();
+  const directory = entry.fileType === "directory";
+  const menu = document.createElement("div");
+  menu.className = "server-context-menu file-context-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", translateText("文件操作"));
+  menu.style.left = `${Math.max(8, x)}px`;
+  menu.style.top = `${Math.max(8, y)}px`;
+  const actions = directory
+    ? [
+      { id: "open", label: "打开", icon: "folder" },
+      { id: "copy", label: "复制路径", icon: "copy" },
+      { id: "rename", label: "重命名", icon: "pencil" },
+      { id: "delete", label: "删除", icon: "trash-2", danger: true },
+    ]
+    : [
+      { id: "download", label: "下载", icon: "download", disabled: !["file", "symlink"].includes(entry.fileType) },
+      { id: "view", label: "查看", icon: "eye", disabled: true, title: "远程文本预览和编辑暂不可用。" },
+      { id: "edit", label: "编辑", icon: "pencil", disabled: true, title: "远程文本预览和编辑暂不可用。" },
+      { id: "copy", label: "复制路径", icon: "copy" },
+      { id: "rename", label: "重命名", icon: "pencil" },
+      { id: "delete", label: "删除", icon: "trash-2", danger: true },
+    ];
+  for (const action of actions) {
+    if (action.id === "delete") {
+      const separator = document.createElement("div");
+      separator.className = "server-context-menu-separator";
+      separator.setAttribute("role", "separator");
+      menu.append(separator);
+    }
+    const button = document.createElement("button");
+    button.className = `server-context-menu-item${action.danger ? " is-danger" : ""}`;
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.dataset.fileMenuAction = action.id;
+    button.disabled = Boolean(action.disabled || (directory && action.id === "open" && !state.activeWorkspace));
+    if (action.title) button.title = translateText(action.title);
+    const icon = document.createElement("span");
+    icon.innerHTML = iconMarkup(action.icon);
+    const label = document.createElement("span");
+    label.textContent = translateText(action.label);
+    button.append(icon.firstElementChild, label);
+    menu.append(button);
+  }
+  document.body.append(menu);
+  const menuBounds = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - menuBounds.width - 8))}px`;
+  menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - menuBounds.height - 8))}px`;
+
+  const controller = new AbortController();
+  const close = (restoreFocus = false) => {
+    controller.abort();
+    menu.remove();
+    if (closeFileActionMenu === close) closeFileActionMenu = null;
+    returnFocus.setAttribute("aria-expanded", "false");
+    if (restoreFocus && returnFocus.isConnected) returnFocus.focus();
+  };
+  closeFileActionMenu = close;
+  document.addEventListener("pointerdown", (event) => {
+    if (!menu.contains(event.target)) close();
+  }, { signal: controller.signal });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close(true);
+    }
+  }, { signal: controller.signal });
+  menu.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-file-menu-action]")?.dataset.fileMenuAction;
+    if (!action) return;
+    close();
+    if (action === "open" && directory) void openRemoteEntry(entry);
+    else if (action === "download") void selectDownload();
+    else if (action === "copy") void copySelectedPath();
+    else if (action === "rename") openFileNameDialog("rename");
+    else if (action === "delete") openFileDeleteDialog();
+  });
+  menu.querySelector("button:not(:disabled)")?.focus();
+}
+
+function buildPaletteCommands() {
+  const navigation = translateText("导航");
+  const actions = translateText("操作");
+  const hasWorkspace = Boolean(state.activeWorkspace);
+  const workspaceReady = state.activeWorkspace?.snapshot?.state === "ready" && !state.disconnecting;
+  const hasCompletedTransfers = state.files.transferOrder.some((id) => state.files.transfers.get(id)?.state === "completed");
+  const profiles = state.profiles.map((profile) => ({
+    id: `server:${profile.id}`,
+    group: translateText("服务器"),
+    type: "server",
+    profileId: profile.id,
+    label: profile.name || profile.host,
+    meta: `${profile.username}@${profile.host}`,
+    icon: "server",
+    keywords: [profile.name, profile.host, profile.username, "server", "connect"],
+  }));
+  return [
+    ...profiles,
+    { id: "workspace", group: navigation, type: "navigation", target: "workspace", label: translateText("打开工作区"), icon: "terminal", disabled: !hasWorkspace, keywords: ["workspace", "terminal"] },
+    { id: "monitor", group: navigation, type: "navigation", target: "monitor", label: translateText("打开监控"), icon: "activity", disabled: !workspaceReady, keywords: ["monitor", "metrics"] },
+    { id: "files", group: navigation, type: "navigation", target: "files", label: translateText("打开文件与传输"), icon: "folder", disabled: !workspaceReady, keywords: ["files", "transfers", "sftp"] },
+    { id: "add-server", group: actions, type: "action", action: "add-server", label: translateText("添加新的服务器"), icon: "plus", keywords: ["add", "server"] },
+    { id: "toggle-theme", group: actions, type: "action", action: "toggle-theme", label: translateText("切换浅色 / 深色主题"), icon: "moon", keywords: ["theme", "appearance", "dark", "light"] },
+    { id: "toggle-language", group: actions, type: "action", action: "toggle-language", label: translateText("切换语言"), icon: "languages", keywords: ["language", "english", "chinese"] },
+    { id: "clear-transfers", group: actions, type: "action", action: "clear-transfers", label: translateText("清除已完成的传输"), icon: "trash-2", disabled: !hasCompletedTransfers, keywords: ["clear", "completed", "transfers"] },
+  ];
+}
+
+function syncPaletteSelection() {
+  const input = $("#command-palette-input");
+  const options = $$(".command-palette-option", $("#command-palette-results"));
+  for (const option of options) {
+    const selected = Number(option.dataset.paletteIndex) === commandPaletteState.activeIndex;
+    option.classList.toggle("is-active", selected);
+    option.setAttribute("aria-selected", String(selected));
+  }
+  const active = options.find((option) => Number(option.dataset.paletteIndex) === commandPaletteState.activeIndex);
+  if (active) input.setAttribute("aria-activedescendant", active.id);
+  else input.removeAttribute("aria-activedescendant");
+}
+
+function renderCommandPalette() {
+  const input = $("#command-palette-input");
+  const results = $("#command-palette-results");
+  commandPaletteState.visible = filterPaletteCommands(commandPaletteState.commands, input.value);
+  commandPaletteState.activeIndex = movePaletteSelection(commandPaletteState.visible, -1, 1);
+  results.replaceChildren();
+  if (!commandPaletteState.visible.length) {
+    const empty = document.createElement("div");
+    empty.className = "command-palette-empty";
+    empty.textContent = translateText("没有匹配的命令");
+    results.append(empty);
+    syncPaletteSelection();
+    return;
+  }
+
+  const groups = new Map();
+  commandPaletteState.visible.forEach((command, index) => {
+    if (!groups.has(command.group)) groups.set(command.group, []);
+    groups.get(command.group).push({ command, index });
+  });
+  for (const [groupName, items] of groups) {
+    const group = document.createElement("section");
+    group.className = "command-palette-group";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", groupName);
+    const heading = document.createElement("div");
+    heading.className = "command-palette-group-label";
+    heading.textContent = groupName;
+    group.append(heading);
+    for (const { command, index } of items) {
+      const option = document.createElement("button");
+      option.className = "command-palette-option";
+      option.type = "button";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(index === commandPaletteState.activeIndex));
+      option.setAttribute("aria-disabled", String(Boolean(command.disabled)));
+      option.id = `command-palette-option-${index}`;
+      option.dataset.paletteIndex = String(index);
+      option.disabled = Boolean(command.disabled);
+      const icon = document.createElement("span");
+      icon.innerHTML = iconMarkup(command.icon);
+      const label = document.createElement("span");
+      label.className = "command-palette-option-label";
+      label.textContent = command.label;
+      option.append(icon.firstElementChild, label);
+      if (command.meta) {
+        const meta = document.createElement("span");
+        meta.className = "command-palette-option-meta";
+        meta.textContent = command.meta;
+        option.append(meta);
+      }
+      group.append(option);
+    }
+    results.append(group);
+  }
+  syncPaletteSelection();
+}
+
+function closeCommandPalette(restoreFocus = true) {
+  const dialog = $("#command-palette");
+  if (!dialog.open) return;
+  commandPaletteState.restoreFocus = restoreFocus;
+  dialog.close();
+}
+
+function openCommandPalette() {
+  const dialog = $("#command-palette");
+  if (dialog.open) return;
+  dismissServerActionMenu();
+  dismissFileActionMenu();
+  if ($$("dialog[open]").length) return;
+  if ($(".app-shell").classList.contains("is-focused")) setTerminalFocus(false);
+  commandPaletteState.returnFocus = document.activeElement;
+  commandPaletteState.restoreFocus = true;
+  commandPaletteState.commands = buildPaletteCommands();
+  $("#command-palette-input").value = "";
+  $("#command-palette-input").setAttribute("aria-expanded", "true");
+  renderCommandPalette();
+  dialog.showModal();
+  $("#command-palette-input").focus();
+}
+
+function activatePaletteCommand(command) {
+  if (!command || command.disabled) return;
+  closeCommandPalette(false);
+  if (command.type === "server") {
+    const profile = state.profiles.find((item) => item.id === command.profileId);
+    if (profile) void startSavedConnection(profile, "workspace");
+    return;
+  }
+  if (command.type === "navigation") {
+    if (command.target === "workspace" && state.activeWorkspace) {
+      showPage("workspace");
+      setWorkspaceMode("terminal");
+    } else if (command.target === "monitor" && state.activeWorkspace?.snapshot?.state === "ready") {
+      showPage("workspace");
+      setWorkspaceMode("monitor");
+    } else if (command.target === "files" && state.activeWorkspace?.snapshot?.state === "ready") {
+      showPage("workspace");
+      setWorkspaceMode("files");
+    }
+    return;
+  }
+  if (command.action === "add-server") openServerDialog();
+  else if (command.action === "toggle-theme") {
+    const current = state.settings.value.theme;
+    const effective = current === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : current;
+    const next = effective === "dark" ? "light" : "dark";
+    $(`[data-theme-choice="${next}"]`)?.click();
+  } else if (command.action === "toggle-language") {
+    const next = state.settings.value.language === "en" ? "zh-CN" : "en";
+    $(`[data-language-choice="${next}"]`)?.click();
+  } else if (command.action === "clear-transfers") clearCompletedTransfers();
+}
+
+function clearCompletedTransfers() {
+  const completedIds = state.files.transferOrder.filter((id) => state.files.transfers.get(id)?.state === "completed");
+  if (!completedIds.length) return;
+  for (const id of completedIds) {
+    state.files.dismissedTransferIds.add(id);
+    state.files.transfers.delete(id);
+  }
+  state.files.transferOrder = state.files.transferOrder.filter((id) => !completedIds.includes(id));
+  renderTransfers();
+  toast("已清除已完成的传输。");
+}
+
 function showConnectionError(profile, error) {
   state.connectionFailureProfile = profile;
   setText($("#connection-error-server-name"), profile?.name || profile?.host || "SSH 服务器");
@@ -268,17 +579,27 @@ function setText(element, value) {
   element.textContent = value == null ? "" : String(value);
 }
 
+function updateTerminalFontSizeControls(value) {
+  const terminalFontSize = Number(value);
+  $("#setting-terminal-size").value = String(terminalFontSize);
+  setText($("#setting-terminal-size-value"), `${terminalFontSize} px`);
+  for (const choice of $$("[data-terminal-font-size]")) {
+    choice.setAttribute("aria-pressed", String(Number(choice.dataset.terminalFontSize) === terminalFontSize));
+  }
+}
+
 function renderSettings() {
   const settings = state.settings.value;
   document.documentElement.dataset.theme = settings.theme;
   setLocale(settings.language);
   $("#setting-confirm-disconnect").checked = settings.confirmBeforeDisconnect;
-  $("#setting-language").value = settings.language;
   $("#setting-terminal-font").value = settings.terminalFontFamily;
-  $("#setting-terminal-size").value = String(settings.terminalFontSize);
-  setText($("#setting-terminal-size-value"), `${settings.terminalFontSize} px`);
-  $("#setting-terminal-cursor").value = settings.terminalCursorStyle;
+  updateTerminalFontSizeControls(settings.terminalFontSize);
+  for (const choice of $$("#setting-terminal-cursor [data-terminal-cursor]")) {
+    choice.setAttribute("aria-pressed", String(choice.dataset.terminalCursor === settings.terminalCursorStyle));
+  }
   $("#setting-terminal-scrollback").value = String(settings.terminalScrollbackLines);
+  $("#setting-terminal-copy-on-select").checked = isTerminalCopyOnSelectEnabled(localStorage);
   for (const choice of $$("[data-theme-choice]")) {
     choice.setAttribute("aria-pressed", String(choice.dataset.themeChoice === settings.theme));
   }
@@ -397,7 +718,7 @@ function createServerRow(profile) {
   row.dataset.serverId = profile.id;
   row.innerHTML = `
     <span class="server-monogram" aria-hidden="true"><span data-icon="server"></span></span>
-    <div class="server-main"><h3 class="server-name"></h3><div class="server-address"></div><span class="server-connection"><i></i><span>未连接</span></span></div>
+    <div class="server-main"><h3 class="server-name"></h3><div class="server-address"></div><span class="server-connection"><i></i><span>未连接</span></span><button class="server-menu-trigger" type="button" aria-label="${translateText("更多操作")}" aria-haspopup="menu" aria-expanded="false" title="${translateText("更多操作")}">${iconMarkup("ellipsis")}</button></div>
     <div class="server-property host-property"><span class="property-label">连接地址</span><span class="property-value host-value"></span></div>
     <div class="server-property auth-property"><span class="property-label">认证</span><span class="property-value auth-tag"></span></div>
     <div class="server-property connection-property"><span class="property-label">状态 · <span class="group-value"></span></span></div>
@@ -432,6 +753,18 @@ function createServerRow(profile) {
   $("[data-action='test']", row).addEventListener("click", () => void startSavedConnection(profile, "test"));
   $("[data-action='edit']", row).addEventListener("click", () => openServerDialog(profile));
   $("[data-action='delete']", row).addEventListener("click", () => openDeleteDialog(profile));
+  const menuTrigger = $(".server-menu-trigger", row);
+  menuTrigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const bounds = menuTrigger.getBoundingClientRect();
+    menuTrigger.setAttribute("aria-expanded", "true");
+    showServerActionMenu(profile, bounds.right - 192, bounds.bottom + 4, menuTrigger);
+  });
+  row.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    menuTrigger.setAttribute("aria-expanded", "true");
+    showServerActionMenu(profile, event.clientX, event.clientY, menuTrigger);
+  });
   renderConnectionStatus(profile);
   return row;
 }
@@ -504,8 +837,10 @@ function renderAll() {
   document.body.classList.toggle("has-profiles", hasProfiles);
   $("#welcome-card").hidden = hasProfiles;
   $("#server-home-view").hidden = !hasProfiles;
-  setText($("#welcome-title"), hasProfiles ? "选择一台服务器" : "欢迎使用 MauLink");
-  setText($("#welcome-description"), hasProfiles ? "从左侧选择服务器，即可进入远程工作区。" : "添加一台服务器，开始你的远程工作。");
+  setText($("#welcome-title"), hasProfiles ? "选择一台服务器" : "还没有服务器");
+  setText($("#welcome-description"), hasProfiles
+    ? "从左侧选择服务器，即可进入远程工作区。"
+    : "连接你的第一台服务器。\n在一个工作区中使用终端、管理文件并查看服务器状态。");
   $("#welcome-add-server").hidden = hasProfiles;
   renderHomeServers();
   renderGroups();
@@ -547,7 +882,7 @@ function openServerDialog(profile = null) {
   form.reset();
   setText($("#server-dialog-title"), profile ? "编辑服务器" : "添加服务器");
   setText($("#server-dialog-description"), profile ? "更新 SSH 服务器连接信息" : "连接到一台新的 SSH 服务器");
-  $("#server-cancel-button").hidden = !profile;
+  $("#server-cancel-button").hidden = false;
   $("#save-server").hidden = !profile;
   $("#save-server").textContent = "保存更改";
   $("#test-connection").hidden = Boolean(profile);
@@ -1437,7 +1772,48 @@ async function loadFiles({ path = state.files.path, append = false } = {}) {
 
 function navigateFiles(path) {
   if (state.files.loading) state.files.sequence += 1;
+  $("#files-path-bar").classList.remove("is-editing");
+  $(".files-path-input-wrap").hidden = true;
+  $("#files-go").hidden = true;
+  $("#files-edit-path").setAttribute("aria-expanded", "false");
   void loadFiles({ path, append: false });
+}
+
+function renderFileBreadcrumb(path) {
+  const breadcrumb = $("#files-path-breadcrumb");
+  breadcrumb.replaceChildren();
+  if (!path) return;
+
+  const absolute = path.startsWith("/");
+  const root = absolute ? "/" : ".";
+  const rootButton = document.createElement("button");
+  rootButton.className = "files-breadcrumb-segment";
+  rootButton.type = "button";
+  rootButton.textContent = root;
+  rootButton.dataset.remotePath = root;
+  rootButton.setAttribute("aria-label", absolute ? "根目录" : "当前目录");
+  breadcrumb.append(rootButton);
+
+  let current = root;
+  const segments = path.split("/").filter(Boolean);
+  if (!absolute && path === ".") segments.length = 0;
+  for (const [index, segment] of segments.entries()) {
+    const separator = document.createElement("span");
+    separator.className = "files-breadcrumb-separator";
+    separator.setAttribute("aria-hidden", "true");
+    separator.textContent = "/";
+    breadcrumb.append(separator);
+    current = absolute
+      ? `${current === "/" ? "" : current}/${segment}`
+      : `${current === "." ? "" : `${current}/`}${segment}`;
+    const button = document.createElement("button");
+    button.className = "files-breadcrumb-segment";
+    button.type = "button";
+    button.textContent = segment;
+    button.dataset.remotePath = absolute ? `/${current.replace(/^\//, "")}` : current;
+    if (index === segments.length - 1) button.setAttribute("aria-current", "location");
+    breadcrumb.append(button);
+  }
 }
 
 function fileTypeLabel(entry) {
@@ -1470,18 +1846,25 @@ function formatFileSize(value) {
 function formatModifiedAt(value) {
   if (value === null || value === undefined) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? "—" : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  if (Number.isNaN(date.valueOf())) return "—";
+  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return `${day} ${time}`;
 }
 
 function renderFiles(error = null) {
   const pathInput = $("#files-path-input");
   if (document.activeElement !== pathInput && state.files.path) pathInput.value = state.files.path;
+  renderFileBreadcrumb(state.files.path);
+  const profile = state.activeWorkspace?.profile;
+  $("#files-view-meta").textContent = profile ? `${profile.name || profile.host} · SFTP · ${state.files.path || "—"}` : "";
   $("#files-path-status").textContent = state.files.loading ? "正在读取…" : error ? "读取失败" : `${state.files.entries.length} 项已加载`;
   const workspaceUnavailable = !state.activeWorkspace || state.activeWorkspace.snapshot?.state !== "ready";
   $("#files-parent").disabled = workspaceUnavailable || state.disconnecting || state.files.loading || !state.files.path || state.files.path === "/";
   $("#files-go").disabled = workspaceUnavailable || state.disconnecting || state.files.loading;
   $("#files-refresh").disabled = workspaceUnavailable || state.disconnecting || state.files.loading;
   $("#files-path-input").disabled = workspaceUnavailable || state.disconnecting;
+  $("#files-edit-path").disabled = workspaceUnavailable || state.disconnecting || state.files.loading;
   $("#files-load-more").hidden = !state.files.cursorId;
   $("#files-load-more").disabled = workspaceUnavailable || state.disconnecting || state.files.loading;
 
@@ -1517,11 +1900,12 @@ function renderFiles(error = null) {
   }
 
   for (const entry of state.files.entries) {
-    const row = document.createElement("button");
+    const row = document.createElement("div");
     row.className = `file-row${entry.path === state.files.selectedPath ? " is-selected" : ""}`;
-    row.type = "button";
     row.setAttribute("role", "row");
-    row.setAttribute("aria-pressed", String(entry.path === state.files.selectedPath));
+    row.setAttribute("aria-selected", String(entry.path === state.files.selectedPath));
+    row.tabIndex = 0;
+    row.dataset.filePath = entry.path;
     row.title = entry.path;
     const nameCell = document.createElement("span");
     nameCell.className = "file-name-cell";
@@ -1549,6 +1933,23 @@ function renderFiles(error = null) {
     date.setAttribute("role", "cell");
     date.textContent = formatModifiedAt(entry.modifiedAtMs);
     row.append(nameCell, type, size, date);
+    const menuButton = document.createElement("button");
+    menuButton.className = "file-row-menu";
+    menuButton.type = "button";
+    menuButton.setAttribute("aria-label", `${entry.name} · ${translateText("更多操作")}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", "false");
+    menuButton.innerHTML = iconMarkup("ellipsis");
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      state.files.selectedPath = entry.path;
+      renderFiles();
+      const trigger = $$(".file-row").find((item) => item.dataset.filePath === entry.path)?.querySelector(".file-row-menu");
+      if (!trigger) return;
+      trigger.setAttribute("aria-expanded", "true");
+      showFileActionMenu(entry, event.clientX, event.clientY, trigger);
+    });
+    row.append(menuButton);
     row.addEventListener("click", (event) => {
       const wasSelected = entry.path === state.files.selectedPath;
       state.files.selectedPath = entry.path;
@@ -1556,6 +1957,27 @@ function renderFiles(error = null) {
       if (event.detail === 0 && wasSelected) void openRemoteEntry(entry);
     });
     row.addEventListener("dblclick", () => void openRemoteEntry(entry));
+    row.addEventListener("keydown", (event) => {
+      if (event.target !== row || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      if (entry.path === state.files.selectedPath) void openRemoteEntry(entry);
+      else {
+        state.files.selectedPath = entry.path;
+        renderFiles();
+        $$(".file-row").find((item) => item.dataset.filePath === entry.path)?.focus();
+      }
+    });
+    row.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (entry.path !== state.files.selectedPath) {
+        state.files.selectedPath = entry.path;
+        renderFiles();
+      }
+      const menuTrigger = $$(".file-row").find((item) => item.dataset.filePath === entry.path)?.querySelector(".file-row-menu");
+      if (!menuTrigger) return;
+      menuTrigger.setAttribute("aria-expanded", "true");
+      showFileActionMenu(entry, event.clientX, event.clientY, menuTrigger);
+    });
     list.append(row);
   }
   renderTransfers();
@@ -1605,6 +2027,7 @@ async function loadTransferHistory() {
 }
 
 function rememberTransfer(snapshot) {
+  if (state.files.dismissedTransferIds.has(snapshot.transferId) && snapshot.state === "completed") return;
   if (!state.files.transfers.has(snapshot.transferId)) state.files.transferOrder.unshift(snapshot.transferId);
   state.files.transfers.set(snapshot.transferId, snapshot);
   state.files.transferOrder = state.files.transferOrder.slice(0, 10);
@@ -1654,6 +2077,7 @@ function renderTransfers() {
     .filter(Boolean);
   const active = transfers.filter((transfer) => !["completed", "cancelled", "failed"].includes(transfer.state)).length;
   $("#transfer-count").textContent = String(active);
+  $("#files-clear-completed").hidden = !transfers.some((transfer) => transfer.state === "completed");
   if (!transfers.length) {
     const empty = document.createElement("div");
     empty.className = "transfer-empty";
@@ -1689,7 +2113,12 @@ function renderTransfers() {
     progressWrap.append(bar, percent);
     const meta = document.createElement("span");
     meta.className = "transfer-meta";
-    meta.textContent = `${formatRate(transfer.bytesPerSecond)}${transfer.remainingSeconds == null ? "" : ` · 剩余 ${transfer.remainingSeconds}s`}`;
+    const rate = formatRate(transfer.bytesPerSecond);
+    meta.textContent = [
+      rate === "—" ? "" : rate,
+      transfer.remainingSeconds == null ? "" : `剩余 ${transfer.remainingSeconds}s`,
+    ].filter(Boolean).join(" · ");
+    meta.hidden = !meta.textContent;
     const status = document.createElement("span");
     status.className = `transfer-status${transfer.state === "failed" ? " is-failed" : ""}`;
     status.textContent = transferStatus(transfer);
@@ -1704,7 +2133,7 @@ function renderTransfers() {
     }
     if (transfer.cleanupRequired && transfer.temporaryPath) {
       const cleanup = document.createElement("div");
-      cleanup.className = "transfer-meta";
+      cleanup.className = "transfer-meta transfer-cleanup";
       cleanup.textContent = `需要清理临时文件：${transfer.temporaryPath}`;
       cleanup.title = transfer.temporaryPath;
       row.append(cleanup);
@@ -1887,6 +2316,7 @@ function enterWorkspace(entry) {
     state.files.needsReload = true;
     state.files.transfers.clear();
     state.files.transferOrder = [];
+    state.files.dismissedTransferIds.clear();
     state.workspaceMode = "terminal";
   }
   state.activeWorkspace = entry;
@@ -1989,6 +2419,20 @@ function createTerminalView(label) {
     }),
   );
   instance.onData((data) => sendTerminalText(entry, data));
+  instance.onSelectionChange(() => {
+    window.clearTimeout(entry.selectionCopyTimer);
+    if (!isTerminalCopyOnSelectEnabled(localStorage)) return;
+    entry.selectionCopyTimer = window.setTimeout(() => {
+      if (!isTerminalCopyOnSelectEnabled(localStorage)) return;
+      const selection = entry.instance.getSelection();
+      void copyTerminalSelection(selection, true, navigator.clipboard).catch(() => {
+        if (!terminalClipboardWarningShown) {
+          terminalClipboardWarningShown = true;
+          toast("无法访问剪贴板，请使用键盘快捷键复制终端内容。", "error");
+        }
+      });
+    }, 120);
+  });
   instance.onResize(({ cols, rows }) => {
     if (state.activeTerminalId === entry.terminalId || !entry.terminalId) {
       setText($("#terminal-size"), `${cols} × ${rows}`);
@@ -2219,6 +2663,7 @@ async function closeTerminal(terminalId) {
   entry.state = "closing";
   entry.watching = false;
   window.clearTimeout(entry.resizeTimer);
+  window.clearTimeout(entry.selectionCopyTimer);
   entry.channel.onmessage = null;
   await entry.resizeQueue;
   try {
@@ -2358,6 +2803,55 @@ async function openAbout() {
 }
 
 function bindEvents() {
+  const paletteDialog = $("#command-palette");
+  const paletteInput = $("#command-palette-input");
+  const paletteResults = $("#command-palette-results");
+  paletteInput.addEventListener("input", renderCommandPalette);
+  paletteInput.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      commandPaletteState.activeIndex = movePaletteSelection(
+        commandPaletteState.visible,
+        commandPaletteState.activeIndex,
+        event.key === "ArrowDown" ? 1 : -1,
+      );
+      syncPaletteSelection();
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      activatePaletteCommand(commandPaletteState.visible[commandPaletteState.activeIndex]);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeCommandPalette();
+    }
+  });
+  paletteResults.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-palette-index]");
+    if (!option) return;
+    activatePaletteCommand(commandPaletteState.visible[Number(option.dataset.paletteIndex)]);
+  });
+  paletteResults.addEventListener("pointermove", (event) => {
+    const option = event.target.closest("[data-palette-index]");
+    const index = Number(option?.dataset.paletteIndex);
+    if (!option || !Number.isInteger(index) || commandPaletteState.visible[index]?.disabled) return;
+    commandPaletteState.activeIndex = index;
+    syncPaletteSelection();
+  });
+  paletteDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeCommandPalette();
+  });
+  paletteDialog.addEventListener("click", (event) => {
+    if (event.target === paletteDialog) closeCommandPalette();
+  });
+  paletteDialog.addEventListener("close", () => {
+    paletteInput.setAttribute("aria-expanded", "false");
+    paletteInput.removeAttribute("aria-activedescendant");
+    if (commandPaletteState.restoreFocus && commandPaletteState.returnFocus instanceof HTMLElement && commandPaletteState.returnFocus.isConnected) {
+      commandPaletteState.returnFocus.focus();
+    }
+    commandPaletteState.returnFocus = null;
+    commandPaletteState.restoreFocus = true;
+  });
   $("#workspace-terminal-tab").addEventListener("click", () => setWorkspaceMode("terminal"));
   $("#workspace-files-tab").addEventListener("click", () => setWorkspaceMode("files"));
   $("#workspace-monitor-tab").addEventListener("click", () => setWorkspaceMode("monitor"));
@@ -2368,6 +2862,20 @@ function bindEvents() {
   $("#monitor-back-terminal").addEventListener("click", () => setWorkspaceMode("terminal"));
   $("#monitor-refresh").addEventListener("click", () => void refreshMonitor());
   $("#files-parent").addEventListener("click", () => navigateFiles(parentRemotePath(state.files.path)));
+  $("#files-path-breadcrumb").addEventListener("click", (event) => {
+    const segment = event.target.closest("[data-remote-path]");
+    if (segment && !segment.disabled) navigateFiles(segment.dataset.remotePath);
+  });
+  $("#files-edit-path").addEventListener("click", () => {
+    const pathBar = $("#files-path-bar");
+    const input = $("#files-path-input");
+    const editing = !pathBar.classList.contains("is-editing");
+    pathBar.classList.toggle("is-editing", editing);
+    $(".files-path-input-wrap").hidden = !editing;
+    $("#files-go").hidden = !editing;
+    $("#files-edit-path").setAttribute("aria-expanded", String(editing));
+    if (editing) { input.focus(); input.select(); }
+  });
   $("#files-go").addEventListener("click", () => navigateFiles($("#files-path-input").value.trim() || "."));
   $("#files-path-input").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -2376,6 +2884,7 @@ function bindEvents() {
     }
   });
   $("#files-refresh").addEventListener("click", () => navigateFiles(state.files.path || "."));
+  $("#files-clear-completed").addEventListener("click", clearCompletedTransfers);
   $("#files-load-more").addEventListener("click", () => void loadFiles({ append: true }));
   $("#files-upload").addEventListener("click", () => void selectUpload());
   $("#files-download").addEventListener("click", () => void selectDownload());
@@ -2487,19 +2996,17 @@ function bindEvents() {
       void saveSettings({ theme });
     });
   }
-  $("#setting-language").addEventListener("change", (event) => {
+  $("#setting-language").addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-language-choice]");
+    if (!choice) return;
+    const language = choice.dataset.languageChoice;
     for (const choice of $$("[data-language-choice]")) {
-      choice.setAttribute("aria-pressed", String(choice.dataset.languageChoice === event.currentTarget.value));
+      choice.setAttribute("aria-pressed", String(choice.dataset.languageChoice === language));
     }
-    setLocale(event.currentTarget.value);
-    void saveSettings({ language: event.currentTarget.value });
+    if (language === state.settings.value.language) return;
+    setLocale(language);
+    void saveSettings({ language });
   });
-  for (const choice of $$("[data-language-choice]")) {
-    choice.addEventListener("click", () => {
-      $("#setting-language").value = choice.dataset.languageChoice;
-      $("#setting-language").dispatchEvent(new Event("change", { bubbles: true }));
-    });
-  }
   $("#setting-confirm-disconnect").addEventListener("change", (event) => {
     void saveSettings({ confirmBeforeDisconnect: event.currentTarget.checked });
   });
@@ -2513,13 +3020,26 @@ function bindEvents() {
     void saveSettings({ terminalFontFamily });
   });
   $("#setting-terminal-size").addEventListener("input", (event) => {
-    setText($("#setting-terminal-size-value"), `${event.currentTarget.value} px`);
+    updateTerminalFontSizeControls(event.currentTarget.value);
   });
   $("#setting-terminal-size").addEventListener("change", (event) => {
     void saveSettings({ terminalFontSize: Number(event.currentTarget.value) });
   });
-  $("#setting-terminal-cursor").addEventListener("change", (event) => {
-    void saveSettings({ terminalCursorStyle: event.currentTarget.value });
+  $("#setting-terminal-size-presets").addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-terminal-font-size]");
+    if (!choice) return;
+    const terminalFontSize = Number(choice.dataset.terminalFontSize);
+    updateTerminalFontSizeControls(terminalFontSize);
+    void saveSettings({ terminalFontSize });
+  });
+  $("#setting-terminal-cursor").addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-terminal-cursor]");
+    if (!choice) return;
+    const terminalCursorStyle = choice.dataset.terminalCursor;
+    for (const option of $$("#setting-terminal-cursor [data-terminal-cursor]")) {
+      option.setAttribute("aria-pressed", String(option === choice));
+    }
+    void saveSettings({ terminalCursorStyle });
   });
   $("#setting-terminal-scrollback").addEventListener("change", (event) => {
     const terminalScrollbackLines = Number(event.currentTarget.value);
@@ -2529,6 +3049,9 @@ function bindEvents() {
       return;
     }
     void saveSettings({ terminalScrollbackLines });
+  });
+  $("#setting-terminal-copy-on-select").addEventListener("change", (event) => {
+    setTerminalCopyOnSelectEnabled(event.currentTarget.checked, localStorage);
   });
   $("#new-terminal").addEventListener("click", () => void openTerminal());
   $("#clear-terminal").addEventListener("click", () => {
@@ -2565,7 +3088,8 @@ function bindEvents() {
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
-      $("#global-search").focus();
+      if (paletteDialog.open) closeCommandPalette();
+      else openCommandPalette();
     }
   });
 }

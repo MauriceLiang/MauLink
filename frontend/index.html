@@ -12,7 +12,7 @@
   <body>
     <div class="app-shell">
       <header class="topbar" data-tauri-drag-region>
-        <div class="brand-group" data-tauri-drag-region><a class="brand" href="#servers-page" aria-label="MauLink 服务器工作台" data-tauri-drag-region><span class="brand-mark"><span data-icon="terminal" aria-hidden="true"></span></span><span class="brand-name">MauLink</span></a><button class="icon-button brand-home-button" id="nav-servers" type="button" aria-label="服务器" title="服务器"><span data-icon="house" aria-hidden="true"></span></button></div>
+        <div class="brand-group" data-tauri-drag-region><a class="brand" href="#servers-page" aria-label="MauLink 服务器工作台" data-tauri-drag-region><span class="brand-mark" aria-hidden="true">M</span><span class="brand-name">MauLink</span></a><button class="icon-button brand-home-button" id="nav-servers" type="button" aria-label="服务器" title="服务器"><span data-icon="house" aria-hidden="true"></span></button></div>
         <label class="global-search" for="global-search"><span data-icon="search" aria-hidden="true"></span><input id="global-search" type="search" placeholder="搜索服务器或主机…" autocomplete="off" /><kbd>⌘ K</kbd></label>
         <div class="topbar-actions"><button class="button button-primary" id="add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><button class="icon-button topbar-icon-button" id="nav-settings" type="button" aria-label="设置" title="设置"><span data-icon="settings-2" aria-hidden="true"></span></button><button class="icon-button topbar-icon-button" id="about-button" type="button" aria-label="关于 MauLink" title="关于 MauLink"><span data-icon="info" aria-hidden="true"></span></button></div>
         <span id="breadcrumb-current" hidden>服务器</span>
@@ -28,7 +28,7 @@
         <div class="main-shell">
           <main>
             <section id="servers-page" class="page servers-page">
-              <section class="welcome-card" id="welcome-card" aria-labelledby="welcome-title"><div class="welcome-icon" aria-hidden="true"><span data-icon="server"></span></div><div class="welcome-copy"><span class="welcome-kicker">REMOTE WORKSPACE</span><h1 id="welcome-title">欢迎使用 MauLink</h1><p id="welcome-description">添加一台服务器，开始你的远程工作。</p><div class="welcome-actions"><button class="button button-primary" id="welcome-add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><a class="welcome-link" href="https://github.com" target="_blank" rel="noreferrer">了解更多<span data-icon="arrow-up-right" aria-hidden="true"></span></a></div></div></section>
+              <section class="welcome-card" id="welcome-card" aria-labelledby="welcome-title"><div class="welcome-icon" aria-hidden="true"><span data-icon="server"></span></div><div class="welcome-copy"><span class="welcome-kicker">REMOTE WORKSPACE</span><h1 id="welcome-title">欢迎使用 MauLink</h1><p id="welcome-description">添加一台服务器，开始你的远程工作。</p><div class="welcome-actions"><button class="button button-primary" id="welcome-add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><a class="welcome-link" href="https://github.com" target="_blank" rel="noreferrer">了解 MauLink</a></div></div></section>
               <section class="server-home-view" id="server-home-view" aria-labelledby="server-home-title" hidden>
                 <header class="server-home-heading"><h1 id="server-home-title">服务器</h1></header>
                 <p class="server-home-lead">选择一台服务器打开工作区，或添加新服务器。</p>
@@ -86,40 +86,46 @@
             <section class="files-view" id="files-view" role="tabpanel" aria-labelledby="workspace-files-tab" hidden>
               <header class="files-view-header">
                 <div>
-                  <div class="section-kicker">REMOTE FILES</div>
-                  <h2>文件管理</h2>
-                  <p>通过加密 SFTP 浏览并传输服务器文件。</p>
+                  <h2>文件</h2>
+                  <p id="files-view-meta" data-user-content="true"></p>
                 </div>
                 <div class="files-primary-actions">
-                  <button class="button button-secondary" id="files-upload" type="button"><span data-icon="upload" aria-hidden="true"></span>上传</button>
                   <button class="button button-primary" id="files-new-folder" type="button"><span data-icon="folder-plus" aria-hidden="true"></span>新建文件夹</button>
-                  <button class="button button-tertiary button-small files-back-terminal" id="files-back-terminal" type="button"><span data-icon="terminal" aria-hidden="true"></span>终端</button><button class="button button-tertiary button-small files-open-full" id="files-open-full" type="button">打开完整文件页<span data-icon="arrow-up-right" aria-hidden="true"></span></button><button class="icon-button refresh-button" id="files-refresh" type="button" aria-label="刷新目录" title="刷新目录"><span data-icon="refresh-cw" aria-hidden="true"></span></button>
+                  <button class="button button-secondary" id="files-upload" type="button"><span data-icon="upload" aria-hidden="true"></span>上传</button>
+                  <button class="button button-tertiary button-small files-back-terminal" id="files-back-terminal" type="button"><span data-icon="terminal" aria-hidden="true"></span>终端</button><button class="button button-tertiary button-small files-open-full" id="files-open-full" type="button">打开完整文件页<span data-icon="arrow-up-right" aria-hidden="true"></span></button>
                 </div>
               </header>
-              <div class="files-path-bar">
-                <button class="icon-button" id="files-parent" type="button" aria-label="返回上级目录" title="返回上级"><span data-icon="arrow-up" aria-hidden="true"></span></button>
-                <label class="files-path-input-wrap" for="files-path-input"><span data-icon="folder" aria-hidden="true"></span><input id="files-path-input" type="text" spellcheck="false" aria-label="远程目录路径" /></label>
-                <button class="button button-secondary button-small" id="files-go" type="button">前往</button>
-                <span class="files-path-status" id="files-path-status" role="status">等待目录</span>
-              </div>
-              <div class="files-toolbar">
-                <div class="files-selection-label" id="files-selection-label">选择文件以查看操作</div>
-                <div class="files-selection-actions">
-                  <button class="text-button" id="files-copy-path" type="button" disabled>复制路径</button>
-                  <button class="text-button" id="files-download" type="button" disabled>下载</button>
-                  <button class="text-button" id="files-rename" type="button" disabled>重命名</button>
-                  <button class="text-button danger-text-button" id="files-delete" type="button" disabled>删除</button>
+              <div class="files-content-layout">
+                <div class="files-browser-pane">
+                  <div class="files-path-bar" id="files-path-bar">
+                    <button class="icon-button" id="files-parent" type="button" aria-label="返回上级目录" title="返回上级"><span data-icon="arrow-up" aria-hidden="true"></span></button>
+                    <nav class="files-breadcrumb" id="files-path-breadcrumb" aria-label="远程目录路径"></nav>
+                    <label class="files-path-input-wrap" for="files-path-input" hidden><span data-icon="folder" aria-hidden="true"></span><input id="files-path-input" type="text" spellcheck="false" aria-label="远程目录路径" /></label>
+                    <button class="button button-secondary button-small" id="files-go" type="button" hidden>前往</button>
+                    <button class="icon-button files-edit-path" id="files-edit-path" type="button" aria-label="输入远程路径" title="输入远程路径" aria-expanded="false"><span data-icon="pencil" aria-hidden="true"></span></button>
+                    <button class="icon-button refresh-button" id="files-refresh" type="button" aria-label="刷新目录" title="刷新目录"><span data-icon="refresh-cw" aria-hidden="true"></span></button>
+                    <span class="files-path-status" id="files-path-status" role="status">等待目录</span>
+                  </div>
+                  <div class="files-toolbar">
+                    <div class="files-selection-label" id="files-selection-label">选择文件以查看操作</div>
+                    <div class="files-selection-actions">
+                      <button class="text-button" id="files-copy-path" type="button" disabled>复制路径</button>
+                      <button class="text-button" id="files-download" type="button" disabled>下载</button>
+                      <button class="text-button" id="files-rename" type="button" disabled>重命名</button>
+                      <button class="text-button danger-text-button" id="files-delete" type="button" disabled>删除</button>
+                    </div>
+                  </div>
+                  <div class="files-table" role="table" aria-label="远程目录内容">
+                    <div class="files-table-head" role="row"><span role="columnheader">名称</span><span role="columnheader">类型</span><span role="columnheader">大小</span><span role="columnheader">修改时间</span><span aria-hidden="true"></span></div>
+                    <div class="files-list" id="files-list" role="rowgroup" aria-live="polite"></div>
+                  </div>
+                  <div class="files-list-footer"><span id="files-entry-count">—</span><button class="button button-tertiary button-small" id="files-load-more" type="button" hidden>加载更多</button></div>
                 </div>
+                <section class="transfer-panel" aria-labelledby="transfer-panel-title">
+                  <div class="transfer-panel-heading"><div><div class="section-kicker">TRANSFER ACTIVITY</div><h3 id="transfer-panel-title">传输</h3></div><div class="transfer-panel-actions"><button class="text-button" id="files-clear-completed" type="button" hidden>清除已完成</button><span class="transfer-count" id="transfer-count">0</span></div></div>
+                  <div class="transfer-list" id="transfer-list" aria-live="polite"><div class="transfer-empty">上传或下载文件后，任务进度会显示在这里。</div></div>
+                </section>
               </div>
-              <div class="files-table" role="table" aria-label="远程目录内容">
-                <div class="files-table-head" role="row"><span role="columnheader">名称</span><span role="columnheader">类型</span><span role="columnheader">大小</span><span role="columnheader">修改时间</span></div>
-                <div class="files-list" id="files-list" role="rowgroup" aria-live="polite"></div>
-              </div>
-              <div class="files-list-footer"><span id="files-entry-count">—</span><button class="button button-tertiary button-small" id="files-load-more" type="button" hidden>加载更多</button></div>
-              <section class="transfer-panel" aria-labelledby="transfer-panel-title">
-                <div class="transfer-panel-heading"><div><div class="section-kicker">TRANSFER ACTIVITY</div><h3 id="transfer-panel-title">传输任务</h3></div><span class="transfer-count" id="transfer-count">0</span></div>
-                <div class="transfer-list" id="transfer-list" aria-live="polite"><div class="transfer-empty">上传或下载文件后，任务进度会显示在这里。</div></div>
-              </section>
             </section>
             <section class="monitor-view" id="monitor-view" role="tabpanel" aria-labelledby="workspace-monitor-tab" hidden>
               <header class="monitor-view-header">
@@ -194,13 +200,12 @@
               </nav>
               <div class="settings-content">
                 <section class="settings-section" id="settings-section-appearance" data-settings-section="appearance" aria-labelledby="settings-appearance-title">
-                  <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="palette"></span></div><div><h2 id="settings-appearance-title">外观</h2><p>调整界面主题与显示语言。</p></div></div>
-                  <div class="appearance-block"><h3>主题</h3><p>选择 MauLink 的显示外观。</p><div class="theme-options" role="group" aria-label="主题">
-                    <button class="theme-choice" type="button" data-theme-choice="system" aria-pressed="false"><span class="theme-preview theme-preview-system" aria-hidden="true"><i class="preview-sidebar"></i><i class="preview-topbar"></i><i class="preview-line"></i><i class="preview-button"></i></span><span class="theme-choice-label"><i class="choice-radio"></i>跟随系统</span></button>
-                    <button class="theme-choice" type="button" data-theme-choice="light" aria-pressed="true"><span class="theme-preview theme-preview-light" aria-hidden="true"><i class="preview-sidebar"></i><i class="preview-topbar"></i><i class="preview-line"></i><i class="preview-button"></i></span><span class="theme-choice-label"><i class="choice-radio"></i>浅色</span></button>
-                    <button class="theme-choice" type="button" data-theme-choice="dark" aria-pressed="false"><span class="theme-preview theme-preview-dark" aria-hidden="true"><i class="preview-sidebar"></i><i class="preview-topbar"></i><i class="preview-line"></i><i class="preview-button"></i></span><span class="theme-choice-label"><i class="choice-radio"></i>深色</span></button>
-                  </div></div>
-                  <div class="appearance-language-block"><h3>语言</h3><p>切换后立即生效。界面会为更长或更短的文本预留空间。</p><div class="language-options" role="group" aria-label="界面语言"><button class="language-choice" type="button" data-language-choice="zh-CN" aria-pressed="true"><i class="choice-radio"></i>简体中文</button><button class="language-choice" type="button" data-language-choice="en" aria-pressed="false">English</button></div></div>
+                  <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="palette"></span></div><div><h2 id="settings-appearance-title">外观</h2><p>选择 MauLink 的主题。默认跟随系统外观。</p></div></div>
+                  <div class="appearance-block"><h3>主题</h3><div class="theme-options" role="group" aria-label="主题">
+                    <button class="theme-choice" type="button" data-theme-choice="system" aria-pressed="false"><i class="choice-radio" aria-hidden="true"></i><span data-icon="monitor" aria-hidden="true"></span><span class="theme-choice-label">跟随系统</span></button>
+                    <button class="theme-choice" type="button" data-theme-choice="light" aria-pressed="true"><i class="choice-radio" aria-hidden="true"></i><span data-icon="sun" aria-hidden="true"></span><span class="theme-choice-label">浅色</span></button>
+                    <button class="theme-choice" type="button" data-theme-choice="dark" aria-pressed="false"><i class="choice-radio" aria-hidden="true"></i><span data-icon="moon" aria-hidden="true"></span><span class="theme-choice-label">深色</span></button>
+                  </div><p class="appearance-note">切换后立即生效。界面会为更长或更短的文本预留空间。</p></div>
                 </section>
                 <section class="settings-section" id="settings-section-general" data-settings-section="general" aria-labelledby="settings-general-title" hidden>
                   <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="settings-2"></span></div><div><h2 id="settings-general-title">通用</h2><p>管理连接工作区时的确认行为。</p></div></div>
@@ -208,14 +213,18 @@
                 </section>
                 <section class="settings-section" id="settings-section-terminal" data-settings-section="terminal" aria-labelledby="settings-terminal-title" hidden>
                   <div class="settings-section-heading"><div class="settings-section-icon settings-terminal-icon" aria-hidden="true"><span data-icon="terminal"></span></div><div><h2 id="settings-terminal-title">终端</h2><p>更改后会自动保存，并应用到已打开的终端。</p></div></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-font"><strong>字体</strong><small>选择本机已安装的等宽字体。</small></label><input id="setting-terminal-font" class="settings-input" type="text" maxlength="128" autocomplete="off" spellcheck="false" /></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-size"><strong>字号</strong><small>终端文字大小，范围 8–72 px。</small></label><div class="settings-range-control"><input id="setting-terminal-size" type="range" min="8" max="72" step="1" /><output id="setting-terminal-size-value" for="setting-terminal-size">14 px</output></div></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-cursor"><strong>光标样式</strong><small>选择终端输入光标的外观。</small></label><select id="setting-terminal-cursor" class="settings-select"><option value="block">方块</option><option value="underline">下划线</option><option value="bar">竖线</option></select></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-scrollback"><strong>滚动缓冲区</strong><small>保留在终端中的历史行数。</small></label><div class="settings-number-control"><input id="setting-terminal-scrollback" class="settings-input" type="number" min="1000" max="100000" step="1000" /><span>行</span></div></div>
+                  <div class="settings-row settings-control-row"><div class="settings-copy"><strong>字号</strong><small>设置终端文字大小。</small></div><div class="terminal-option-group terminal-size-options" id="setting-terminal-size-presets" role="group" aria-label="字号"><button type="button" data-terminal-font-size="12" aria-pressed="false">12</button><button type="button" data-terminal-font-size="13" aria-pressed="false">13</button><button type="button" data-terminal-font-size="14" aria-pressed="false">14</button><button type="button" data-terminal-font-size="15" aria-pressed="false">15</button></div></div>
+                  <div class="settings-row settings-control-row"><div class="settings-copy"><strong>光标样式</strong><small>选择终端输入光标的外观。</small></div><div class="terminal-option-group terminal-cursor-options" id="setting-terminal-cursor" role="group" aria-label="光标样式"><button type="button" data-terminal-cursor="block" aria-pressed="false">方块</button><button type="button" data-terminal-cursor="bar" aria-pressed="false">竖线</button><button type="button" data-terminal-cursor="underline" aria-pressed="false">下划线</button></div></div>
+                  <label class="settings-row settings-toggle-row" for="setting-terminal-copy-on-select"><span class="settings-copy"><strong>选中即复制</strong><small>自动将终端中选中的内容复制到剪贴板。</small></span><input id="setting-terminal-copy-on-select" class="settings-toggle" type="checkbox" /></label>
+                  <details class="terminal-advanced-settings"><summary>高级终端设置</summary><div class="terminal-advanced-content">
+                    <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-font"><strong>字体</strong><small>选择本机已安装的等宽字体。</small></label><input id="setting-terminal-font" class="settings-input" type="text" maxlength="128" autocomplete="off" spellcheck="false" /></div>
+                    <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-size"><strong>自定义字号</strong><small>终端文字大小，范围 8–72 px。</small></label><div class="settings-range-control"><input id="setting-terminal-size" type="range" min="8" max="72" step="1" /><output id="setting-terminal-size-value" for="setting-terminal-size">14 px</output></div></div>
+                    <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-terminal-scrollback"><strong>滚动缓冲区</strong><small>保留在终端中的历史行数。</small></label><div class="settings-number-control"><input id="setting-terminal-scrollback" class="settings-input" type="number" min="1000" max="100000" step="1000" /><span>行</span></div></div>
+                  </div></details>
                 </section>
                 <section class="settings-section" id="settings-section-language" data-settings-section="language" aria-labelledby="settings-language-title" hidden>
                   <div class="settings-section-heading"><div class="settings-section-icon" aria-hidden="true"><span data-icon="languages"></span></div><div><h2 id="settings-language-title">语言</h2><p>设置 MauLink 的界面语言偏好。</p></div></div>
-                  <div class="settings-row settings-control-row"><label class="settings-copy" for="setting-language"><strong>界面语言</strong><small>提供简体中文和 English。</small></label><select id="setting-language" class="settings-select"><option value="zh-CN">简体中文</option><option value="en">English</option></select></div>
+                  <div class="language-options" id="setting-language" role="group" aria-label="界面语言"><button class="language-choice" type="button" data-language-choice="zh-CN" aria-pressed="true">简体中文</button><button class="language-choice" type="button" data-language-choice="en" aria-pressed="false">English</button></div>
                 </section>
                 <footer class="settings-footer"><span id="settings-save-state" role="status" aria-live="polite">设置会自动保存</span><span>MauLink <span id="settings-version">0.1</span></span></footer>
               </div>
@@ -235,12 +244,11 @@
           <label class="form-field field-port"><span>端口</span><input id="profile-port" name="port" type="number" min="1" max="65535" value="22" required /></label>
           <label class="form-field field-full"><span>用户名</span><input id="profile-user" name="username" required autocomplete="username" placeholder="root" /></label>
           <div class="form-field auth-method-field field-full"><span id="auth-method-label">认证方式</span><div class="auth-segmented" role="group" aria-labelledby="auth-method-label"><button class="auth-segment" type="button" data-auth-type-choice="password" aria-pressed="true">密码</button><button class="auth-segment" type="button" data-auth-type-choice="privateKey" aria-pressed="false">SSH 密钥</button></div><select class="sr-only" id="profile-auth" name="authType" aria-hidden="true" tabindex="-1"><option value="password">密码</option><option value="privateKey">SSH 私钥</option></select></div>
-          <div class="form-field field-full" id="secret-field"><label class="secret-field-label" id="secret-label" for="profile-secret">密码</label><span class="secret-input-wrap"><input id="profile-secret" name="secret" type="password" autocomplete="new-password" placeholder="输入 SSH 密码" /><button class="secret-visibility-button" id="toggle-secret-visibility" type="button" aria-label="显示密码" aria-pressed="false"><span data-icon="eye" aria-hidden="true"></span></button></span></div>
+          <div class="form-field field-full" id="secret-field"><label class="secret-field-label" id="secret-label" for="profile-secret">密码</label><span class="secret-input-wrap"><input id="profile-secret" name="secret" type="password" autocomplete="new-password" placeholder="输入 SSH 密码" /><button class="secret-visibility-button" id="toggle-secret-visibility" type="button" aria-label="显示密码" aria-pressed="false"><span data-icon="eye" aria-hidden="true"></span></button></span><div class="credential-note" id="remember-row"><span class="credential-note-copy">凭据将安全保存至系统钥匙串 / Windows 凭据管理器中</span><input id="remember-credential" type="checkbox" checked hidden /></div></div>
           <div class="key-picker field-full" id="key-picker" hidden><div><span class="form-label">私钥文件</span><span class="key-description" id="key-description">私钥路径由系统文件选择器读取，不会暴露给页面。</span></div><div class="key-picker-actions"><span class="selected-key" id="selected-key">尚未选择文件</span><button class="button button-secondary button-small" id="select-key" type="button">选择私钥</button><button class="text-button" id="clear-key" type="button" hidden>移除</button></div></div>
-          <div class="credential-note field-full" id="remember-row"><span class="credential-note-icon" data-icon="lock-keyhole" aria-hidden="true"></span><span class="credential-note-copy">凭据将安全保存至系统钥匙串 / Windows 凭据管理器中</span><input id="remember-credential" type="checkbox" checked hidden /></div>
           <label class="credential-note clear-credential-row field-full" id="clear-credential-row" hidden><input id="clear-credential" type="checkbox" /><span class="credential-note-copy">移除已保存凭据，连接时再次输入密码或私钥口令</span></label>
           <select id="profile-group" hidden><option value="">未分组</option></select>
-          <details class="advanced-fields field-full"><summary><span>高级</span><small>跳板机 · 代理 · 保持连接</small></summary><div class="advanced-grid">
+          <details class="advanced-fields field-full"><summary><span><span data-icon="chevron-right" aria-hidden="true"></span>高级</span><small>跳板机 · 代理 · 保持连接</small></summary><div class="advanced-grid">
             <label class="form-field field-full"><span>跳板机</span><input id="jump-host" autocomplete="off" placeholder="user@bastion.example.com" /></label>
             <div class="advanced-connection-row field-full">
               <label class="form-field"><span>跳板机端口</span><input id="jump-port" type="number" min="1" max="65535" value="22" /></label>
@@ -256,7 +264,7 @@
         </div>
         <div class="server-delete-row field-full" id="profile-delete-row" hidden><div><strong>删除服务器</strong><span>从 MauLink 中移除此服务器及其配置</span></div><button class="button button-secondary button-small" id="edit-delete-button" type="button">删除</button></div>
         <div class="form-error" id="server-form-error" role="alert" hidden></div>
-        <div class="modal-footer"><button class="button button-tertiary server-cancel-button" id="server-cancel-button" type="button" data-close="server-dialog">取消</button><button class="button button-primary save-server-button" id="save-server" type="submit">保存</button><button class="button button-tertiary" id="test-connection" type="button">测试连接</button><button class="button button-primary" id="save-and-connect" type="button">连接</button></div>
+        <div class="modal-footer"><button class="button button-tertiary server-cancel-button" id="server-cancel-button" type="button" data-close="server-dialog">取消</button><button class="button button-primary save-server-button" id="save-server" type="submit">保存</button><button class="button button-tertiary" id="test-connection" type="button"><span data-icon="activity" aria-hidden="true"></span>测试连接</button><button class="button button-primary" id="save-and-connect" type="button">连接</button></div>
       </form>
     </dialog>
 
@@ -321,6 +329,11 @@
 
     <dialog class="modal-dialog about-modal" id="about-dialog" aria-labelledby="about-title">
       <section class="modal-card"><div class="modal-header"><div><div class="section-kicker">ABOUT MAULINK</div><h2 id="about-title">关于 MauLink</h2><p>为远程服务器工作流而设计。</p></div><button class="icon-button modal-close" type="button" data-close="about-dialog" aria-label="关闭">×</button></div><dl class="about-details"><div><dt>版本</dt><dd id="about-version">—</dd></div><div><dt>运行平台</dt><dd id="about-platform">—</dd></div><div><dt>架构</dt><dd id="about-architecture">—</dd></div></dl><div class="modal-footer"><span class="modal-footer-spacer"></span><button class="button button-primary" type="button" data-close="about-dialog">完成</button></div></section>
+    </dialog>
+
+    <dialog class="command-palette-dialog" id="command-palette" aria-label="命令面板">
+      <label class="command-palette-search" for="command-palette-input"><span data-icon="search" aria-hidden="true"></span><input id="command-palette-input" type="search" placeholder="输入命令或搜索…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="command-palette-results" /></label>
+      <div class="command-palette-results" id="command-palette-results" role="listbox" aria-label="命令"></div>
     </dialog>
 
     <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
