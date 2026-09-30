@@ -21,7 +21,6 @@ let terminalClipboardWarningShown = false;
 const state = {
   profiles: [],
   groups: [],
-  groupFilter: "all",
   query: "",
   editingProfile: null,
   selectedKey: null,
@@ -515,14 +514,10 @@ function groupLabel(groupId) {
 
 function filteredProfiles() {
   const query = state.query.trim().toLocaleLowerCase();
-  return state.profiles.filter((profile) => {
-    const groupMatches = state.groupFilter === "all"
-      || (state.groupFilter === "ungrouped" ? !profile.groupId : profile.groupId === state.groupFilter);
-    if (!groupMatches) return false;
-    if (!query) return true;
-    return [profile.name, profile.host, profile.username, groupLabel(profile.groupId)]
-      .some((value) => value.toLocaleLowerCase().includes(query));
-  });
+  if (!query) return state.profiles;
+  return state.profiles.filter((profile) =>
+    [profile.name, profile.host, profile.username, groupLabel(profile.groupId)]
+      .some((value) => value.toLocaleLowerCase().includes(query)));
 }
 
 function connectionFor(serverId) {
@@ -534,36 +529,6 @@ function connectionCount() {
 }
 
 function renderGroups() {
-  const list = $("#group-list");
-  list.replaceChildren();
-  const filters = [
-    { id: "all", name: "全部服务器", icon: "server", count: state.profiles.length },
-    ...state.groups.map((group) => ({ id: group.id, name: group.name, icon: "folder", count: state.profiles.filter((profile) => profile.groupId === group.id).length })),
-    { id: "ungrouped", name: "未分组", icon: "folder", count: state.profiles.filter((profile) => !profile.groupId).length },
-  ];
-  for (const group of filters) {
-    const button = document.createElement("button");
-    button.className = `group-filter${state.groupFilter === group.id ? " is-selected" : ""}`;
-    button.type = "button";
-    button.dataset.group = group.id;
-    const icon = document.createElement("span");
-    icon.className = "group-glyph";
-    icon.innerHTML = iconMarkup(group.icon);
-    const name = document.createElement("span");
-    name.className = "group-filter-name";
-    name.textContent = group.name;
-    if (group.id !== "all" && group.id !== "ungrouped") name.dataset.userContent = "true";
-    const count = document.createElement("span");
-    count.className = "group-filter-count";
-    count.textContent = String(group.count);
-    button.append(icon, name, count);
-    button.addEventListener("click", () => {
-      state.groupFilter = group.id;
-      renderGroups();
-      renderServers();
-    });
-    list.append(button);
-  }
   const groupSelect = $("#profile-group");
   const selected = groupSelect.value;
   groupSelect.replaceChildren(new Option("未分组", ""));
@@ -645,7 +610,6 @@ function renderStats() {
   setText($("#stat-total"), state.profiles.length);
   setText($("#stat-connected"), connectionCount());
   setText($("#stat-groups"), state.groups.length);
-  setText($("#nav-server-count"), state.profiles.length);
 }
 
 function renderConnectionStatus(profile) {
@@ -665,21 +629,23 @@ function renderConnectionStatus(profile) {
   }
   const row = $(`.server-row[data-server-id="${CSS.escape(profile.id)}"]`);
   if (!row) return;
-  row.classList.toggle("is-selected", state.activeWorkspace?.profile?.id === profile.id);
+  const stateValue = entry?.snapshot?.state;
+  const pending = Boolean(entry && !["ready", "failed", "closed", "cancelled"].includes(stateValue));
+  row.classList.toggle("is-selected", state.activeWorkspace?.profile?.id === profile.id || pending);
   const status = $(".server-connection", row);
-  const button = $("[data-action='connect']", row);
-  status.classList.toggle("is-ready", entry?.snapshot?.state === "ready");
-  status.classList.toggle("is-pending", Boolean(entry && !["ready", "failed", "closed", "cancelled"].includes(entry.snapshot?.state)));
-  const statusLabel = entry?.snapshot?.state === "ready"
+  const button = $("[data-action='open-server']", row);
+  status.classList.toggle("is-ready", stateValue === "ready");
+  status.classList.toggle("is-pending", pending);
+  const statusLabel = stateValue === "ready"
     ? "已连接"
-    : entry && !["failed", "closed", "cancelled"].includes(entry.snapshot?.state)
-      ? connectionStateLabel(entry.snapshot?.state)
+    : pending
+      ? connectionStateLabel(stateValue)
       : "未连接";
-  const statusText = $("span:last-child", status);
+  const statusText = $(".server-status-label", status);
+  status.setAttribute("aria-label", statusLabel);
   if (statusText) statusText.textContent = statusLabel;
-  button.textContent = entry?.snapshot?.state === "ready" ? "打开工作区" : statusLabel === "未连接" ? "连接" : "取消";
-  button.dataset.mode = entry?.snapshot?.state === "ready" ? "open" : statusLabel === "未连接" ? "connect" : "cancel";
-  button.disabled = false;
+  button.setAttribute("aria-label", `${statusLabel === "未连接" ? "打开" : statusLabel} ${profile.name || profile.host}`);
+  button.disabled = pending;
 }
 
 function connectionStateLabel(value) {
@@ -717,42 +683,17 @@ function createServerRow(profile) {
   row.className = "server-row";
   row.dataset.serverId = profile.id;
   row.innerHTML = `
-    <span class="server-monogram" aria-hidden="true"><span data-icon="server"></span></span>
-    <div class="server-main"><h3 class="server-name"></h3><div class="server-address"></div><span class="server-connection"><i></i><span>未连接</span></span><button class="server-menu-trigger" type="button" aria-label="${translateText("更多操作")}" aria-haspopup="menu" aria-expanded="false" title="${translateText("更多操作")}">${iconMarkup("ellipsis")}</button></div>
-    <div class="server-property host-property"><span class="property-label">连接地址</span><span class="property-value host-value"></span></div>
-    <div class="server-property auth-property"><span class="property-label">认证</span><span class="property-value auth-tag"></span></div>
-    <div class="server-property connection-property"><span class="property-label">状态 · <span class="group-value"></span></span></div>
-    <div class="server-property group-property"><span class="property-label">配置</span><span class="property-value key-value"></span></div>
-    <div class="server-actions">
-      <button class="button-connect" type="button" data-action="connect">连接</button>
-      <button class="row-action" type="button" data-action="test" title="测试连接" aria-label="测试连接">${iconMarkup("plug-zap")}</button>
-      <button class="row-action" type="button" data-action="edit" title="编辑服务器" aria-label="编辑服务器">${iconMarkup("pencil")}</button>
-      <button class="row-action delete" type="button" data-action="delete" title="删除服务器" aria-label="删除服务器">${iconMarkup("trash-2")}</button>
-    </div>`;
+    <button class="server-main" type="button" data-action="open-server">
+      <span class="server-connection" role="img" aria-label="未连接"><i></i><span class="sr-only server-status-label">未连接</span></span>
+      <span class="server-details"><span class="server-name"></span><span class="server-address"></span></span>
+    </button>
+    <button class="server-menu-trigger" type="button" aria-label="${translateText("更多操作")}" aria-haspopup="menu" aria-expanded="false" title="${translateText("更多操作")}">${iconMarkup("ellipsis")}</button>`;
   hydrateIcons(row);
-  for (const selector of [".server-monogram", ".server-name", ".server-address", ".host-value"]) {
-    $(selector, row).dataset.userContent = "true";
-  }
-  setText($(".server-monogram", row), (profile.name || profile.host || "S").trim().slice(0, 1).toUpperCase());
-  setText($(".server-name", row), profile.name);
+  for (const selector of [".server-name", ".server-address"]) $(selector, row).dataset.userContent = "true";
+  setText($(".server-name", row), profile.name || profile.host);
   setText($(".server-address", row), `${profile.username}@${profile.host}`);
-  setText($(".host-value", row), `${profile.host}:${profile.port}`);
-  if (profile.groupId) $(".group-value", row).dataset.userContent = "true";
-  setText($(".auth-tag", row), profile.authType === "privateKey" ? "SSH 私钥" : "密码");
-  setText($(".group-value", row), groupLabel(profile.groupId));
-  setText($(".key-value", row), profile.authType === "privateKey" ? (profile.hasPrivateKey ? "私钥已配置" : "需重新选择私钥") : profile.hasSavedCredential ? "凭据已安全保存" : "连接时输入凭据");
 
-  $("[data-action='connect']", row).addEventListener("click", () => {
-    const button = $("[data-action='connect']", row);
-    const mode = button.dataset.mode ?? "connect";
-    const entry = connectionFor(profile.id);
-    if (mode === "open" && entry) enterWorkspace(entry);
-    else if (mode === "cancel" && entry) void cancelConnection(entry);
-    else void startSavedConnection(profile, "workspace");
-  });
-  $("[data-action='test']", row).addEventListener("click", () => void startSavedConnection(profile, "test"));
-  $("[data-action='edit']", row).addEventListener("click", () => openServerDialog(profile));
-  $("[data-action='delete']", row).addEventListener("click", () => openDeleteDialog(profile));
+  $("[data-action='open-server']", row).addEventListener("click", () => void startSavedConnection(profile, "workspace"));
   const menuTrigger = $(".server-menu-trigger", row);
   menuTrigger.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -765,8 +706,36 @@ function createServerRow(profile) {
     menuTrigger.setAttribute("aria-expanded", "true");
     showServerActionMenu(profile, event.clientX, event.clientY, menuTrigger);
   });
-  renderConnectionStatus(profile);
   return row;
+}
+
+function createServerGroup(groupId, name, profiles) {
+  const section = document.createElement("section");
+  section.className = "sidebar-group";
+  const heading = document.createElement("div");
+  heading.className = "sidebar-group-heading";
+  const label = document.createElement("span");
+  label.className = "sidebar-group-name";
+  label.textContent = name;
+  if (groupId) label.dataset.userContent = "true";
+  const count = document.createElement("span");
+  count.className = "sidebar-group-count";
+  count.textContent = String(profiles.length);
+  const addServer = document.createElement("button");
+  addServer.className = "icon-button sidebar-group-add";
+  addServer.type = "button";
+  const addLabel = `${translateText("添加服务器")} · ${name}`;
+  addServer.setAttribute("aria-label", addLabel);
+  addServer.title = addLabel;
+  addServer.innerHTML = iconMarkup("plus");
+  addServer.addEventListener("click", () => openServerDialog(null, groupId));
+  heading.append(label, count, addServer);
+
+  const servers = document.createElement("div");
+  servers.className = "sidebar-group-servers";
+  for (const profile of profiles) servers.append(createServerRow(profile));
+  section.append(heading, servers);
+  return section;
 }
 
 function createHomeServerCard(profile) {
@@ -811,18 +780,17 @@ function renderServers() {
   const list = $("#server-list");
   list.replaceChildren();
   const items = filteredProfiles();
-  const filterName = state.groupFilter === "all"
-    ? "全部服务器"
-    : state.groupFilter === "ungrouped"
-      ? "未分组"
-      : state.groups.find((group) => group.id === state.groupFilter)?.name ?? "服务器分组";
-  const caption = $("#filter-caption");
   $("#server-search").value = state.query;
   $("#global-search").value = state.query;
-  caption.hidden = state.groupFilter === "all" && !state.query;
-  caption.textContent = state.query ? `“${state.query}” · ${filterName} · ${items.length} 台服务器` : `${filterName} · ${items.length} 台服务器`;
   if (items.length) {
-    for (const profile of items) list.append(createServerRow(profile));
+    const knownGroupIds = new Set(state.groups.map((group) => group.id));
+    for (const group of state.groups) {
+      const profiles = items.filter((profile) => profile.groupId === group.id);
+      if (profiles.length) list.append(createServerGroup(group.id, group.name, profiles));
+    }
+    const ungrouped = items.filter((profile) => !profile.groupId || !knownGroupIds.has(profile.groupId));
+    if (ungrouped.length) list.append(createServerGroup("", "未分组", ungrouped));
+    for (const profile of items) renderConnectionStatus(profile);
     return;
   }
   if (state.profiles.length === 0) {
@@ -850,8 +818,6 @@ function renderAll() {
 
 async function loadData() {
   state.loading = true;
-  const refresh = $("#refresh-servers");
-  refresh?.classList.add("is-spinning");
   try {
     const groups = await invoke("group_list", {});
     state.groups = groups;
@@ -871,11 +837,10 @@ async function loadData() {
     throw error;
   } finally {
     state.loading = false;
-    refresh?.classList.remove("is-spinning");
   }
 }
 
-function openServerDialog(profile = null) {
+function openServerDialog(profile = null, groupId = "") {
   state.editingProfile = profile;
   state.selectedKey = null;
   const form = $("#server-form");
@@ -901,7 +866,7 @@ function openServerDialog(profile = null) {
   $("#toggle-secret-visibility").setAttribute("aria-label", "显示密码");
   $("#toggle-secret-visibility").setAttribute("aria-pressed", "false");
   $("#toggle-secret-visibility").innerHTML = iconMarkup("eye");
-  $("#profile-group").value = profile?.groupId ?? "";
+  $("#profile-group").value = profile?.groupId ?? groupId;
   $("#keepalive").value = String(profile?.keepaliveIntervalSeconds ?? 30);
   $("#jump-host").value = profile?.jumpHost ?? "";
   $("#jump-port").value = String(profile?.jumpPort ?? 22);
@@ -2747,9 +2712,8 @@ async function createGroup(event) {
     return;
   }
   try {
-    const group = await invoke("group_create", { name, sortOrder: state.groups.length });
+    await invoke("group_create", { name, sortOrder: state.groups.length });
     await loadData();
-    state.groupFilter = group.id;
     renderGroups();
     renderServers();
     closeDialog($("#group-dialog"));
@@ -2899,7 +2863,6 @@ function bindEvents() {
   $("#sidebar-add-server").addEventListener("click", () => openServerDialog());
   $("#welcome-add-server").addEventListener("click", () => openServerDialog());
   $("#add-group").addEventListener("click", openGroupDialog);
-  $("#refresh-servers").addEventListener("click", () => void loadData());
   $("#server-search").addEventListener("input", (event) => {
     updateServerSearch(event.target.value, "sidebar");
   });

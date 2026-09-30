@@ -55,6 +55,7 @@ const messages = {
   "选择 MauLink 的主题。默认跟随系统外观。": "Choose the MauLink theme. Follows system appearance by default.",
   "命令面板": "Command palette",
   "输入命令或搜索…": "Type a command or search…",
+  "搜索": "Search",
   "导航": "Navigation",
   "操作": "Actions",
   "打开工作区": "Open Workspace",

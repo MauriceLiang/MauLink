@@ -19,10 +19,9 @@
       </header>
       <div class="app-content">
         <aside class="sidebar" aria-label="服务器工作区">
-          <div class="sidebar-tools"><label class="search-field sidebar-search" for="server-search"><span data-icon="search" aria-hidden="true"></span><input id="server-search" type="search" placeholder="筛选服务器" autocomplete="off" /><kbd id="search-shortcut">⌘ K</kbd></label><button class="icon-button refresh-button" id="refresh-servers" type="button" aria-label="刷新服务器列表" title="刷新列表"><span data-icon="refresh-cw" aria-hidden="true"></span></button></div>
+          <div class="sidebar-tools"><label class="search-field sidebar-search" for="server-search"><span data-icon="search" aria-hidden="true"></span><input id="server-search" type="search" placeholder="搜索" autocomplete="off" /><kbd id="search-shortcut">⌘ K</kbd></label></div>
           <div class="sidebar-section-heading group-heading"><span>分组</span><button class="icon-button sidebar-add" id="add-group" type="button" aria-label="新建分组" title="新建分组"><span data-icon="plus" aria-hidden="true"></span></button></div>
-          <div class="group-list" id="group-list" aria-label="按分组筛选服务器"></div>
-          <section class="server-section" id="server-section" aria-label="服务器列表"><div class="sidebar-section-heading server-list-heading"><span>已保存</span><span id="nav-server-count">0</span></div><div class="filter-caption" id="filter-caption" hidden></div><div class="server-list" id="server-list" aria-live="polite"></div></section>
+          <div class="server-list" id="server-list" aria-label="按分组显示的服务器" aria-live="polite"></div>
           <div class="sidebar-bottom"><button class="sidebar-add-server" id="sidebar-add-server" type="button"><span data-icon="plus" aria-hidden="true"></span>添加服务器</button><button class="nav-item workspace-nav" id="nav-workspace" type="button" disabled><span class="nav-icon" data-icon="terminal" aria-hidden="true"></span><span>当前工作区</span><span class="nav-live-dot" id="nav-live-dot" hidden></span></button><div class="local-status"><span class="status-indicator" id="backend-indicator"></span><span id="backend-label">正在连接本地服务</span></div><div class="app-version"><span>MauLink Desktop</span><span id="app-version">—</span></div></div>
         </aside>
         <div class="main-shell">
