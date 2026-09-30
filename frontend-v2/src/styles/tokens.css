@@ -1,0 +1,8 @@
+:root {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --space-3: 12px;
+  --space-5: 20px;
+  --radius: 8px;
+  --app-toolbar-height: 48px;
+  --app-sidebar-width: 236px;
+}

@@ -1,0 +1,118 @@
+import type { Channel } from "@tauri-apps/api/core";
+import type { AppInfo } from "../../../contracts/v1/AppInfo";
+import type { AuthenticationRespondPayload } from "../../../contracts/v1/AuthenticationRespondPayload";
+import type { ConnectionDisconnectPayload } from "../../../contracts/v1/ConnectionDisconnectPayload";
+import type { ConnectionIdPayload } from "../../../contracts/v1/ConnectionIdPayload";
+import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapshot";
+import type { ConnectionStartPayload } from "../../../contracts/v1/ConnectionStartPayload";
+import type { CredentialDeleteResult } from "../../../contracts/v1/CredentialDeleteResult";
+import type { EmptyPayload } from "../../../contracts/v1/EmptyPayload";
+import type { Group } from "../../../contracts/v1/Group";
+import type { GroupCreate } from "../../../contracts/v1/GroupCreate";
+import type { GroupUpdatePayload } from "../../../contracts/v1/GroupUpdatePayload";
+import type { HostKeyRespondPayload } from "../../../contracts/v1/HostKeyRespondPayload";
+import type { LocalFileSelectPayload } from "../../../contracts/v1/LocalFileSelectPayload";
+import type { MonitorGetHistoryPayload } from "../../../contracts/v1/MonitorGetHistoryPayload";
+import type { MonitorGetSnapshotPayload } from "../../../contracts/v1/MonitorGetSnapshotPayload";
+import type { MonitorHistoryPage } from "../../../contracts/v1/MonitorHistoryPage";
+import type { MonitorRefreshPayload } from "../../../contracts/v1/MonitorRefreshPayload";
+import type { MonitorSnapshot } from "../../../contracts/v1/MonitorSnapshot";
+import type { RemoteFileEntry } from "../../../contracts/v1/RemoteFileEntry";
+import type { ResourceIdPayload } from "../../../contracts/v1/ResourceIdPayload";
+import type { RetainedCredential } from "../../../contracts/v1/RetainedCredential";
+import type { RevisionPayload } from "../../../contracts/v1/RevisionPayload";
+import type { SelectedLocalFile } from "../../../contracts/v1/SelectedLocalFile";
+import type { ServerCreatePayload } from "../../../contracts/v1/ServerCreatePayload";
+import type { ServerDeletePayload } from "../../../contracts/v1/ServerDeletePayload";
+import type { ServerListPage } from "../../../contracts/v1/ServerListPage";
+import type { ServerListQuery } from "../../../contracts/v1/ServerListQuery";
+import type { ServerMutationResult } from "../../../contracts/v1/ServerMutationResult";
+import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
+import type { ServerUpdatePayload } from "../../../contracts/v1/ServerUpdatePayload";
+import type { SettingsRecord } from "../../../contracts/v1/SettingsRecord";
+import type { SettingsUpdate } from "../../../contracts/v1/SettingsUpdate";
+import type { SftpCursorPayload } from "../../../contracts/v1/SftpCursorPayload";
+import type { SftpDeletePayload } from "../../../contracts/v1/SftpDeletePayload";
+import type { SftpDirectoryPage } from "../../../contracts/v1/SftpDirectoryPage";
+import type { SftpDownloadPayload } from "../../../contracts/v1/SftpDownloadPayload";
+import type { SftpListStartPayload } from "../../../contracts/v1/SftpListStartPayload";
+import type { SftpMkdirPayload } from "../../../contracts/v1/SftpMkdirPayload";
+import type { SftpRenamePayload } from "../../../contracts/v1/SftpRenamePayload";
+import type { SftpStatPayload } from "../../../contracts/v1/SftpStatPayload";
+import type { SftpTransferIdPayload } from "../../../contracts/v1/SftpTransferIdPayload";
+import type { SftpTransferListPayload } from "../../../contracts/v1/SftpTransferListPayload";
+import type { SftpTransferSnapshot } from "../../../contracts/v1/SftpTransferSnapshot";
+import type { SftpUploadPayload } from "../../../contracts/v1/SftpUploadPayload";
+import type { TerminalAckPayload } from "../../../contracts/v1/TerminalAckPayload";
+import type { TerminalChunk } from "../../../contracts/v1/TerminalChunk";
+import type { TerminalIdPayload } from "../../../contracts/v1/TerminalIdPayload";
+import type { TerminalOpenPayload } from "../../../contracts/v1/TerminalOpenPayload";
+import type { TerminalOpenResult } from "../../../contracts/v1/TerminalOpenResult";
+import type { TerminalResizePayload } from "../../../contracts/v1/TerminalResizePayload";
+import type { TerminalSize } from "../../../contracts/v1/TerminalSize";
+import type { TerminalSnapshot } from "../../../contracts/v1/TerminalSnapshot";
+import type { TerminalWritePayload } from "../../../contracts/v1/TerminalWritePayload";
+import type { TerminalWriteResult } from "../../../contracts/v1/TerminalWriteResult";
+import type { WorkspaceActivityPayload } from "../../../contracts/v1/WorkspaceActivityPayload";
+
+export interface CommandContracts {
+  monitor_get_snapshot: { payload: MonitorGetSnapshotPayload; result: MonitorSnapshot };
+  monitor_get_history: { payload: MonitorGetHistoryPayload; result: MonitorHistoryPage };
+  monitor_refresh: { payload: MonitorRefreshPayload; result: MonitorSnapshot };
+  workspace_set_activity: { payload: WorkspaceActivityPayload; result: void };
+  group_list: { payload: EmptyPayload; result: Group[] };
+  group_create: { payload: GroupCreate; result: Group };
+  group_update: { payload: GroupUpdatePayload; result: Group };
+  group_delete: { payload: RevisionPayload; result: void };
+  server_list: { payload: ServerListQuery; result: ServerListPage };
+  server_get: { payload: ResourceIdPayload; result: ServerProfile };
+  server_create: { payload: ServerCreatePayload; result: ServerMutationResult };
+  server_update: { payload: ServerUpdatePayload; result: ServerMutationResult };
+  server_delete: { payload: ServerDeletePayload; result: CredentialDeleteResult };
+  credential_list_retained: { payload: EmptyPayload; result: RetainedCredential[] };
+  credential_delete_retained: { payload: ResourceIdPayload; result: CredentialDeleteResult };
+  credential_cleanup_retry: { payload: ResourceIdPayload; result: CredentialDeleteResult };
+  connection_start: { payload: ConnectionStartPayload; result: ConnectionSnapshot };
+  connection_get: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
+  connection_cancel: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
+  host_key_respond: { payload: HostKeyRespondPayload; result: void };
+  auth_respond: { payload: AuthenticationRespondPayload; result: void };
+  connection_disconnect: { payload: ConnectionDisconnectPayload; result: ConnectionSnapshot };
+  sftp_list_start: { payload: SftpListStartPayload; result: SftpDirectoryPage };
+  sftp_list_next: { payload: SftpCursorPayload; result: SftpDirectoryPage };
+  sftp_list_close: { payload: SftpCursorPayload; result: void };
+  sftp_stat: { payload: SftpStatPayload; result: RemoteFileEntry };
+  sftp_mkdir: { payload: SftpMkdirPayload; result: RemoteFileEntry };
+  sftp_rename: { payload: SftpRenamePayload; result: RemoteFileEntry };
+  sftp_delete: { payload: SftpDeletePayload; result: void };
+  sftp_upload: { payload: SftpUploadPayload; result: SftpTransferSnapshot };
+  sftp_download: { payload: SftpDownloadPayload; result: SftpTransferSnapshot };
+  sftp_transfer_get: { payload: SftpTransferIdPayload; result: SftpTransferSnapshot };
+  sftp_transfer_list: { payload: SftpTransferListPayload; result: SftpTransferSnapshot[] };
+  sftp_transfer_cancel: { payload: SftpTransferIdPayload; result: SftpTransferSnapshot };
+  terminal_open: { payload: TerminalOpenPayload; result: TerminalOpenResult };
+  terminal_get: { payload: TerminalIdPayload; result: TerminalSnapshot };
+  terminal_write: { payload: TerminalWritePayload; result: TerminalWriteResult };
+  terminal_resize: { payload: TerminalResizePayload; result: TerminalSize };
+  terminal_ack: { payload: TerminalAckPayload; result: void };
+  terminal_close: { payload: TerminalIdPayload; result: TerminalSnapshot };
+  settings_get: { payload: EmptyPayload; result: SettingsRecord };
+  settings_update: { payload: SettingsUpdate; result: SettingsRecord };
+  local_file_select: { payload: LocalFileSelectPayload; result: SelectedLocalFile | null };
+}
+
+export type Command = keyof CommandContracts;
+export type Payload<C extends Command> = CommandContracts[C]["payload"];
+export type Result<C extends Command> = CommandContracts[C]["result"];
+
+export interface OutputChannels {
+  terminal_open: Channel<TerminalChunk>;
+  sftp_upload: Channel<SftpTransferSnapshot>;
+  sftp_download: Channel<SftpTransferSnapshot>;
+}
+
+export type CallArgs<C extends Command> = C extends keyof OutputChannels
+  ? [payload: Payload<C>, outputChannel: OutputChannels[C]]
+  : [payload: Payload<C>];
+
+export type { AppInfo };

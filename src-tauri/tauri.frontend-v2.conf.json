@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MauLink Frontend v2",
+  "identifier": "io.maulink.frontend-v2.dev",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../frontend-v2/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "security": {
+      "devCsp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"
+    }
+  }
+}
