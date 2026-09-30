@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, VecDeque},
     future::Future,
     io,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex as StdMutex},
     time::{Duration, Instant},
 };
@@ -1121,7 +1121,7 @@ fn fail_snapshot(
     manager.publish(snapshot.clone());
 }
 
-fn local_temporary_path(target: &PathBuf, transfer_id: &str) -> Result<PathBuf, AppError> {
+fn local_temporary_path(target: &Path, transfer_id: &str) -> Result<PathBuf, AppError> {
     let parent = target
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())

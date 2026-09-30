@@ -1,16 +1,15 @@
 # Frontend v2 迁移基线：Phase 0
 
 检查日期：2026-09-30（Asia/Shanghai）  
-阶段状态：**BLOCKED，等待用户确认，不进入 Phase 1。**
+阶段状态：**PASS：自动化检查通过，用户已反馈完成 Desktop 验收，允许进入 Phase 1。**
 
 ## 基线与当前工作区
 
 - 执行手册：`/Users/mauriceliang/Downloads/MauLink_AI前端架构改造执行手册.md`。
-- 当前分支：`main`。
-- HEAD：`ffe2e2440199b8a674096c5f5e55106fc8211348`（`前端优化`），与手册一致。
-- 开始执行时已有 4 个未提交的前端文件改动，共 104 行新增、157 行删除。这些改动不是本次执行产生的，未覆盖、撤销或提交。
-- 尚未建立迁移分支，尚未冻结包含这些改动的可复现提交。需要用户确认将它们纳入基线，还是以原 HEAD 为基线在独立 worktree 执行。
-- 已通过 `git branch --show-current`、`git rev-parse HEAD`、`git status --short`、`git diff --stat` 和 `git diff --numstat` 核对。
+- Phase 0 检查时分支：`refactor/frontend-v2`（已从干净的 `main` 创建）。
+- 当前基线 HEAD：`b3da9ec6dadf63b2ff830b45873e68d6765c7f12`（`前端调试`）。用户已提交并推送前轮改动；本次通过 `git status --short` 确认开始时工作区干净。
+- 手册原始 HEAD：`ffe2e2440199b8a674096c5f5e55106fc8211348`。用户提交解决了前轮基线归属问题，以下改动及本报告的前轮版本现已纳入 `b3da9ec`。
+- 通过 `git branch --show-current`、`git rev-parse HEAD`、`git status --short` 和 `git show --stat --oneline HEAD` 核对。创建分支时沙箱首次禁止 `.git` 写入，自动审批后重试成功。
 
 | 既有修改文件 | 新增 / 删除 | 检查时 SHA-256 |
 | --- | --- | --- |
@@ -19,7 +18,7 @@
 | `frontend/src/main.mjs` | 66 / 103 | `7cb02b203266bedfff3d7834c6d1003156bc787330e6e806754529a58b2359f5` |
 | `frontend/styles.css` | 35 / 51 | `6c371153cc7e39008d2cdc4ca792d7830aff0ac5932ba06f806218de55a63155` |
 
-这些哈希只标识检查时的工作区内容，不能替代 Git 提交或完整备份。
+表中哈希为前轮检查时的内容标识；当前可恢复基线以 `b3da9ec` 为准。
 
 ## 当前结构
 
@@ -58,20 +57,20 @@ Rust workspace members 为 `crates/maulink-core` 和 `src-tauri`，default-membe
 
 ## 自动化检查
 
-本次检查针对包含既有未提交修改的工作区，不能视为仅对 HEAD 的检查结果。
+用户明确授权修正 3 项 Clippy 问题后，本轮重新执行以下全部检查。所有命令退出码均为 0；没有降低 lint 门槛。
 
 | 命令 | 本次结果 |
 | --- | --- |
-| `cargo fmt --all -- --check` | PASS，退出码 0 |
-| `node --check frontend/src/main.mjs` | PASS |
-| `node --check frontend/src/i18n.mjs` | PASS |
-| `node --check frontend/src/command-palette.mjs` | PASS |
-| `node --check frontend/src/terminal-preferences.mjs` | PASS |
-| `node --test frontend/tests/*.test.mjs` | PASS，24 passed / 0 failed |
-| `git diff --check`（新增本报告之前） | PASS，退出码 0 |
-| `cargo check --workspace --all-targets --locked` | 未执行，基线范围等待确认 |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | 未执行，基线范围等待确认 |
-| `cargo test --workspace --locked` | 未执行，基线范围等待确认 |
+| `cargo fmt --all -- --check` | 本轮 PASS，退出码 0 |
+| `node --check frontend/src/main.mjs` | 本轮 PASS，退出码 0 |
+| `node --check frontend/src/i18n.mjs` | 本轮 PASS，退出码 0 |
+| `node --check frontend/src/command-palette.mjs` | 本轮 PASS，退出码 0 |
+| `node --check frontend/src/terminal-preferences.mjs` | 本轮 PASS，退出码 0 |
+| `node --test frontend/tests/*.test.mjs` | 本轮 PASS，24 passed / 0 failed |
+| `git diff --check` | 本轮 PASS，退出码 0 |
+| `cargo check --workspace --all-targets --locked` | 本轮 PASS，退出码 0 |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` | 修正后本轮 PASS，退出码 0；保留 `-D warnings` |
+| `cargo test --workspace --locked` | 本轮 PASS，68 passed / 0 failed / 11 ignored |
 
 环境版本：Cargo `1.98.1`、rustc `1.98.1`、Node.js `v26.10.0`。
 
@@ -79,7 +78,15 @@ Rust workspace members 为 `crates/maulink-core` 和 `src-tauri`，default-membe
 
 ## Desktop、功能与视觉基线
 
-本次尚未启动或操作真实 Tauri Desktop；服务器列表、Add Server、Settings 的 Phase 0 运行验收均未完成。Light / Dark、中英文及 viewport 本次均未重新验证。历史文档中的结果不计为本次通过。
+本轮隔离桌面 debug 构建通过：
+
+```bash
+PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri build --debug --bundles app --no-sign --config /private/tmp/maulink-migration-baseline.conf.json -- --locked
+```
+
+临时配置仅覆盖 `identifier=io.maulink.migration.baseline.20260930` 和 `productName=MauLink Migration Baseline`，未改正式配置；产物为 `target/debug/bundle/macos/MauLink Migration Baseline.app`（未签名）。该构建在收取 Clippy 结果时已启动，最终退出码 0。构建通过不代表启动或流程验收通过。
+
+本轮尝试通过 CUA 打开上述隔离 `.app`，工具返回 `Computer Use was not approved to use MauLink Migration Baseline`，未能观察或操作实际窗口。工具没有提供更详细的拒绝原因。随后用户明确反馈“我已验证”，确认前轮交付清单中的启动、服务器列表、Add Server Dialog 和 Settings。此处运行验收证据来自用户反馈，不是 AI 自动操作或截图。Light / Dark、中英文及 viewport 本次均未重新验证。历史文档中的结果不计为本次通过。
 
 代码及既有文档表明当前已实现：
 
@@ -113,16 +120,34 @@ Rust workspace members 为 `crates/maulink-core` 和 `src-tauri`，default-membe
 - Monitor 不支持或过期的指标不能冒充 0 或实时数据。
 - 保留旧 `frontend/` 作为可运行和回归基线，正式切换须满足前置阶段门槛。
 
+## 已授权修正与当前阻塞
+
+用户已明确要求“执行修正”，完成以下无行为变化的最小调整：
+
+| 文件 | 原 lint | 实际修正 |
+| --- | --- | --- |
+| `crates/maulink-core/src/monitor.rs` | `redundant_closure` | `.map(parse_finite_nonnegative)` |
+| `crates/maulink-core/src/monitor.rs` | `type_complexity` | 添加模块内 `NetworkInterfaceRates` type alias，保留原元组返回语义 |
+| `crates/maulink-core/src/sftp/transfer.rs` | `ptr_arg` | 内部 `local_temporary_path` 参数改为 `&Path`，原 `&PathBuf` 调用通过 coercion 保持兼容 |
+
+workspace 检查验证调用方兼容，既有 Monitor 速率/解析测试和 SFTP 单元测试通过。未改变 DTO、IPC、计算逻辑、路径构造或错误语义，未添加依赖，也未添加仅重复实现的测试。
+
+Rust 测试统计：Core 64 passed / 1 ignored，Contract 4 passed；OpenSSH Connection 2 ignored、Lifecycle 1 ignored、SFTP/Monitor/大文件矩阵 6 ignored、Terminal 1 ignored，总计 68 passed / 11 ignored。ignored 项仍需各自 fixture 或原生服务验证，不能算作本轮通过。
+
+Desktop 控制未获准的问题通过用户手动验收解决。用户确认后续凡需应用操作，AI 应停止并交付具体步骤，等待用户操作反馈。后续阶段 Desktop 验收仍执行该门禁，不能因 Phase 0 通过而自动视为通过。
+
 ## Phase 0 验收报告与恢复入口
 
-- 完成项：核对 HEAD、workspace、目录结构、Contract、命令边界及历史 QA；执行格式与旧前端检查；生成本报告。
-- 本次修改文件：仅 `docs/refactor/frontend-v2-baseline.md`。
-- 新增依赖：无。
-- 与旧前端差异：无，本次未修改业务代码或正式配置。
-- 当前阻塞：未提交修改应如何冻结为基线尚未确认；其余 Rust 检查和 Desktop 验收未完成。
-- 退出条件：**BLOCKED**。报告存在，测试基线仍不完整，旧应用本次运行状态未验证。
-- 推荐 commit：`docs(refactor): record frontend v2 migration baseline`，待基线确认及验收后使用。
+- 完成项：确认新基线与迁移分支；按用户授权修复 3 项 Clippy；全部 Rust 自动检查、旧前端语法检查及 24 项测试通过。
+- 本次修改文件：`crates/maulink-core/src/monitor.rs`、`crates/maulink-core/src/sftp/transfer.rs`、`docs/refactor/frontend-v2-baseline.md`。
+- 新增依赖：无；复用临时路径中的 Tauri CLI `2.12.0`。
+- Desktop：隔离 debug bundle 构建通过；AI 自动控制未获准；用户随后确认启动及目标页面操作通过。
+- 视觉：Light / Dark、中文 / English、viewport 均未重新验收；保留原 QA 限制。
+- 与旧前端差异：无；无业务行为或正式配置修改，仅等价 Rust 代码修正。
+- 当前 Phase 0 阻塞：无。历史 QA 限制保持记录，后续按阶段处理。
+- 退出条件：**PASS**。基线文档存在，自动检查通过，用户反馈旧应用运行及目标页面操作通过。
+- 推荐 commit：代码修正为 `fix(core): resolve monitor and sftp clippy warnings`；基线记录为 `docs(refactor): record frontend v2 migration baseline`。该阶段修正与报告按用户后续授权，在 Phase 2 验收通过后提交到主分支；提交范围见 Phase 2 报告。
 
-恢复执行时先重新检查 branch / HEAD / 工作区。用户确认后建立 `refactor/frontend-v2`（手册指定），明确既有修改的基线归属，补齐 Rust 检查及真实 Desktop 验收，全部满足 Phase 0 退出条件后才能进入 Phase 1。
+根据用户反馈，Phase 0 已通过，开始 Phase 1。Phase 1 的新前端 Desktop 加载及 HMR 需另行交付用户验收。
 
-回滚参考提交是 `ffe2e2440199b8a674096c5f5e55106fc8211348`。该提交不包含既有未提交修改，不能通过直接 reset/checkout 覆盖这些文件来回滚；须先保全并明确其归属。本次没有创建 commit，也没有执行 reset、stash 或删除操作。
+回滚基线为 `b3da9ec6dadf63b2ff830b45873e68d6765c7f12`，包含用户提交的前端调整和本报告前轮版本。没有执行 reset、stash 或删除操作。

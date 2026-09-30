@@ -336,7 +336,7 @@ pub(crate) fn parse_load_average(contents: &str) -> Result<[f64; 3], MonitorPars
     let values = contents
         .split_whitespace()
         .take(3)
-        .map(|value| parse_finite_nonnegative(value))
+        .map(parse_finite_nonnegative)
         .collect::<Result<Vec<_>, _>>()?;
     values.try_into().map_err(|_| MonitorParseError::Invalid)
 }
@@ -415,11 +415,13 @@ pub(crate) fn cpu_usage_percent(previous: CpuCounters, current: CpuCounters) -> 
     Some(100.0 * (delta_total - delta_idle) as f64 / delta_total as f64)
 }
 
+type NetworkInterfaceRates = BTreeMap<String, (f64, f64)>;
+
 pub(crate) fn network_rates(
     previous: &BTreeMap<String, NetworkCounters>,
     current: &BTreeMap<String, NetworkCounters>,
     interval_seconds: f64,
-) -> Option<(BTreeMap<String, (f64, f64)>, f64, f64)> {
+) -> Option<(NetworkInterfaceRates, f64, f64)> {
     if !interval_seconds.is_finite()
         || interval_seconds <= 0.0
         || previous.keys().ne(current.keys())
