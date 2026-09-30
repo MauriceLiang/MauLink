@@ -1,6 +1,6 @@
 # MauLink Frontend v2
 
-Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，SSH Connection、安全挑战、Terminal、SFTP、Monitor 与完整 Settings 尚未迁移。
+Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，Phase 5 已接入 SSH Connection 与安全挑战，自动化和 Browser 通过，按用户更新后的门禁 PASS，Desktop GUI 未实测；Terminal、SFTP、Monitor 与完整 Settings 尚未迁移。
 
 ## 安装与前端检查
 
@@ -43,7 +43,7 @@ Tauri CLI 会自动发现 `frontend-v2/package.json`，开发和构建钩子分�
 PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri dev --config src-tauri/tauri.frontend-v2.conf.json
 ```
 
-临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成。Phase 4 通过现有 serverApi 写入服务器与分组；产品入口不发起 SSH 连接。
+临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成。Phase 4 通过现有 serverApi 写入服务器与分组；Phase 5 的资料页可通过既有 connectionApi 发起真实 SSH 连接。
 
 打包新前端（不影响默认旧前端入口）：
 
@@ -91,7 +91,7 @@ DTO 直接 `import type` 复用仓库 `contracts/v1/`，不在新工程复制定
 
 ## Phase 3 Shell 与验收
 
-Phase 3 建立真实 Typed IPC 的只读 Shell，完整验收证据见阶段报告。浏览器没有 Tauri 时显示安全的本地服务不可用状态，不伪造后端就绪。当前 Phase 4 已启用服务器与分组管理，设置仍禁用，选中服务器只查看资料。
+Phase 3 建立真实 Typed IPC 的只读 Shell，完整验收证据见阶段报告。浏览器没有 Tauri 时显示安全的本地服务不可用状态，不伪造后端就绪。当前 Phase 4 已启用服务器与分组管理，设置仍禁用；Phase 5 的选中服务器页新增连接状态与操作。
 
 开发入口 `http://127.0.0.1:1420/?harness=shell&state=empty&theme=light` 使用 Mock IPC。右下角“Mock IPC”控件可切换空列表/有服务器、Light/Dark；仅限开发构建，不访问真实服务器或持久化资料。截图与检查结果见 `docs/refactor/frontend-v2-phase-3.md`。
 
@@ -99,7 +99,7 @@ Shell 沿用旧版 48px Topbar、30px Statusbar；Sidebar 在宽屏为 236px，1
 
 Tauri 验收先运行默认新前端，核实真实本地服务和 app version；随后可通过临时 devUrl overlay 运行 Shell Mock Harness，检查两种数据状态及主题。frontend-v2 专用配置保留 main 业务 capability，仅补充 main 窗口的 core:window:allow-start-dragging，让 TopBar 空白区域支持原生拖动。正式配置、共享权限、窗口参数与默认旧入口均不改变。
 
-每阶段完成全部验收后自动写提交说明、提交并推送到 `main`；阶段 BLOCKED 时停止，应用界面由用户验收。
+每阶段完成全部验收后自动写提交说明、提交并推送到 `main`；阶段 BLOCKED 时停止；用户已取消后续 Tauri 手动验收门禁。
 
 ## Phase 4 Server 管理与验收
 
@@ -112,3 +112,11 @@ Browser Mock 入口：`http://127.0.0.1:1420/?harness=servers&state=servers&them
 Desktop Native 验收入口：`?harness=servers&transport=native&theme=light`，使用真实 IPC、SQLite、系统凭据存储和文件选择器。通过临时 devUrl overlay 启动，不改正式配置。开发专用的回环占用探针仅接受唯一的 `Phase4-占用验收`、`127.0.0.1:42424`、用户名 `phase4`、password、无保存凭据/代理/跳板机、120000ms 超时的配置；只调用现有 test-mode connection_start/cancel，验证真实 ServerInUse。Mock、Native Harness 和探针均不进入正式 bundle。
 
 当前详细检查与 Desktop 操作清单见 `docs/refactor/frontend-v2-phase-4.md`。本阶段已全部 PASS，可进入 Phase 5 的 SSH Connection 与安全交互迁移。
+
+## Phase 5 SSH Connection 与验收
+
+服务器“查看”进入连接页，连接/取消/断开通过既有 Core。首次 Host Key 明确核对，Esc 拒绝；Changed 默认拒绝，更新信任需展开并确认独立核实。认证挑战仅使用一次性输入，不保存凭据。错误诊断默认折叠，Retry 遵循 error.retryable，变化指纹不自动重试。已连接只表示 SSH ready，终端留在 Phase 6。
+
+Browser Mock：`http://127.0.0.1:1420/?harness=connections&theme=light`，可选择下一次连接场景及延迟回应。Native：`?harness=connections&transport=native&theme=light`，使用真实 IPC，通过临时 devUrl overlay 打开。Harness 不进入正式构建。
+
+详见 `docs/refactor/frontend-v2-phase-5.md`。当前 Phase 5 按用户更新后的门禁 PASS，可继续 Phase 6。后续阶段通过自动化与 Browser 验收后自动提交推送 main；Tauri GUI 未实测时如实记录，不再请求手动检查。

@@ -6,8 +6,13 @@ import "./styles/base.css";
 import "./styles/components.css";
 import "./styles/shell.css";
 import "./styles/servers.css";
+import "./styles/connections.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "servers") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "connections") {
+  void import("./harness/ConnectionHarness.vue").then(({ default: ConnectionHarness }) => {
+    createApp(ConnectionHarness).mount("#app");
+  });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "servers") {
   void import("./harness/ServerHarness.vue").then(({ default: ServerHarness }) => {
     createApp(ServerHarness).mount("#app");
   });

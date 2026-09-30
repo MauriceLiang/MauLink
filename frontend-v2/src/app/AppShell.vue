@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { AppInfo } from "../ipc/commands";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import type { IpcClient } from "../ipc/client";
+import { createConnectionApi } from "../ipc/connection";
+import { createConnectionStore } from "../stores/connections";
+import ConnectionPanel from "../components/connection/ConnectionPanel.vue";
+import ConnectionDialogs from "../dialogs/ConnectionDialogs.vue";
 import { createServerApi } from "../ipc/server";
 import { createServerStore } from "../stores/servers";
 import { mapError } from "../errors/mapper";
@@ -24,6 +28,7 @@ const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean }
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
 const { servers, groups, pending, error, query, filtered } = store;
+const connections = createConnectionStore(createConnectionApi(props.client));
 const selectedId = ref<string | null>(null);
 const about = ref(false);
 const editor = ref(false);
@@ -63,15 +68,24 @@ async function load() {
   }
 }
 
+watch(() => selectedId.value ? connections.snapshots.value[selectedId.value]?.state : undefined, async state => {
+  if (!state || !['ready', 'closed', 'failed', 'cancelled'].includes(state)) return;
+  await nextTick();
+  // Start/Cancel controls disappear as Core completes an attempt. Restore focus to the current action.
+  if (document.activeElement === document.body && !document.querySelector('[role="dialog"]')) {
+    document.querySelector<HTMLButtonElement>('.connection-actions button:not(:disabled)')?.focus();
+  }
+});
+
 function onKeydown(event: KeyboardEvent) {
-  if (about.value || editor.value || manageGroups.value || deleteTarget.value) return;
+  if (connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     document.getElementById("shell-global-search")?.focus();
   }
 }
 onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); });
-onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown));
+onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); });
 </script>
 
 <template>
@@ -84,12 +98,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown));
         <BaseEmptyState v-else-if="error" title="本地服务暂不可用" :description="error.message">
           <BaseButton @click="load">重试</BaseButton>
         </BaseEmptyState>
-        <BaseEmptyState v-else-if="selected" :title="selected.name" :description="`${selected.username}@${selected.host}:${selected.port} · 尚未连接`">
+        <ConnectionPanel v-else-if="selected" :server="selected" :store="connections" :read-only="!canManage">
           <BaseButton @click="selectedId = null">返回服务器</BaseButton>
           <BaseButton :disabled="!canManage" @click="openEditor(selected.id)">编辑服务器</BaseButton>
           <BaseButton :disabled="!canManage" @click="deleteTarget = { ...selected }">删除服务器</BaseButton>
-        </BaseEmptyState>
-        <ServerList v-else-if="servers.length" :servers="filtered" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
+        </ConnectionPanel>
+        <ServerList v-else-if="servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
       </main>
       <LocalBackendStatus :state="backendState" :version="info?.version" />
@@ -101,6 +115,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown));
     <ServerDialog :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="notice = $event" />
     <ConfirmDialog :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :open="manageGroups" :store="store" @close="manageGroups = false" @saved="notice = $event" />
+    <ConnectionDialogs :store="connections" :servers="servers" :suspended="about || editor || manageGroups || !!deleteTarget" />
     <BaseToast v-if="notice" class="server-notice" :message="notice" kind="info" @close="notice = ''" />
   </div>
 </template>

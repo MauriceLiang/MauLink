@@ -1,0 +1,19 @@
+.connection-panel { padding: 32px; }
+.connection-panel h1 { font-size: 20px; }
+.connection-muted { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.connection-dialog { width: 526px; }
+.connection-dialog p { font-size: 13px; line-height: 1.7; }
+.connection-kicker { color: var(--accent); font-size: 11px !important; letter-spacing: .08em; }
+.connection-danger { color: var(--danger); }
+.connection-fingerprints, .connection-diagnostics { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-subtle); font-size: 12px; }
+.connection-fingerprints dt, .connection-diagnostics dt { color: var(--muted); }
+.connection-fingerprints dd, .connection-diagnostics dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.connection-risk { padding: 12px; border-left: 3px solid var(--danger); color: var(--danger); background: var(--surface-subtle); font-size: 12px; line-height: 1.7; }
+.connection-risk label { display: block; margin-bottom: 12px; }
+.connection-error { margin: 16px 0; color: var(--danger); }
+.connection-error .base-button { min-height: 28px; font-size: 12px; }
+
+.connection-dot-ready { background: var(--accent); }
+.connection-dot-failed { background: var(--danger); }
+.connection-dot-connecting, .connection-dot-authenticating, .connection-dot-awaitingHostTrust, .connection-dot-awaitingCredentials { background: var(--accent); opacity: .65; }
