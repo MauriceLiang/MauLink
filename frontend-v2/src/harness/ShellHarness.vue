@@ -11,7 +11,7 @@ watch(theme, value => { document.documentElement.dataset.theme = value; }, { imm
 </script>
 
 <template>
-  <AppShell :key="state" :client="client" />
+  <AppShell :key="state" :client="client" read-only />
   <details class="shell-harness-controls">
     <summary>Mock IPC</summary>
     <label>导航状态<select v-model="state"><option value="empty">空列表</option><option value="servers">有服务器</option></select></label>

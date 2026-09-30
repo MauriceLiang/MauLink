@@ -5,8 +5,8 @@ import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseIconButton from "../components/base/BaseIconButton.vue";
 import ShellIcon from "./ShellIcon.vue";
-const props = defineProps<{ servers: ServerProfile[]; groups: Group[]; selectedId: string | null; query: string; pending: boolean; failed: boolean }>();
-defineEmits<{ select: [id: string] }>();
+const props = defineProps<{ servers: ServerProfile[]; groups: Group[]; selectedId: string | null; query: string; pending: boolean; failed: boolean; canManage: boolean }>();
+defineEmits<{ select: [id: string]; groups: [] }>();
 const sections = computed(() => {
   const query = props.query.trim().toLocaleLowerCase();
   const items = props.servers.filter(server => `${server.name} ${server.host} ${server.username}`.toLocaleLowerCase().includes(query));
@@ -19,11 +19,11 @@ const sections = computed(() => {
 
 <template>
   <nav class="shell-server-navigation" aria-label="按分组显示的服务器" aria-live="polite" :aria-busy="pending">
+    <div class="shell-group-heading"><span>分组</span><BaseIconButton class="shell-small-icon" label="管理分组" :disabled="!canManage" @click="$emit('groups')"><ShellIcon name="plus" /></BaseIconButton></div>
     <p v-if="pending" class="shell-nav-empty">正在加载服务器…</p>
     <p v-else-if="failed" class="shell-nav-empty">本地服务暂不可用</p>
     <p v-else-if="!sections.length" class="shell-nav-empty">{{ servers.length ? '没有找到匹配项' : '还没有服务器' }}</p>
     <template v-else>
-      <div class="shell-group-heading"><span>分组</span><BaseIconButton class="shell-small-icon" label="新建分组" disabled><ShellIcon name="plus" /></BaseIconButton></div>
       <section v-for="section in sections" :key="section.id" class="shell-server-group" :aria-label="section.name">
         <h2 class="shell-group-title"><span>{{ section.name }}</span><span>{{ section.items.length }}</span></h2>
         <BaseButton v-for="server in section.items" :key="server.id" class="shell-server-item"

@@ -5,8 +5,13 @@ import "./styles/themes.css";
 import "./styles/base.css";
 import "./styles/components.css";
 import "./styles/shell.css";
+import "./styles/servers.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "foundations") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "servers") {
+  void import("./harness/ServerHarness.vue").then(({ default: ServerHarness }) => {
+    createApp(ServerHarness).mount("#app");
+  });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "foundations") {
   void import("./harness/FoundationsHarness.vue").then(({ default: FoundationsHarness }) => {
     createApp(FoundationsHarness).mount("#app");
   });

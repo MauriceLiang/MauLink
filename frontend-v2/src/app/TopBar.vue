@@ -3,8 +3,8 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseIconButton from "../components/base/BaseIconButton.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import ShellIcon from "./ShellIcon.vue";
-defineProps<{ query: string; home: boolean; shortcut: string }>();
-defineEmits<{ "update:query": [value: string]; home: []; about: [] }>();
+defineProps<{ query: string; home: boolean; shortcut: string; canManage: boolean }>();
+defineEmits<{ "update:query": [value: string]; home: []; about: []; add: [] }>();
 </script>
 
 <template>
@@ -22,7 +22,7 @@ defineEmits<{ "update:query": [value: string]; home: []; about: [] }>();
       <kbd>{{ shortcut }}</kbd>
     </div>
     <div class="shell-topbar-actions">
-      <BaseButton variant="primary" disabled title="添加服务器暂不可用"><ShellIcon name="plus" />添加服务器</BaseButton>
+      <BaseButton variant="primary" :disabled="!canManage" @click="$emit('add')"><ShellIcon name="plus" />添加服务器</BaseButton>
       <BaseIconButton label="设置" disabled><ShellIcon name="settings" /></BaseIconButton>
       <BaseIconButton label="关于 MauLink" @click="$emit('about')"><ShellIcon name="info" /></BaseIconButton>
     </div>

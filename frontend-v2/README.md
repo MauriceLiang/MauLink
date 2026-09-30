@@ -1,6 +1,6 @@
 # MauLink Frontend v2
 
-Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3 已通过；Phase 3 建立 Application Shell，并通过 Typed IPC 只读加载应用信息、分组和服务器导航。旧 `frontend/` 和正式 Tauri 配置继续保留，SSH、Terminal、SFTP、Monitor、Server CRUD 与完整 Settings 尚未迁移。
+Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，SSH Connection、安全挑战、Terminal、SFTP、Monitor 与完整 Settings 尚未迁移。
 
 ## 安装与前端检查
 
@@ -43,7 +43,7 @@ Tauri CLI 会自动发现 `frontend-v2/package.json`，开发和构建钩子分�
 PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri dev --config src-tauri/tauri.frontend-v2.conf.json
 ```
 
-临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成，Phase 3 Shell 仅调用 app_get_info、group_list、server_list，不发起连接或修改资料。
+临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成。Phase 4 通过现有 serverApi 写入服务器与分组；产品入口不发起 SSH 连接。
 
 打包新前端（不影响默认旧前端入口）：
 
@@ -91,7 +91,7 @@ DTO 直接 `import type` 复用仓库 `contracts/v1/`，不在新工程复制定
 
 ## Phase 3 Shell 与验收
 
-默认入口使用真实 Typed IPC，只读获取 app info 与所有分页的服务器导航数据。浏览器没有 Tauri 时显示安全的本地服务不可用状态，不伪造后端就绪。添加服务器、新建分组和设置保持禁用，选中服务器仅查看资料，不连接 SSH；服务器主页卡片与 CRUD 在 Phase 4 迁移。
+Phase 3 建立真实 Typed IPC 的只读 Shell，完整验收证据见阶段报告。浏览器没有 Tauri 时显示安全的本地服务不可用状态，不伪造后端就绪。当前 Phase 4 已启用服务器与分组管理，设置仍禁用，选中服务器只查看资料。
 
 开发入口 `http://127.0.0.1:1420/?harness=shell&state=empty&theme=light` 使用 Mock IPC。右下角“Mock IPC”控件可切换空列表/有服务器、Light/Dark；仅限开发构建，不访问真实服务器或持久化资料。截图与检查结果见 `docs/refactor/frontend-v2-phase-3.md`。
 
@@ -100,3 +100,15 @@ Shell 沿用旧版 48px Topbar、30px Statusbar；Sidebar 在宽屏为 236px，1
 Tauri 验收先运行默认新前端，核实真实本地服务和 app version；随后可通过临时 devUrl overlay 运行 Shell Mock Harness，检查两种数据状态及主题。frontend-v2 专用配置保留 main 业务 capability，仅补充 main 窗口的 core:window:allow-start-dragging，让 TopBar 空白区域支持原生拖动。正式配置、共享权限、窗口参数与默认旧入口均不改变。
 
 每阶段完成全部验收后自动写提交说明、提交并推送到 `main`；阶段 BLOCKED 时停止，应用界面由用户验收。
+
+## Phase 4 Server 管理与验收
+
+服务器主页提供卡片、资料查看、编辑和删除确认；两处搜索共享 Store query，使用本地已加载的分页资料过滤。侧栏“管理分组”提供新建、重命名和删除确认；删除分组会保留服务器。服务器所属分组、跳板机、代理、保活和超时在新增/编辑的“高级”区设置。
+
+编辑先调用 server_get 获取当前 revision；更新/删除携带 expectedRevision。冲突时保留表单并提供明确的重载入口，不自动覆盖。已有凭据明确区分 keep/replace/clear；密码与私钥口令只保存在当前表单，保存或关闭后清空引用，不写入浏览器存储。私钥仅通过 local_file_select 返回的临时 token 引用。
+
+Browser Mock 入口：`http://127.0.0.1:1420/?harness=servers&state=servers&theme=light`。右侧“Mock Server CRUD”可切换主题、模拟 ServerInUse/RevisionConflict/未知错误，以及延迟写入 10 秒验证 busy。资料仅保存在内存，重载会重置。
+
+Desktop Native 验收入口：`?harness=servers&transport=native&theme=light`，使用真实 IPC、SQLite、系统凭据存储和文件选择器。通过临时 devUrl overlay 启动，不改正式配置。开发专用的回环占用探针仅接受唯一的 `Phase4-占用验收`、`127.0.0.1:42424`、用户名 `phase4`、password、无保存凭据/代理/跳板机、120000ms 超时的配置；只调用现有 test-mode connection_start/cancel，验证真实 ServerInUse。Mock、Native Harness 和探针均不进入正式 bundle。
+
+当前详细检查与 Desktop 操作清单见 `docs/refactor/frontend-v2-phase-4.md`。本阶段已全部 PASS，可进入 Phase 5 的 SSH Connection 与安全交互迁移。

@@ -1,0 +1,51 @@
+import type { Language } from "../../../contracts/v1/Language";
+
+const messages = {
+  servers: ["服务器", "Servers"], add: ["添加服务器", "Add server"], edit: ["编辑服务器", "Edit server"],
+  remove: ["删除服务器", "Delete server"], view: ["查看", "View"], more: ["更多操作", "More actions"],
+  lead: ["查看服务器资料，或添加新服务器。", "View server details or add a new server."],
+  empty: ["没有找到匹配项", "No matching servers"], ungrouped: ["未分组", "Ungrouped"],
+  groups: ["管理分组", "Manage groups"], newGroup: ["新建分组", "New group"], rename: ["重命名", "Rename"],
+  name: ["服务器名称（可选）", "Server name (optional)"], host: ["主机地址", "Host"], port: ["端口", "Port"],
+  username: ["用户名", "Username"], auth: ["认证方式", "Authentication"], password: ["密码", "Password"],
+  key: ["SSH 密钥", "SSH key"], passphrase: ["私钥口令（可选）", "Passphrase (optional)"],
+  privateKey: ["私钥文件", "Private key file"], selectKey: ["选择私钥", "Choose private key"],
+  noKey: ["尚未选择文件", "No file selected"], keepKey: ["保留当前私钥", "Keep current private key"],
+  keyNote: ["通过系统文件选择器引用私钥，仅本次有效；页面不读取私钥内容或路径。", "Choose a private key using the system picker. The page receives a temporary reference, not file contents or a path."],
+  credential: ["已保存凭据", "Saved credential"], keep: ["保留当前凭据", "Keep current credential"],
+  replace: ["替换并安全保存", "Replace and save securely"], clear: ["移除已保存凭据", "Remove saved credential"],
+  secretNote: ["填写的密码或口令将保存至系统安全存储；留空则不保存凭据。", "A supplied password or passphrase is saved in the system credential store. Leave blank to save no credential."],
+  advanced: ["高级", "Advanced"], group: ["分组", "Group"], jumpHost: ["跳板机", "Jump host"],
+  jumpPort: ["跳板机端口", "Jump port"], proxy: ["代理", "Proxy"], none: ["无", "None"],
+  proxyHost: ["代理主机", "Proxy host"], proxyPort: ["代理端口", "Proxy port"], keepalive: ["保活间隔（秒）", "Keepalive (seconds)"],
+  timeout: ["连接超时（毫秒）", "Connect timeout (milliseconds)"],
+  save: ["保存", "Save"], saving: ["正在保存…", "Saving…"], cancel: ["取消", "Cancel"],
+  loading: ["正在加载服务器资料…", "Loading server details…"], retry: ["重试", "Retry"],
+  reload: ["重新加载（放弃修改）", "Reload (discard changes)"],
+  added: ["服务器已添加。", "Server added."], updated: ["服务器配置已更新。", "Server updated."],
+  removed: ["服务器与已保存凭据已删除。", "Server and saved credential deleted."],
+  cleanup: ["操作已完成，但旧凭据清理尚未完成。", "The operation completed, but old credential cleanup is pending."],
+  deleteTitle: ["删除服务器？", "Delete server?"],
+  deleteNote: ["将删除此服务器配置及系统安全存储中的凭据。此操作无法撤销。", "This deletes the server profile and its system credential. This cannot be undone."],
+  groupName: ["分组名称", "Group name"], groupSaved: ["分组已保存。", "Group saved."],
+  deleteGroup: ["删除分组", "Delete group"], groupRemoved: ["分组已删除，服务器已移至未分组。", "Group deleted. Its servers are now ungrouped."],
+  groupDeleteNote: ["删除分组不会删除服务器，它们将移至未分组。", "Deleting a group keeps its servers and moves them to Ungrouped."],
+  hostRequired: ["请输入有效的主机地址。", "Enter a valid host."], userRequired: ["请输入 SSH 用户名。", "Enter an SSH username."],
+  nameInvalid: ["名称过长或包含无效字符。", "The name is too long or contains invalid characters."],
+  portInvalid: ["端口必须是 1 到 65535 之间的整数。", "Ports must be integers from 1 to 65535."],
+  keepaliveInvalid: ["保活间隔需在 5 到 300 秒之间。", "Keepalive must be between 5 and 300 seconds."],
+  timeoutInvalid: ["连接超时需在 1000 到 120000 毫秒之间。", "Connect timeout must be between 1000 and 120000 milliseconds."],
+  keyRequired: ["请选择 SSH 私钥文件。", "Choose an SSH private key."],
+  keyExpired: ["私钥引用已过期，请重新选择文件。", "The private key reference expired. Choose the file again."],
+  proxyInvalid: ["请输入有效的代理主机和端口。", "Enter a valid proxy host and port."],
+  jumpInvalid: ["请输入有效的跳板机地址。", "Enter a valid jump host."],
+  secretRequired: ["替换凭据时请输入新的密码或口令。", "Enter a new password or passphrase to replace the credential."],
+  identityChanged: ["连接身份已变化。请替换或明确移除已保存凭据。", "The connection identity changed. Replace or explicitly remove the saved credential."],
+  groupRequired: ["请输入 1 到 64 个字符的分组名称。", "Enter a group name of 1 to 64 characters."],
+  notConnected: ["尚未连接", "Not connected"], back: ["返回服务器", "Back to servers"],
+} as const;
+
+export type ServerMessage = keyof typeof messages;
+export function serverText(key: ServerMessage, language: Language = "zh-CN") {
+  return messages[key][language === "en" ? 1 : 0];
+}

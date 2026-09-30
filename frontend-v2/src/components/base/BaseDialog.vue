@@ -2,8 +2,8 @@
 import { nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
 import BaseIconButton from "./BaseIconButton.vue";
 
-const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string }>(), {
-  busy: false, closeLabel: "关闭对话框",
+const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string }>(), {
+  busy: false, closeLabel: "关闭对话框", panelClass: "",
 });
 const emit = defineEmits<{ close: [] }>();
 const titleId = useId();
@@ -58,7 +58,7 @@ onBeforeUnmount(() => returnFocus?.focus());
 <template>
   <Teleport to="body">
     <div v-if="open" class="base-dialog-overlay">
-      <section ref="dialog" class="base-dialog" role="dialog" aria-modal="true" :aria-labelledby="titleId"
+      <section ref="dialog" class="base-dialog" :class="panelClass" role="dialog" aria-modal="true" :aria-labelledby="titleId"
         :aria-busy="busy" tabindex="-1" @keydown="onKeydown">
         <header class="base-dialog-heading">
           <h2 :id="titleId">{{ title }}</h2>

@@ -45,7 +45,7 @@ describe("application shell", () => {
     expect(wrapper.get('[role="status"]').text()).toContain("本地服务已就绪");
     expect(wrapper.get('[role="status"]').text()).toContain("v0.1.0");
     expect(wrapper.get('[aria-label="设置"]').element).toHaveProperty("disabled", true);
-    expect(wrapper.get("main button").element).toHaveProperty("disabled", true);
+    expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });
 
   it("loads every navigation page using read-only typed IPC and never connects SSH", async () => {
@@ -68,7 +68,7 @@ describe("application shell", () => {
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
     expect(commands).toHaveLength(4);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
-    expect(wrapper.get("h1").text()).toBe("选择一台服务器");
+    expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);
   });
 
@@ -84,7 +84,7 @@ describe("application shell", () => {
     expect(wrapper.get('.shell-sidebar-search input').element).toHaveProperty("value", "dev.example");
     await wrapper.get('.shell-sidebar-search input').setValue("not-found");
     expect(wrapper.get("nav").text()).toContain("没有找到匹配项");
-    expect(wrapper.get("h1").text()).toBe("选择一台服务器");
+    expect(wrapper.get("h1").text()).toBe("服务器");
     await wrapper.get('.shell-sidebar-search input').setValue(" ROOT ");
     expect(wrapper.findAll(".shell-server-item")).toHaveLength(4);
   });
