@@ -1,6 +1,6 @@
 # MauLink Frontend v2
 
-Phase 1 的 Vue 3 + TypeScript + Vite 空壳。旧 `frontend/` 和正式 Tauri 配置继续保留；本工程尚未接入 SSH、Terminal、SFTP、Monitor 或 Settings IPC。
+Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3 已通过；Phase 3 建立 Application Shell，并通过 Typed IPC 只读加载应用信息、分组和服务器导航。旧 `frontend/` 和正式 Tauri 配置继续保留，SSH、Terminal、SFTP、Monitor、Server CRUD 与完整 Settings 尚未迁移。
 
 ## 安装与前端检查
 
@@ -13,7 +13,7 @@ npm --prefix frontend-v2 run test
 npm --prefix frontend-v2 run build
 ```
 
-`package-lock.json` 固定依赖版本；后续通常使用 `npm ci`。TypeScript 精确固定为 `5.9.3`。Phase 2 已添加 Vitest、Vue Test Utils、jsdom 和 Mock IPC；当前阶段状态及失败项见 `docs/refactor/frontend-v2-phase-2.md`。
+`package-lock.json` 固定依赖版本；后续通常使用 `npm ci`。TypeScript 精确固定为 `5.9.3`。Phase 2 已添加 Vitest、Vue Test Utils、jsdom 和 Mock IPC；阶段验收结果见 `docs/refactor/frontend-v2-phase-2.md`。
 
 ## Browser 开发
 
@@ -43,7 +43,7 @@ Tauri CLI 会自动发现 `frontend-v2/package.json`，开发和构建钩子分�
 PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri dev --config src-tauri/tauri.frontend-v2.conf.json
 ```
 
-临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成，Vue 空壳没有调用业务 IPC。
+临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成，Phase 3 Shell 仅调用 app_get_info、group_list、server_list，不发起连接或修改资料。
 
 打包新前端（不影响默认旧前端入口）：
 
@@ -81,10 +81,22 @@ cargo tauri build --config src-tauri/tauri.frontend-v2.conf.json
 
 ## Phase 2 基础层与 Browser Harness
 
-开发模式的 `http://127.0.0.1:1420/?harness=foundations` 提供基础组件验收入口。该入口使用明确的 Mock IPC，不访问真实服务器；正式构建不启用此开发路由。当前还没有完成运行态验收，不能将入口存在视为测试通过。
+开发模式的 `http://127.0.0.1:1420/?harness=foundations` 提供基础组件验收入口。该入口使用明确的 Mock IPC，不访问真实服务器；正式构建不启用此开发路由。Phase 2 的 Browser 键盘与用户 Tauri 验收均通过，证据见阶段报告。
 
 组件应通过 `ipc/server.ts`、`connection.ts`、`terminal.ts`、`sftp.ts`、`monitor.ts`、`settings.ts` 的 typed facade 访问业务，不直接散落 `invoke`。facade 使用可注入的 `IpcClient`；生产默认使用模块化 Tauri API，测试注入 `createMockIpc`。只有 `app_get_info` 保留 Rust 当前不带 envelope 的签名。
 
 DTO 直接 `import type` 复用仓库 `contracts/v1/`，不在新工程复制定义。`errors/mapper.ts` 处理 IPC 拒绝，`errors/presenter.ts` 根据模块 catalog 展示安全文案；未知异常和 Debug details 不直接展示。
 
 后续状态模块必须按领域建立：Server 与 Terminal 状态分离；Terminal stdout 和文件字节不进入 reactive store；Transfer 只保存任务元数据/进度；Quick/Full Monitor 共用 snapshot 和控制器。Phase 2 尚未接入这些业务数据流，不预建虚假的 store 或业务页面。
+
+## Phase 3 Shell 与验收
+
+默认入口使用真实 Typed IPC，只读获取 app info 与所有分页的服务器导航数据。浏览器没有 Tauri 时显示安全的本地服务不可用状态，不伪造后端就绪。添加服务器、新建分组和设置保持禁用，选中服务器仅查看资料，不连接 SSH；服务器主页卡片与 CRUD 在 Phase 4 迁移。
+
+开发入口 `http://127.0.0.1:1420/?harness=shell&state=empty&theme=light` 使用 Mock IPC。右下角“Mock IPC”控件可切换空列表/有服务器、Light/Dark；仅限开发构建，不访问真实服务器或持久化资料。截图与检查结果见 `docs/refactor/frontend-v2-phase-3.md`。
+
+Shell 沿用旧版 48px Topbar、30px Statusbar；Sidebar 在宽屏为 236px，1080px 及以下为 220px，900px 及以下为 190px。最小宽度仍为 860px，窄屏隐藏 Home 图标并保留品牌键盘入口，macOS 顶栏留出 78px/68px 原生交通灯区域。Cmd/Ctrl K 聚焦全局搜索，两处搜索同步；About 使用 Phase 2 Dialog 和焦点恢复。
+
+Tauri 验收先运行默认新前端，核实真实本地服务和 app version；随后可通过临时 devUrl overlay 运行 Shell Mock Harness，检查两种数据状态及主题。frontend-v2 专用配置保留 main 业务 capability，仅补充 main 窗口的 core:window:allow-start-dragging，让 TopBar 空白区域支持原生拖动。正式配置、共享权限、窗口参数与默认旧入口均不改变。
+
+每阶段完成全部验收后自动写提交说明、提交并推送到 `main`；阶段 BLOCKED 时停止，应用界面由用户验收。

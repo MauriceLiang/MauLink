@@ -6,6 +6,8 @@
   --panel: #ffffff;
   --canvas: #f6f7f9;
   --surface-subtle: #f8f9fb;
+  --surface-hover: #f0f2f5;
+  --surface-selected: #eef0ff;
   --accent: #5b5ce2;
   --accent-soft: #eeeeff;
   --accent-solid: #5b5ce2;
@@ -24,6 +26,8 @@
   --panel: #12151a;
   --canvas: #0d0f12;
   --surface-subtle: #15181e;
+  --surface-hover: #20242b;
+  --surface-selected: #252748;
   --accent: #a5a6ff;
   --accent-soft: #292a50;
   --danger: #ff8b82;
@@ -39,6 +43,8 @@
     --panel: #12151a;
     --canvas: #0d0f12;
     --surface-subtle: #15181e;
+    --surface-hover: #20242b;
+    --surface-selected: #252748;
     --accent: #a5a6ff;
     --accent-soft: #292a50;
     --danger: #ff8b82;

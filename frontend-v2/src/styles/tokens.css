@@ -2,7 +2,19 @@
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --space-3: 12px;
   --space-5: 20px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-4: 16px;
+  --space-6: 24px;
   --radius: 8px;
   --app-toolbar-height: 48px;
   --app-sidebar-width: 236px;
+  --app-sidebar-medium-width: 220px;
+  --app-sidebar-narrow-width: 190px;
+  --app-statusbar-height: 30px;
+  --app-min-width: 860px;
+  --app-traffic-light-space: 78px;
+  --app-traffic-light-narrow-space: 68px;
+  --app-search-width: 300px;
+  --app-welcome-icon-size: 64px;
 }
