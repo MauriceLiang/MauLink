@@ -59,10 +59,22 @@ mod tests {
         for icon in [&light, &dark] {
             assert_eq!((icon.width(), icon.height()), (256, 256));
             assert_eq!(icon.rgba().len(), 256 * 256 * 4);
-            assert_eq!(icon.rgba()[3], 255);
+            for (x, y) in [(0, 0), (255, 0), (0, 255), (255, 255), (16, 16)] {
+                assert_eq!(icon.rgba()[(y * 256 + x) * 4 + 3], 0);
+            }
+            assert_eq!(icon.rgba()[(24 * 256 + 128) * 4 + 3], 255);
         }
-        assert!(light.rgba()[..3].iter().all(|value| *value > 200));
-        assert!(dark.rgba()[..3].iter().all(|value| *value < 64));
+        let background = (24 * 256 + 128) * 4;
+        assert!(
+            light.rgba()[background..background + 3]
+                .iter()
+                .all(|value| *value > 200)
+        );
+        assert!(
+            dark.rgba()[background..background + 3]
+                .iter()
+                .all(|value| *value < 64)
+        );
         assert_ne!(light.rgba(), dark.rgba());
     }
 }

@@ -51,7 +51,7 @@ describe('shared SettingsService preferences', () => {
     button('外观').click(); await flushPromises();
     const change=(select: HTMLSelectElement,value:string)=>{select.value=value;select.dispatchEvent(new Event('change',{bubbles:true}));};
     change(document.querySelectorAll('select')[1]!,'dark'); await flushPromises();
-    expect(document.querySelector('img[alt="应用图标预览"]')?.getAttribute('src')).toContain('maulink-logo-dark');
+    expect(document.querySelector('img[alt="应用图标预览"]')?.getAttribute('src')).toContain('app-icon-dark');
     expect(fixture.current().value.appIconStyle).toBe('light');
     button('取消').click(); await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
     expect(document.querySelectorAll<HTMLSelectElement>('select')[1]!.value).toBe('light');

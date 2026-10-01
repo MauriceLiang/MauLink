@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { AppIconStyle } from '../../../contracts/v1/AppIconStyle';
-import logoLight from '../assets/maulink-logo-light.png';
-import logoDark from '../assets/maulink-logo-dark.png';
+import logoLight from '../assets/app-icon-light.png';
+import logoDark from '../assets/app-icon-dark.png';
 import type { Theme } from '../../../contracts/v1/Theme';
 import type { Language } from '../../../contracts/v1/Language';
 import type { TerminalPreferences } from '../terminal/preferences';
