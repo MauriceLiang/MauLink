@@ -4,7 +4,9 @@ import AppShell from "../src/app/AppShell.vue";
 import { createIpcClient } from "../src/ipc/client";
 import { createMockIpc } from "../src/ipc/mock";
 import { createShellMock, shellAppInfo, shellGroups, shellServers } from "../src/harness/shell-fixtures";
+import desktopConfig from "../../src-tauri/tauri.conf.json";
 import frontendV2Config from "../../src-tauri/tauri.frontend-v2.conf.json";
+import ipcHarnessConfig from "../../src-tauri/tauri.harness.conf.json";
 
 const wrappers: VueWrapper[] = [];
 function mountShell(transport = createShellMock()) {
@@ -22,14 +24,23 @@ describe("application shell", () => {
     const wrapper = mountShell();
     expect(wrapper.get("header").attributes()).toHaveProperty("data-tauri-drag-region");
     expect(wrapper.get(".shell-brand").attributes()).not.toHaveProperty("data-tauri-drag-region");
-    expect(frontendV2Config.app.security).toHaveProperty("capabilities", [
+    expect(desktopConfig.app.security).toHaveProperty("capabilities", [
       "main",
       {
-        identifier: "frontend-v2-window-drag",
+        identifier: "main-window-drag",
         windows: ["main"],
         permissions: ["core:window:allow-start-dragging"],
       },
     ]);
+    expect(frontendV2Config.app.security).not.toHaveProperty("capabilities");
+  });
+
+  it("loads the Vite build with modular IPC and keeps the static IPC harness independent", () => {
+    expect(desktopConfig.build).toMatchObject({ frontendDist: "../frontend/dist", devUrl: "http://127.0.0.1:1420", beforeDevCommand: "npm run dev", beforeBuildCommand: "npm run build" });
+    expect(desktopConfig.app.withGlobalTauri).toBe(false);
+    expect(frontendV2Config.build.frontendDist).toBe(desktopConfig.build.frontendDist);
+    expect(ipcHarnessConfig.build).toMatchObject({ frontendDist: "../tools/ipc-harness", devUrl: null, beforeDevCommand: "", beforeBuildCommand: "" });
+    expect(ipcHarnessConfig.app.withGlobalTauri).toBe(true);
   });
 
   it("does not show an empty home or a ready backend before IPC finishes", async () => {

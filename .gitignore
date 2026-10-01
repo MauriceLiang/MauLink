@@ -9,7 +9,6 @@
 # Frontend dependencies and build output
 **/node_modules/
 /frontend/dist/
-/frontend-v2/dist/
 
 # Local environment and credentials
 .env

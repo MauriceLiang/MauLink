@@ -6,19 +6,11 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devUrl": "http://127.0.0.1:1420",
-    "frontendDist": "../frontend-v2/dist"
+    "frontendDist": "../frontend/dist"
   },
   "app": {
     "withGlobalTauri": false,
     "security": {
-      "capabilities": [
-        "main",
-        {
-          "identifier": "frontend-v2-window-drag",
-          "windows": ["main"],
-          "permissions": ["core:window:allow-start-dragging"]
-        }
-      ],
       "devCsp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   }

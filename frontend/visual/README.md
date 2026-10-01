@@ -12,10 +12,10 @@
 
 ## 重跑实现
 
-先在终端运行 `npm --prefix frontend-v2 run dev`。截图只在 `cua_repl` 中通过受支持接口执行，无额外浏览器驱动/依赖。先读取 CUA 浏览器、viewport 文档；使用同一浏览器，保持当前截图 Tab 为该浏览器的活动 Tab。后建的原型/画廊 Tab 会成为活动 Tab，应关闭它后再对实现截图。
+先在终端运行 `npm --prefix frontend run dev`。截图只在 `cua_repl` 中通过受支持接口执行，无额外浏览器驱动/依赖。先读取 CUA 浏览器、viewport 文档；使用同一浏览器，保持当前截图 Tab 为该浏览器的活动 Tab。后建的原型/画廊 Tab 会成为活动 Tab，应关闭它后再对实现截图。
 
 ```js
-const capture = await import('/Users/mauriceliang/Documents/code/MauLink/frontend-v2/visual/capture.mjs');
+const capture = await import('/Users/mauriceliang/Documents/code/MauLink/frontend/visual/capture.mjs');
 // tab 为 cua.createBrowserTab 返回的页面；viewport 为 browser.capabilities.get('viewport')。
 await capture.captureCases({ tab, viewport,
   outputDir:'/Users/mauriceliang/Documents/code/MauLink/docs/refactor/screenshots/phase-10/implementation',
@@ -29,7 +29,7 @@ await capture.captureCases({ tab, viewport,
 ## 原型对照
 
 ```bash
-node frontend-v2/visual/prepare-prototype.mjs
+node frontend/visual/prepare-prototype.mjs
 python3 -m http.server 8080 --bind 127.0.0.1 --directory /private/tmp/maulink-phase10-prototype
 ```
 
@@ -40,8 +40,8 @@ python3 -m http.server 8080 --bind 127.0.0.1 --directory /private/tmp/maulink-ph
 ## 校验与画廊
 
 ```bash
-node --test frontend-v2/visual/capture.test.mjs
-node frontend-v2/visual/verify.mjs
+node --test frontend/visual/capture.test.mjs
+node frontend/visual/verify.mjs
 ```
 
 校验 canonical manifest、完整数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，拒绝未审阅 candidate/repeat。成功生成 `docs/refactor/screenshots/phase-10/summary.json` 与 `index.html` 双列对照画廊。画廊可用同目录静态 HTTP 服务打开，也可保留相邻目录直接查看。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。

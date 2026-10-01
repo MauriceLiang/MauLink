@@ -1,21 +1,21 @@
 # MauLink 前端逐页改造验收记录
 
-检查日期：2026-10-01（Asia/Shanghai）。当前实现：frontend-v2；旧 frontend 保留。
+检查日期：2026-10-01（Asia/Shanghai）。当前实现：Vue 正式 frontend；旧入口由切换前 Git 提交 f75d21a 保留。
 
 **Browser visual evidence: PASS（Phase 10）**。
 
 **完整产品 / 双平台 release QA：final result: blocked**。该状态包含已有后端能力、Phase 6 行为和平台缺口，不再以“截图未落盘”为原因。用户取消后续 Native 手动门禁，阶段状态按报告的授权范围判断；未实测项不会被改写为 Native PASS。
 
-2026-09-30 的旧前端历史检查保存在 Git 历史；本文件当前逐页结果针对 Vue frontend-v2，不把旧版动态 SSH / 不同 DPR 的截图当新视觉基线。
+2026-09-30 的旧前端历史检查保存在 Git 历史；本文件当前逐页结果针对 Vue frontend，不把旧版动态 SSH / 不同 DPR 的截图当新视觉基线。
 
 ## 对照材料与证据
 
 - 原型：本机 `UI/MauLink_prototype_local.html`，SHA256 `fb9e3ad1675fdea4e67d0f1f90b80c160404be02c7ac4faae05bc002fbe02063`。
 - 原型参考：临时冻结副本，保留 layout/CSS；固定 demo clock/random、停止 intervals、隔离偏好、对齐服务器数量/表单默认值/文件清单/传输有无。变换与源 hash：[prototype-source.json](docs/refactor/screenshots/phase-10/prototype-source.json)。不修改原始原型，不把演示内容当真实 Core。
-- 实现：`?harness=visual&page=…&theme=light|dark&locale=zh-CN|en`，生产组件 + Typed Mock IPC。`page` 与确定性 UI 操作 recipe 见 [cases.json](frontend-v2/visual/cases.json)；URL 固定 fixture，脚本点击真实可见控件进入目标状态。
+- 实现：`?harness=visual&page=…&theme=light|dark&locale=zh-CN|en`，生产组件 + Typed Mock IPC。`page` 与确定性 UI 操作 recipe 见 [cases.json](frontend/visual/cases.json)；URL 固定 fixture，脚本点击真实可见控件进入目标状态。
 - 同一 Browser，CSS **1440×920、860×640**，DPR **1**，Light/Dark、zh-CN/English；每张 JPEG 真实像素尺寸与 CSS×DPR 一致。系统字体、Asia/Shanghai 文件日期，不混用历史 DPR=2 Native 图片。
 - [实现图](docs/refactor/screenshots/phase-10/implementation/)：23 场景 × 8 条件 = **184 张**；[原型参考图](docs/refactor/screenshots/phase-10/reference/)：20 场景 × 8 条件 = **160 张**。均两次独立装载 byte-identical。
-- [双列画廊](docs/refactor/screenshots/phase-10/index.html)、[summary](docs/refactor/screenshots/phase-10/summary.json)、每组 capture manifest（URL、实际 CSS/DPR/theme/locale/fonts/overflow、两次 SHA256）。[重建与校验](frontend-v2/visual/README.md)。
+- [双列画廊](docs/refactor/screenshots/phase-10/index.html)、[summary](docs/refactor/screenshots/phase-10/summary.json)、每组 capture manifest（URL、实际 CSS/DPR/theme/locale/fonts/overflow、两次 SHA256）。[重建与校验](frontend/visual/README.md)。
 - 默认回归保留旧基线：缺失/变化/重复不等均失败并输出候选，仅审阅后显式 update。23 张中文浅色宽屏及偏好隔离后的八种终端设置条件已另行通过默认 baseline 比较。
 - 原型 `.app` min-width=960px，在 CSS 860px 下出现横向溢出；如实保留原始布局。新实现所有 184 个状态无横向溢出。两者相同 CSS 条件可做结构对照，不要求不同产品能力下的像素相等。
 
@@ -44,7 +44,7 @@
 | 16 | Palette / Context Menu / Toast | 证据 PASS | palette / context-menu / toast 各 8 条件。后两项及 Monitor unavailable 无对应原型固定 hash，但有实现基线；键盘及 restore 见 Phase 9。 |
 | 17 | Dark Theme Regression | 证据 PASS | 23 个实现状态 × 双语 × 双视口 = 92 张 Dark；全部独立重复一致，无横向溢出。完整 WCAG / 全 hover 状态未另立审计。 |
 | 18 | Responsive / macOS / Windows | Browser 四视口 PASS；完整平台 BLOCKED | 860×640、1440×920 全量固定场景；1080×760、1920×1080 各 8 场景独立重复截图；同一活动终端 resize / 专注退出保持实例、输出及焦点。见 Phase 11 报告。原生最小化/恢复及 Windows WebView2 / 凭据 / 路径 / installer 未实测；按用户 Browser 门禁继续。 |
-| 19 | Legacy CSS Cleanup | 待正式切换阶段 | 旧 frontend / legacy CSS 保留可恢复；新样式按组件模块组织。本阶段未删除旧入口，清理属于后续正式切换。 |
+| 19 | Legacy CSS Cleanup | PASS | Phase 12 将 Vue 工程切换为 frontend；旧 .mjs / legacy CSS / vendor 从活动入口移除，Git f75d21a 可恢复。 |
 | 20 | Final Screenshot QA | Browser 证据 PASS；完整产品部分 | 344 张可重复图片、同条件参考、hash/真实像素校验与画廊落盘。没有再用历史不同 viewport/DPR、真实 SSH 动态内容做严格基线；平台与能力问题单独保留。 |
 
 ## 视觉对照结论
@@ -60,6 +60,6 @@
 - **[P1 / 既有能力差距]** 远程文件文本 View/Edit 无对应 Core IPC。本阶段没有扩大后端范围、伪造 preview/save 或将其记为完成。
 - **[P2]** Phase 6 完整终端行为验收缺口保留；此前用户允许先推送进入后续阶段，未将 Phase 6 改为全面 PASS。
 - **[P2]** Windows / 原生四尺寸、minimize/restore、真实 Linux 成功指标等完整 release QA 未全部现场完成；用户 Browser 门禁不等于 Native PASS。
-- **[后续]** 正式前端切换与旧 CSS 清理尚未执行。
+- 正式切换和旧入口清理见 Phase 12 报告；既有 Core/平台能力缺口仍保留。
 
 “实现截图未落盘 / 无固定视觉 fixture / 不同 CSS 视口导致不可对照”的旧阻塞已解决。具体自动化、Browser 过程、限制和退出范围见 [Phase 10 报告](docs/refactor/frontend-v2-phase-10.md)。

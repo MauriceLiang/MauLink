@@ -1,6 +1,9 @@
 {
   "build": {
-    "frontendDist": "../tools/ipc-harness"
+    "frontendDist": "../tools/ipc-harness",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": null
   },
   "app": {
     "security": {
@@ -15,7 +18,8 @@
         "minWidth": 720,
         "minHeight": 540
       }
-    ]
+    ],
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": false

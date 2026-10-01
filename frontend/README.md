@@ -1,68 +1,47 @@
-# MauLink Frontend v2
+# MauLink Frontend
 
-Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，Phase 5 已接入 SSH Connection 与安全挑战，自动化和 Browser 通过，按用户更新后的门禁 PASS，Desktop GUI 未实测；Phase 6 已实现 Terminal 工作区，但 Browser 键盘验收未完成，验收当前 BLOCKED，用户已授权先推送并进入 Phase 7；SFTP、Monitor 与完整 Settings 尚未迁移。
+Vue 3 + TypeScript + Vite 正式前端。Phase 12 将迁移工程从 frontend-v2 切换至 frontend；既有 Rust Core 与 contracts/v1 不变。TypeScript 精确固定 5.9.3。阶段报告及平台限制见仓库 docs/refactor/；用户采用 Browser 门禁继续，Phase 6 既有验收缺口保留。
 
-## 安装与前端检查
+## 安装与检查
 
-Node.js 要求：`^20.19.0 || >=22.12.0`。首次在仓库根目录执行：
+Node.js 要求：`^20.19.0 || >=22.12.0`。仓库根目录执行：
 
 ```bash
-npm --prefix frontend-v2 ci
-npm --prefix frontend-v2 run type-check
-npm --prefix frontend-v2 run test
-npm --prefix frontend-v2 run build
+npm --prefix frontend ci
+npm --prefix frontend run type-check
+npm --prefix frontend run test
+npm --prefix frontend run build
 ```
 
-`package-lock.json` 固定依赖版本；后续通常使用 `npm ci`。TypeScript 精确固定为 `5.9.3`。Phase 2 已添加 Vitest、Vue Test Utils、jsdom 和 Mock IPC；阶段验收结果见 `docs/refactor/frontend-v2-phase-2.md`。
-
-## Browser 开发
-
-在仓库根目录执行：
+## Browser 与 Tauri 开发
 
 ```bash
-npm --prefix frontend-v2 run dev
+npm --prefix frontend run dev
+# 或先停止独立 Vite，再运行桌面：
+cargo tauri dev
 ```
 
-地址：`http://127.0.0.1:1420`。服务只监听本机回环地址，端口占用时直接报错，不会自动换端口。组件、CSS 的保存由 Vite HMR 更新。
+Browser 地址 `http://127.0.0.1:1420`；普通入口需要 Native IPC，Browser 测试通过 DEV-only Harness，例如 `?harness=visual&page=servers&theme=light&locale=zh-CN`。Harness 不进入生产包。
 
-## Tauri Desktop 开发
-
-在仓库根目录执行：
+Tauri CLI 自动发现 frontend/package.json 并在该目录执行 npm run dev / npm run build。模块化 @tauri-apps/api 不依赖全局 window.__TAURI__；正式 CSP 保持原策略，devCsp 仅额外允许本机 HMR WebSocket。系统窗口拖动权限仅授予 main。
 
 ```bash
+cargo tauri build --bundles app -- --locked
+# 可选隔离资料测试，仍使用当前 Vue 前端：
 cargo tauri dev --config src-tauri/tauri.frontend-v2.conf.json
 ```
 
-此命令自动启动 Vite，不需要另开 `npm run dev`。若已运行 Browser 开发服务，请先用 Ctrl+C 停止，否则固定端口会冲突。
-
-Tauri CLI 会自动发现 `frontend-v2/package.json`，开发和构建钩子分别在该目录执行 `npm run dev` 和 `npm run build`。
-
-本机已有临时安装的 Tauri CLI，可使用：
-
-```bash
-PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri dev --config src-tauri/tauri.frontend-v2.conf.json
-```
-
-临时路径只适用于当前 macOS 开发机；其他环境使用 README 中已有的 Tauri CLI 安装方式。新配置使用 `io.maulink.frontend-v2.dev`，数据目录与正式 `io.maulink.desktop` 隔离。Core 初始化仍由已有 Tauri Adapter 完成。Phase 4 通过现有 serverApi 写入服务器与分组；Phase 5 的资料页可通过既有 connectionApi 发起真实 SSH 连接。
-
-打包新前端（不影响默认旧前端入口）：
-
-```bash
-cargo tauri build --config src-tauri/tauri.frontend-v2.conf.json
-```
-
-配置中的 `beforeBuildCommand` 会执行 Vite build，桌面资产来自 `frontend-v2/dist`。新前端不使用全局 `window.__TAURI__`，运行时所有前端依赖均从本地 bundle 加载；开发模式的 HTTP/WebSocket 仅用于本机 Vite 和 HMR。正式 CSP 继续继承原配置，开发 CSP 仅额外允许指定回环端口的 HMR WebSocket。
+正式 identifier 为 io.maulink.desktop，继续使用原正式数据目录；隔离配置 io.maulink.frontend-v2.dev 继续可用。不会自动将隔离配置的资料复制到正式目录。旧前端可从切换前提交 f75d21a 的 frontend/ 恢复，详见迁移总结。
 
 ## RustRover Run Configuration
 
-创建 Cargo Run Configuration：
+创建 Cargo Run Configuration，名称 MauLink Desktop，Working directory 为仓库根目录，Command 为 `tauri dev`。构建配置 Command 为 `tauri build --bundles app -- --locked`。隔离资料配置用 `tauri dev --config src-tauri/tauri.frontend-v2.conf.json`。先停止独立 Vite，避免固定 1420 端口冲突。
 
-- 名称：`MauLink Frontend v2`。
-- Working directory：MauLink 仓库根目录。
-- Command：`tauri dev --config src-tauri/tauri.frontend-v2.conf.json`。
-- 本机若 `cargo tauri` 不在 PATH，在该配置的 Environment variables 中将 `/private/tmp/maulink-tauri-tools/bin` 加到原 PATH 前面，保留已有 PATH 内容。
+本机若 CLI 未加入 PATH，可在 Environment variables 中把 /private/tmp/maulink-tauri-tools/bin 加到原 PATH 前，保留已有内容；临时路径仅适用当前开发机。也可在 Terminal 使用 `PATH=/private/tmp/maulink-tauri-tools/bin:$PATH cargo tauri dev`。单独 cargo run 不会启动 Vite/HMR。
 
-也可直接在 RustRover Terminal 运行上述完整命令。不要运行单独的 `cargo run` 来验收 HMR，它不会自动执行 Vite 开发钩子。
+静态 IPC 调试页仍通过 `cargo tauri dev --config src-tauri/tauri.harness.conf.json` 启动；该配置关闭继承的 Vite hooks/devUrl，单独启用全局 Tauri API，产品正式窗口不启用。
+
+> 下列 Phase 1–11 条目为迁移历史；早期空壳/旧入口验收步骤已由 Phase 12 正式切换取代。最新状态见 Phase 12 报告，开发命令使用当前 frontend 路径。
 
 ## Phase 1 手动验收
 
@@ -133,7 +112,7 @@ Browser Mock：`http://127.0.0.1:1420/?harness=connections&theme=light`，可选
 ```bash
 CARGO_TARGET_DIR="$PWD/target" cargo run --manifest-path /private/tmp/maulink-phase6-bridge/Cargo.toml --offline
 # 另一终端
-npm --prefix frontend-v2 run dev
+npm --prefix frontend run dev
 ```
 
 Ctrl+C ACK 计数与 Ctrl+C keydown 字段仅用于开发诊断；不显示输入内容或 stdout。最新检查、限制和恢复点见 `docs/refactor/frontend-v2-phase-6.md`。用户已取消 Desktop 手动验收门禁；本阶段仍需 Browser 全部通过才能标记验收 PASS，但用户已明确授权先提交推送并进入 Phase 7。
@@ -160,8 +139,12 @@ DEV 地址 `http://127.0.0.1:1420/?harness=settings`。真实设置通过 Rust S
 
 `?harness=visual&page=servers&theme=light&locale=zh-CN` 提供 DEV-only Typed Mock fixture。23 个 test route 与固定真实 UI 操作 recipe 见 `visual/cases.json`，截图自动化通过 CUA Browser 执行。固定 Light/Dark、zh-CN/en、CSS 1440×920/860×640、DPR=1，184 张实现基线与 160 张冻结原型参考图均独立重复 byte-identical。
 
-默认回归不会覆盖旧图，缺失/变化会生成 candidate 并失败；审阅后才显式 update。运行 `node --test frontend-v2/visual/capture.test.mjs` 和 `node frontend-v2/visual/verify.mjs` 校验保护行为、SHA256 与 JPEG 真实尺寸并生成画廊。详见 `visual/README.md`、`docs/refactor/frontend-v2-phase-10.md`、根目录 `design-qa.md`；Browser visual PASS 与完整 Native/platform QA 分开，既有能力缺口保留。
+默认回归不会覆盖旧图，缺失/变化会生成 candidate 并失败；审阅后才显式 update。运行 `node --test frontend/visual/capture.test.mjs` 和 `node frontend/visual/verify.mjs` 校验保护行为、SHA256 与 JPEG 真实尺寸并生成画廊。详见 `visual/README.md`、`docs/refactor/frontend-v2-phase-10.md`、根目录 `design-qa.md`；Browser visual PASS 与完整 Native/platform QA 分开，既有能力缺口保留。
 
 ## Phase 11：响应式 Browser QA
 
 四种视口及同一活动 Terminal 连续 resize / 专注模式焦点恢复通过；新增 16 张中等/大视口截图均独立重复一致。产品源码未改，沿用 Phase 10 的 125/125 tests、type-check 和 build。按用户 Browser 门禁 PASS，可进入 Phase 12；原生最小化/恢复与 Windows 真机仍未实测，完整平台发布验收未通过。见 `docs/refactor/frontend-v2-phase-11.md` 与 `design-qa.md` Page 18。
+
+## Phase 12：正式切换完成
+
+默认 Tauri 已使用本工程 dev/build output；旧入口可从 Git f75d21a 恢复。126/126 frontend tests、Rust workspace 检查与 68 tests、切换后 23 页 Browser 基线回归、macOS 正式启动及 app build/signature 通过。按用户 Browser 门禁 PASS，原 Phase 6 / Native / Windows 缺口继续保留，详见 `docs/refactor/frontend-v2-phase-12.md` 与迁移总结。

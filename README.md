@@ -19,7 +19,7 @@
 
 Jump Host 使用当前服务器配置的同一认证方式和凭据；`user@host` 可为跳板机指定不同用户名。代理支持无认证 SOCKS5 和 HTTP CONNECT，代理凭据认证当前不在连接配置中提供。
 
-功能已经进入可运行的桌面应用，但**功能实现不等于双平台发布验收完成**。此前已构建 macOS arm64 `.app` 与 ZIP；本次 Jump Host / Proxy 代码已通过 workspace 构建与自动化测试，尚未重新打包进桌面应用。Windows 真机运行、签名发行和完整 UI 运行时验收仍在待办范围内。详见[当前验证与限制](#当前验证与限制)。
+功能已经进入可运行的桌面应用，但**功能实现不等于双平台发布验收完成**。Vue 前端已正式接入；当前 macOS arm64 `.app` 构建与 Browser 证据见 [Phase 12 报告](./docs/refactor/frontend-v2-phase-12.md)。Windows 真机运行、签名发行和完整 UI 运行时验收仍在待办范围内。详见[当前验证与限制](#当前验证与限制)。
 
 ## 架构
 
@@ -27,7 +27,7 @@ MauLink 将 WebView 与系统能力之间的边界收在 Tauri adapter 中；业
 
 ```mermaid
 flowchart LR
-    UI[本地 WebView<br/>HTML · CSS · JavaScript · xterm.js]
+    UI[本地 WebView<br/>Vue 3 · TypeScript · Vite · xterm.js]
     Tauri[Tauri 2 adapter<br/>Commands · Channels · 文件选择 · 窗口事件]
     Core[maulink-core<br/>业务规则 · 状态机 · 异步资源生命周期]
     DB[(SQLite<br/>有限单 worker · migrations)]
@@ -52,7 +52,7 @@ flowchart LR
 | 类型契约 | `crates/maulink-core/src/contracts/`、`contracts/v1/` | Rust DTO、稳定 IPC payload 与由 Rust 导出的 TypeScript 类型 |
 | 本地持久化 | `crates/maulink-core/migrations/` | SQLite schema 与有版本的数据库迁移 |
 
-前端是静态 HTML、CSS 和 ES modules，没有 npm 安装步骤或打包器；xterm.js、fit addon 和图标资源随仓库分发，应用启动不需要访问 CDN。
+正式前端使用 Vue 3、精确固定的 TypeScript 5.9.3 与 Vite；模块化 @tauri-apps/api 调用既有 Typed IPC。xterm.js、fit addon 和图标随本地 bundle 分发，应用运行不需要访问 CDN。DEV Harness 仅用于开发验收，不进入 release。
 
 ### IPC 契约
 
@@ -98,7 +98,7 @@ TypeScript DTO 由 `ts-rs` 根据 Rust 类型生成，生成后保存在 `contra
 | `russh-sftp 3.0.0` | SFTP 目录操作和文件传输 |
 | `rusqlite 0.38`，bundled SQLite | 本地数据库、事务、迁移与备份 |
 | `keyring-core` 与平台原生实现 | 系统凭据存储抽象 |
-| HTML / CSS / ES modules | 桌面 WebView 页面 |
+| Vue 3 / TypeScript 5.9.3 / Vite | 桌面 WebView 页面与构建 |
 | xterm.js `5.5.0`、addon-fit `0.10.0` | 本地打包的终端显示与布局适配 |
 
 `Cargo.lock` 固定 Rust 依赖解析结果；依赖版本和选择背景见[依赖决策记录](./docs/technical-decisions/dependencies.md)。
@@ -129,10 +129,10 @@ TypeScript DTO 由 `ts-rs` 根据 Rust 类型生成，生成后保存在 `contra
 │   └── tests/                     # 序列化与 OpenSSH 集成测试
 ├── frontend/
 │   ├── index.html
-│   ├── styles.css
-│   ├── src/                       # 页面逻辑和纯前端模块
-│   ├── tests/                     # Node.js 测试
-│   └── vendor/                    # xterm、Lucide 等本地资产
+│   ├── package.json / package-lock.json
+│   ├── src/                       # Vue 组件、stores、Typed IPC、DEV Harness
+│   ├── tests/                     # Vitest 组件与业务测试
+│   └── visual/                    # CUA 视觉回归场景、截图保护与校验
 ├── src-tauri/
 │   ├── capabilities/main.json     # 主窗口权限清单
 │   ├── src/                       # command adapter 与应用装配
@@ -151,7 +151,7 @@ TypeScript DTO 由 `ts-rs` 根据 Rust 类型生成，生成后保存在 `contra
 - Tauri CLI `2.12.0`。
 - macOS 桌面构建需要 Xcode 或 Xcode Command Line Tools。
 - Windows 桌面构建需要 MSVC C++ Build Tools 和 Microsoft Edge WebView2 Runtime。
-- Node.js 用于运行前端语法检查和测试；正常桌面构建前端不需要 `npm install`。
+- Node.js `^20.19.0 || >=22.12.0` 与 npm；首次执行 `npm --prefix frontend ci`。
 
 系统依赖可能随 Tauri 版本和目标平台变化，安装前请查看 [Tauri 2 官方前置要求](https://v2.tauri.app/start/prerequisites/)。
 
@@ -163,9 +163,10 @@ cargo install tauri-cli --version 2.12.0 --locked
 
 ## 运行与构建
 
-在项目根目录运行桌面开发版本：
+首次在项目根目录安装前端依赖，然后运行桌面开发版本；Tauri 自动启动 Vite，先停止独立的 Vite 服务避免端口冲突：
 
 ```bash
+npm --prefix frontend ci
 cargo tauri dev
 ```
 
@@ -178,7 +179,7 @@ cargo tauri build
 Tauri 的构建产物位于 `target/release/bundle/`。本机运行环境最近一次已验证的 macOS arm64 `.app` 构建命令为：
 
 ```bash
-cargo tauri build --bundles app --no-sign -- --locked
+cargo tauri build --bundles app --ci -- --locked
 ```
 
 内部分发 ZIP 可在 macOS 上用 `ditto` 生成，以保留应用 bundle 元数据：
@@ -189,7 +190,7 @@ ditto -c -k --sequesterRsrc --keepParent \
   target/release/bundle/macos/MauLink_0.1.0_aarch64.zip
 ```
 
-以上 `.app` / ZIP 为未签名、未公证的本机开发构建，不是面向公众发布的安装包。当前构建记录、校验和及发行限制见[桌面 UI 与打包记录](./docs/verification/desktop-ui-package-2026-09-28.md)。
+当前 `.app` 为本机 ad-hoc 签名、未公证的开发测试包，不是面向公众发布的安装包；旧 ZIP 未在本轮更新。最新构建与签名验证见 [Phase 12 报告](./docs/refactor/frontend-v2-phase-12.md)，历史记录见[桌面 UI 与打包记录](./docs/verification/desktop-ui-package-2026-09-28.md)。
 
 ## 测试与质量检查
 
@@ -202,12 +203,14 @@ cargo test --workspace --locked
 cargo check --workspace --all-targets --locked
 ```
 
-前端静态检查和单元测试：
+前端类型检查、单元测试与构建：
 
 ```bash
-node --check frontend/src/main.mjs
-node --check frontend/src/icons.mjs
-node --test frontend/tests/*.test.mjs
+npm --prefix frontend run type-check
+npm --prefix frontend run test
+npm --prefix frontend run build
+node --test frontend/visual/capture.test.mjs
+node frontend/visual/verify.mjs
 ```
 
 真实 OpenSSH 生命周期、Terminal 和 SFTP 集成测试默认标记为 ignored；它们会启动隔离的 loopback OpenSSH fixture，不使用用户的 SSH 配置或私钥。按需运行，例如：
@@ -232,9 +235,11 @@ cargo run -p maulink-core --example export_bindings --locked
 cargo tauri dev --config src-tauri/tauri.harness.conf.json
 ```
 
+RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，Command 为 `tauri dev`；构建配置用 `tauri build --bundles app -- --locked`。详细隔离配置与 Browser Harness 命令见 [frontend 开发说明](./frontend/README.md)。
+
 ## 当前验证与限制
 
-以下状态基于截至 **2026-09-28** 的代码与验收记录：
+以下后端状态保留 2026-09-28 的验收范围；前端最新迁移、Browser 与 macOS 构建状态更新至 **2026-10-01**，见 [迁移总结](./docs/refactor/frontend-migration-summary.md)。
 
 | 范围 | 当前状态 | 仍需完成 |
 | --- | --- | --- |
@@ -242,10 +247,10 @@ cargo tauri dev --config src-tauri/tauri.harness.conf.json
 | M4：Terminal | PTY、多终端、取消与有界流控实现；本机 OpenSSH 压力场景通过 | 真实 WebView/Tauri IPC 吞吐与延迟测量尚未完成，因此不登记为完整性能验收通过 |
 | M5：SFTP | 浏览、目录操作、文件传输实现；隔离 OpenSSH 回归和大文件往返验证通过 | Windows 文件发布与目标服务器故障矩阵验收 |
 | M6：Monitor | 采集、解析、有限历史和工作区页面实现；当前可用环境检查通过 | Linux 主机实测指标比对、Windows 窗口最小化/恢复行为验收 |
-| 桌面 UI | 正式窗口连接到本地页面；macOS arm64 `.app` 与 ZIP 构建通过 | 修正后的运行时截图、交互和像素级视觉验收；Windows 桌面验收 |
+| 桌面 UI | Vue 正式入口；Browser 四视口、双语、双主题与固定视觉回归；macOS release 应用 | Phase 6 既有验收缺口、原生最小化/恢复、Windows 桌面验收 |
 | 发布 | 本机开发 bundle 可用 | Developer ID / Windows 签名、macOS 公证、DMG 和公开发行检查 |
 
-当前界面以简体中文为主；英文偏好可以保存，但英文翻译尚未完成。MVP 当前不包含 Docker 管理、数据库客户端、进程列表和 Disk I/O 监控。M4 IPC 数值测试按用户选择跳过，README 不提供未经实测的吞吐或延迟数据。
+当前界面提供简体中文与 English catalog；用户名称、远端路径和终端输出保持原内容。MVP 当前不包含 Docker 管理、数据库客户端、进程列表和 Disk I/O 监控。M4 IPC 数值测试按用户选择跳过，README 不提供未经实测的吞吐或延迟数据。
 
 更细的验证结果：
 
