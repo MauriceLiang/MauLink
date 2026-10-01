@@ -8,7 +8,7 @@ import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
-const props = withDefaults(defineProps<{ server: ServerProfile | null; store: ServerStore; language?: Language }>(), { language: "zh-CN" });
+const props = withDefaults(defineProps<{ server: ServerProfile | null; store: ServerStore; language?: Language }>(), {});
 const emit = defineEmits<{ close: []; removed: [message: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const busy = ref(false);

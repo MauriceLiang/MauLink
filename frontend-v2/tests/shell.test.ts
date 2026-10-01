@@ -44,7 +44,7 @@ describe("application shell", () => {
     expect(wrapper.get("h1").text()).toBe("还没有服务器");
     expect(wrapper.get('[role="status"]').text()).toContain("本地服务已就绪");
     expect(wrapper.get('[role="status"]').text()).toContain("v0.1.0");
-    expect(wrapper.get('[aria-label="设置"]').element).toHaveProperty("disabled", true);
+    expect(wrapper.get('[aria-label="设置"]').element).toHaveProperty("disabled", false);
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });
 
@@ -64,13 +64,14 @@ describe("application shell", () => {
     } });
     await flushPromises();
     expect(wrapper.findAll(".shell-server-item")).toHaveLength(3);
-    expect(commands.filter(command => command !== "workspace_set_activity")).toEqual(["app_get_info", "group_list", "server_list", "server_list"]);
+    expect(commands.filter(command => command !== "workspace_set_activity" && command !== "settings_get")).toEqual(["app_get_info", "group_list", "server_list", "server_list"]);
     expect(activity).toHaveBeenCalledTimes(1);
     expect(activity).toHaveBeenCalledWith({ activeConnectionId: null, monitorVisible: false });
     await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
     expect(wrapper.get("main").text()).toContain("root@192.168.1.20:22 · 尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
-    expect(commands).toHaveLength(5);
+    expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
+    expect(commands).toHaveLength(6);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
     expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);
@@ -113,14 +114,17 @@ describe("application shell", () => {
     expect(wrapper.get('[role="status"]').text()).toContain("本地服务已就绪");
   });
 
-  it("focuses global search with the platform shortcut and restores About trigger focus", async () => {
+  it("opens command palette with the platform shortcut and restores About trigger focus", async () => {
     const wrapper = mountShell(createMockIpc({
       app_get_info: () => ({ ...shellAppInfo, platform: "windows" }), group_list: () => [], server_list: () => ({ items: [], nextCursor: null }),
     }));
     await flushPromises();
     expect(wrapper.get("kbd").text()).toBe("Ctrl K");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true }));
-    expect(document.activeElement).toBe(wrapper.get("#shell-global-search").element);
+    await flushPromises();
+    expect(document.activeElement?.getAttribute("role")).toBe("combobox");
+    document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
     const trigger = wrapper.get<HTMLButtonElement>('[aria-label="关于 MauLink"]');
     trigger.element.focus();
     await trigger.trigger("click");

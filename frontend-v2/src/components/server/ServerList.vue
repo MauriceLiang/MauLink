@@ -5,7 +5,7 @@ import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import { serverText, type ServerMessage } from "../../i18n/servers";
 import ServerCard from "./ServerCard.vue";
 import BaseEmptyState from "../base/BaseEmptyState.vue";
-const props = withDefaults(defineProps<{ servers: ServerProfile[]; language?: Language; readOnly?: boolean; snapshots?: Record<string, ConnectionSnapshot> }>(), { language: "zh-CN", readOnly: false });
+const props = withDefaults(defineProps<{ servers: ServerProfile[]; language?: Language; readOnly?: boolean; snapshots?: Record<string, ConnectionSnapshot> }>(), { readOnly: false });
 defineEmits<{ select: [id: string]; edit: [id: string]; remove: [server: ServerProfile] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 </script>

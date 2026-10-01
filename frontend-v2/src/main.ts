@@ -11,8 +11,11 @@ import "@xterm/xterm/css/xterm.css";
 import "./styles/terminal.css";
 import "./styles/files.css";
 import "./styles/monitor.css";
+import "./styles/settings.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "monitor") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "settings") {
+  void import("./harness/SettingsHarness.vue").then(({ default: SettingsHarness }) => { createApp(SettingsHarness).mount("#app"); });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "monitor") {
   void import("./harness/MonitorHarness.vue").then(({ default: MonitorHarness }) => { createApp(MonitorHarness).mount("#app"); });
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "files") {
   void import("./harness/FilesHarness.vue").then(({ default: FilesHarness }) => { createApp(FilesHarness).mount("#app"); });

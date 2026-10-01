@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { messages } from "../i18n/locale";
+import { shellMessages } from "../i18n/shell";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { AppInfo } from "../ipc/commands";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import type { IpcClient } from "../ipc/client";
+import { locale } from '../i18n/locale';
+import { settingsMessages } from '../i18n/settings';
+import { paletteMessages } from '../i18n/palette';
+import { isTerminalTarget } from './palette';
+import SettingsDialog from '../dialogs/SettingsDialog.vue';
+import CommandPalette from '../components/base/CommandPalette.vue';
 import { createMonitorApi } from "../ipc/monitor";
 import { createMonitorStore } from "../stores/monitor";
 import { createSftpApi } from "../ipc/sftp";
@@ -32,6 +40,7 @@ import TopBar from "./TopBar.vue";
 import Sidebar from "./Sidebar.vue";
 import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
+const t = messages(shellMessages);
 
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
@@ -39,7 +48,7 @@ const store = createServerStore(createServerApi(props.client));
 const { servers, groups, pending, error, query, filtered } = store;
 const connections = createConnectionStore(createConnectionApi(props.client));
 const terminals = createTerminalController(createTerminalApi(props.client), props.terminalChannelFactory);
-const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), terminals.applySettings);
+const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), settings => { terminals.applySettings(settings); document.documentElement.dataset.theme = settings.theme; document.documentElement.lang = settings.language; locale.value = settings.language; });
 terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
 const sftp = createSftpApi(props.client);
 const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory);
@@ -52,6 +61,20 @@ const selectedWorkspace = computed(() => workspaces.value.some(([id]) => id === 
 const selectedId = ref<string | null>(null);
 const activeConnection = computed(() => !pending.value && !error.value && selectedId.value && connections.snapshots.value[selectedId.value]?.state === 'ready' ? connections.snapshots.value[selectedId.value]!.connectionId : null);
 watch([activeConnection, workspaceViews, focused], () => { const id = activeConnection.value; if (!props.readOnly) monitor.activate(id, !!id && (workspaceViews.value[id] ?? 'terminal') !== 'files' && !focused.value); }, { immediate: true, deep: true });
+const settingsOpen = ref(false); const paletteOpen = ref(false);
+const settingsText = messages(settingsMessages); const paletteText = messages(paletteMessages);
+const workspaceRefs = ref<InstanceType<typeof TerminalWorkspace>[]>([]);
+const commands = computed(() => [...servers.value.map(server => ({ id: `server:${server.id}`, label: server.name, meta: `${server.username}@${server.host}`, keywords: [server.host, 'server', 'connect'] })), ...['workspace', 'monitor', 'files', 'add', 'settings', 'theme', 'language', 'clear'].map(id => ({ id, label: paletteText(id as keyof typeof paletteMessages), keywords: [id], disabled: ['workspace', 'monitor', 'files'].includes(id) ? !activeConnection.value : id === 'settings' ? props.readOnly : ['theme', 'language'].includes(id) ? props.readOnly || terminalPreferences.busy.value || !terminalPreferences.record.value : id === 'add' ? !canManage.value : id === 'clear' ? !transfers.snapshots.value.some(task => task.state === 'completed') : false }))]);
+async function executeCommand(id: string) {
+  paletteOpen.value = false; await nextTick();
+  const workspace = workspaceRefs.value.find(value => value.connectionId === activeConnection.value);
+  if (id.startsWith('server:')) selectedId.value = id.slice(7);
+  else if (id === 'add') openEditor();
+  else if (id === 'settings') settingsOpen.value = true;
+  else if (id === 'theme' || id === 'language') { const current = terminalPreferences.record.value?.value; if (current && await terminalPreferences.save(id === 'theme' ? { theme: getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'light' : 'dark' } : { language: current.language === 'en' ? 'zh-CN' : 'en' })) notice.value = settingsText('saved'); }
+  else if (id === 'clear') { new Set(transfers.snapshots.value.map(task => task.connectionId)).forEach(id => transfers.clearCompleted(id)); notice.value = paletteText('cleared'); }
+  else if (workspace) await workspace.view(id === 'workspace' ? 'terminal' : id as 'monitor' | 'files');
+}
 const about = ref(false);
 const editor = ref(false);
 const editingId = ref<string | null>(null);
@@ -100,45 +123,47 @@ watch(() => selectedId.value ? connections.snapshots.value[selectedId.value]?.st
 });
 
 function onKeydown(event: KeyboardEvent) {
-  if ((event.target instanceof Element && event.target.closest(".xterm")) || document.querySelector('[role="dialog"]') || connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
+  if (isTerminalTarget(event.target) || document.querySelector('[role="dialog"]') || connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
-    document.getElementById("shell-global-search")?.focus();
+    paletteOpen.value = true;
   }
 }
-onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); });
+onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); if (!props.readOnly) void terminalPreferences.load(); });
 onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); terminals.dispose(); transfers.dispose(); monitor.dispose(); });
 </script>
 
 <template>
   <div class="application-shell" :class="{ 'terminal-focused': focused }">
-    <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" @home="selectedId = null" @about="about = true" @add="openEditor()" />
+    <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" :settings-enabled="!readOnly" @home="selectedId = null" @about="about = true" @add="openEditor()" @settings="settingsOpen = true" @palette="paletteOpen = true" />
     <div class="shell-content">
       <Sidebar v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectedId = $event" @add="openEditor()" @groups="manageGroups = true" />
       <main class="shell-main" :class="{ 'has-terminal-workspace': selectedWorkspace }" :aria-busy="pending">
-        <BaseEmptyState v-if="pending" title="正在加载本地数据…" />
-        <BaseEmptyState v-else-if="error" title="本地服务暂不可用" :description="error.message">
-          <BaseButton @click="load">重试</BaseButton>
+        <BaseEmptyState v-if="pending" :title="t('loadingLocalData')" />
+        <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
+          <BaseButton @click="load">{{ t('retry') }}</BaseButton>
         </BaseEmptyState>
         <ConnectionPanel v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :read-only="!canManage">
-          <BaseButton @click="selectedId = null">返回服务器</BaseButton>
-          <BaseButton :disabled="!canManage" @click="openEditor(selected.id)">编辑服务器</BaseButton>
-          <BaseButton :disabled="!canManage" @click="deleteTarget = { ...selected }">删除服务器</BaseButton>
+          <BaseButton @click="selectedId = null">{{ t('backToServers') }}</BaseButton>
+          <BaseButton :disabled="!canManage" @click="openEditor(selected.id)">{{ t('editServer') }}</BaseButton>
+          <BaseButton :disabled="!canManage" @click="deleteTarget = { ...selected }">{{ t('deleteServer') }}</BaseButton>
         </ConnectionPanel>
-        <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
+        <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectedId = null" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectedId = null" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
       </main>
       <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" :transfer-count="activeTransfers" />
     </div>
-    <BaseDialog :open="about" title="关于 MauLink" @close="about = false">
-      <p>安全、清晰的远程服务器工作台</p>
-      <dl class="shell-about-details"><dt>版本</dt><dd>{{ info?.version ?? '—' }}</dd><dt>平台</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>架构</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
+    <BaseDialog :open="about" :title="t('aboutMauLink')" @close="about = false">
+      <p>{{ t('aboutLead') }}</p>
+      <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="notice = $event" />
-    <ConfirmDialog :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
-    <GroupDialog :open="manageGroups" :store="store" @close="manageGroups = false" @saved="notice = $event" />
-    <ConnectionDialogs :store="connections" :servers="servers" :suspended="about || editor || manageGroups || !!deleteTarget" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="notice = $event" />
+    <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
+    <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="notice = $event" />
+    <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || editor || manageGroups || !!deleteTarget" />
+    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" @close="settingsOpen = false" @saved="notice = settingsText('saved')" />
+    <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
     <BaseToast v-if="notice" class="server-notice" :message="notice" kind="info" @close="notice = ''" />
   </div>
 </template>

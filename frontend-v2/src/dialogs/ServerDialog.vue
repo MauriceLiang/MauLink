@@ -14,7 +14,7 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 
-const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; groupId?: string | null; language?: Language }>(), { groupId: null, language: "zh-CN" });
+const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; groupId?: string | null; language?: Language }>(), { groupId: null });
 const emit = defineEmits<{ close: []; saved: [message: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();

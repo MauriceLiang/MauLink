@@ -9,7 +9,7 @@ import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
-const props = withDefaults(defineProps<{ open: boolean; store: ServerStore; language?: Language }>(), { language: "zh-CN" });
+const props = withDefaults(defineProps<{ open: boolean; store: ServerStore; language?: Language }>(), {});
 const emit = defineEmits<{ close: []; saved: [message: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const groups = props.store.groups;

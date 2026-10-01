@@ -1,3 +1,4 @@
+import { locale } from "./locale";
 import type { Language } from "../../../contracts/v1/Language";
 
 const messages = {
@@ -46,6 +47,6 @@ const messages = {
 } as const;
 
 export type ServerMessage = keyof typeof messages;
-export function serverText(key: ServerMessage, language: Language = "zh-CN") {
+export function serverText(key: ServerMessage, language: Language = locale.value) {
   return messages[key][language === "en" ? 1 : 0];
 }

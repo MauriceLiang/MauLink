@@ -1,4 +1,10 @@
 export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
+  "errors.settingsDataInvalid": { "zh-CN": "设置数据无效，请重新加载或检查本地存储。", en: "Settings data is invalid. Reload or check local storage." },
+  "errors.settingsSerializeFailed": { "zh-CN": "设置未能保存，请重试。", en: "Settings could not be saved. Try again." },
+  "errors.terminalFontFamilyInvalid": { "zh-CN": "字体名称需为 1 到 128 个字符，且不含控制字符。", en: "Font family must contain 1 to 128 characters with no control characters." },
+  "errors.terminalFontSizeOutOfRange": { "zh-CN": "字号需在 8 到 72 之间。", en: "Font size must be between 8 and 72." },
+  "errors.terminalScrollbackOutOfRange": { "zh-CN": "滚动缓冲需在 1000 到 100000 行之间。", en: "Scrollback must be between 1,000 and 100,000 lines." },
+
   "errors.monitorCollectionFailed": { "zh-CN": "监控采集失败，请检查连接和服务器状态。", en: "Monitor collection failed. Check the connection and server." },
   "errors.monitorTimeout": { "zh-CN": "监控采集超时，请稍后刷新。", en: "Monitor collection timed out. Refresh later." },
   "errors.monitorHistoryRangeInvalid": { "zh-CN": "监控历史时间范围无效。", en: "The monitor history time range is invalid." },

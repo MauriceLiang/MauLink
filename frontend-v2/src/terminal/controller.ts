@@ -1,3 +1,5 @@
+import { messages } from "../i18n/locale";
+import { terminalMessages } from "../i18n/terminal";
 import { shallowRef } from "vue";
 import { Channel } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
@@ -11,6 +13,7 @@ import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import { createOutputConsumer, encodeBytesBase64, nextSequence } from "./codec";
 import { defaultSettings } from "./preferences";
+const t = messages(terminalMessages);
 export interface TerminalTab { id: string; connectionId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
 interface Runtime {
   terminal: Terminal; fit: FitAddon; mount: HTMLElement; channel: Channel<TerminalChunk>;
@@ -37,7 +40,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   }
   function create(connectionId: string) {
     const id = crypto.randomUUID();
-    tabs.value = [...tabs.value, { id, connectionId, title: `终端 ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false }];
+    tabs.value = [...tabs.value, { id, connectionId, title: `Terminal ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false }];
     return id;
   }
   function fail(id: string, error: unknown, stream = false) {
@@ -45,7 +48,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (!runtime || runtime.disposed) return;
     runtime.inputStopped = true; runtime.terminal.options.disableStdin = true;
     const mapped = mapError(error);
-    update(id, { error: stream && mapped.code === 'INTERNAL' ? '终端输出校验或确认失败，已暂停输入。请关闭此终端后重新打开。' : presentError(mapped).message, inputPaused: true });
+    update(id, { error: stream && mapped.code === 'INTERNAL' ? t('outputFailed') : presentError(mapped).message, inputPaused: true });
     if (stream && !runtime.outputStopped) {
       runtime.outputStopped = true;
       if (runtime.opened) void api.close({ terminalId: runtime.opened.terminalId }).then(snapshot => update(id, { state: snapshot.state })).catch(reason => update(id, { error: presentError(mapError(reason)).message }));
@@ -74,7 +77,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
       if (snapshot.state === 'closed' || snapshot.state === 'failed') {
         runtime.ended = true; runtime.inputStopped = true; runtime.terminal.options.disableStdin = true;
         await runtime.lastOutput.catch(() => undefined);
-        if (!runtime.disposed) runtime.terminal.write('\r\n\x1b[90m[远程 Shell 已结束]\x1b[0m\r\n');
+        if (!runtime.disposed) runtime.terminal.write(`\r\n\x1b[90m[${t('shellEnded')}]\x1b[0m\r\n`);
         return;
       }
     } catch (reason) { update(id, { error: presentError(mapError(reason)).message }); }
@@ -84,7 +87,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   function send(id: string, bytes: Uint8Array) {
     const runtime = runtimes.get(id);
     if (!runtime?.opened || runtime.inputStopped || runtime.closing || runtime.disposed || tab(id)?.state !== 'running') return;
-    if (runtime.inputBytes + bytes.byteLength > 262144) { update(id, { error: '输入暂存已满，请等待发送完成后再输入。' }); return; }
+    if (runtime.inputBytes + bytes.byteLength > 262144) { update(id, { error: t('inputFull') }); return; }
     runtime.inputBytes += bytes.byteLength;
     runtime.input = runtime.input.then(async () => {
       for (let offset = 0; offset < bytes.length; offset += 65536) {

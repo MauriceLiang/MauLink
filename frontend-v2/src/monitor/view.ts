@@ -1,12 +1,15 @@
+import { messages } from "../i18n/locale";
+import { monitorMessages } from "../i18n/monitor";
 import type { MonitorHistorySample } from "../../../contracts/v1/MonitorHistorySample";
 import type { MonitorMetricQuality } from "../../../contracts/v1/MonitorMetricQuality";
 import { formatSize as fileSize } from "../files/path";
+const t = messages(monitorMessages);
 export const formatSize = (value: string | null) => fileSize(value).replace(/\b([KMGTPE])B\b/g, "$1iB");
-export const qualityText = { ok: '正常', warmingUp: '正在采样', stale: '数据已过期', unsupported: '不支持', error: '暂不可用' };
+export const qualityLabel = (status: MonitorMetricQuality['status']) => t(status);
 export const effectiveStatus = (quality?: MonitorMetricQuality, fetchFailed = false) => fetchFailed && quality?.status === 'ok' ? 'stale' : quality?.status ?? 'warmingUp';
 export function metricValue(value: string, quality?: MonitorMetricQuality) {
   const state = quality?.status ?? 'warmingUp';
-  return state === 'unsupported' || state === 'error' || state === 'warmingUp' ? qualityText[state] : value;
+  return state === 'unsupported' || state === 'error' || state === 'warmingUp' ? qualityLabel(state) : value;
 }
 export const percent = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
 export const loadValue = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—';
@@ -15,7 +18,7 @@ export function uptime(value?: string | null) {
   if (value == null) return '—';
   const seconds = Number(value); if (!Number.isFinite(seconds) || seconds < 0) return '—';
   const days = Math.floor(seconds / 86400); const hours = Math.floor(seconds % 86400 / 3600); const minutes = Math.floor(seconds % 3600 / 60);
-  return days ? `${days} 天 ${hours} 小时` : `${hours} 小时 ${minutes} 分钟`;
+  return days ? t('days', {days, hours}) : t('hours', {hours, minutes});
 }
 export function sparkline(samples: MonitorHistorySample[], width = 220, height = 42) {
   const values = samples.slice(-120).filter(sample => Number.isFinite(sample.value)); if (!values.length) return '';

@@ -1,8 +1,9 @@
 import type { AppError } from "../../../contracts/v1/AppError";
 import type { Language } from "../../../contracts/v1/Language";
+import { locale } from "../i18n/locale";
 import { errorMessages, stageMessages } from "../i18n/errors";
 
-export function presentError(error: AppError, language: Language = "zh-CN") {
+export function presentError(error: AppError, language: Language = locale.value) {
   const key = error.code === "HOST_KEY_CHANGED" ? "errors.hostKeyChanged" : error.messageKey;
   const template = (errorMessages[key] ?? errorMessages["errors.unexpected"]!)[language];
   return {

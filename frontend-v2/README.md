@@ -151,3 +151,7 @@ Browser 文件组件验收：`http://127.0.0.1:1420/?harness=files`；AppShell �
 连接工作区的终端侧栏提供 Quick Monitor，“监控”入口打开 Full Monitor。两者使用 AppShell 的同一控制器与 Core Snapshot；前端统一读取快照及六类历史，不为卡片创建 timer。文件 / Home / 专注视图停止前端读取，Core 继续管理采集频率、固定脚本、backoff 和原生最小化生命周期。不可用与旧数据明确标识，手动刷新调用真实 Core 接口。
 
 Browser 验收：`http://127.0.0.1:1420/?harness=monitor`，Web-01 → 连接。控件明确为 DEV Linux metrics fixture，提供五种质量、快照/历史 IPC 失败、计数与主题；不是实际 SSH/Linux 指标。最终 104/104 tests、type-check、build、11 项 Core Monitor 测试及 1 项真实 OpenSSH 监控/终端/传输并发测试通过。Native GUI、真实 Linux 成功指标和最小化/恢复未现场验证；按用户 Browser 门禁 PASS，详情见 `docs/refactor/frontend-v2-phase-8.md`。
+
+## Phase 9：Settings / i18n / Command Palette
+
+DEV 地址 `http://127.0.0.1:1420/?harness=settings`。真实设置通过 Rust SettingsService 更新；Harness 为显式内存 Settings/SSH fixture，不写正式资料。主题/语言/终端设置、模块 catalog、统一菜单和 Palette 已建立，115 项测试与 build 通过。Browser 工具无法完成终端焦点组合键，用户已在独立 Tauri release 应用完成 1–7 项实测，包含快捷键放行及重启持久化，并确认正常。本阶段 PASS，可进入 Phase 10；保留 Browser 工具限制记录。完整记录见 `docs/refactor/frontend-v2-phase-9.md`。

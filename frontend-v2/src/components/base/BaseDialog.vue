@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { locale } from "../../i18n/locale";
 import { nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
 import BaseIconButton from "./BaseIconButton.vue";
 
-const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string }>(), {
-  busy: false, closeLabel: "关闭对话框", panelClass: "",
+const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string }>(), {
+  busy: false, closeLabel: "", panelClass: "",
 });
 const emit = defineEmits<{ close: [] }>();
 const titleId = useId();
@@ -45,7 +46,7 @@ watch(() => props.open, async open => {
   if (open) {
     returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     await nextTick();
-    if (props.open) (focusableElements()[0] ?? dialog.value)?.focus();
+    if (props.open) (focusableElements().find(element => props.initialFocus && element.matches(props.initialFocus)) ?? focusableElements()[0] ?? dialog.value)?.focus();
   } else {
     returnFocus?.focus();
     returnFocus = null;
@@ -62,7 +63,7 @@ onBeforeUnmount(() => returnFocus?.focus());
         :aria-busy="busy" tabindex="-1" @keydown="onKeydown">
         <header class="base-dialog-heading">
           <h2 :id="titleId">{{ title }}</h2>
-          <BaseIconButton :label="closeLabel" :disabled="busy" @click="emit('close')">×</BaseIconButton>
+          <BaseIconButton :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="emit('close')">×</BaseIconButton>
         </header>
         <div class="base-dialog-content"><slot /></div>
         <footer v-if="$slots.footer" class="base-dialog-footer"><slot name="footer" /></footer>
