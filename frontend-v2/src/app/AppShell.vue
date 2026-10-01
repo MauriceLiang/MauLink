@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import type { AppInfo } from "../ipc/commands";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import type { IpcClient } from "../ipc/client";
+import { createSftpApi } from "../ipc/sftp";
+import { createTransferStore, transferFinished, type TransferChannelFactory } from "../stores/transfers";
 import { createTerminalApi } from "../ipc/terminal";
 import { createSettingsApi } from "../ipc/settings";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
@@ -29,7 +31,7 @@ import Sidebar from "./Sidebar.vue";
 import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
 
-const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory }>(), { readOnly: false });
+const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
 const { servers, groups, pending, error, query, filtered } = store;
@@ -37,8 +39,11 @@ const connections = createConnectionStore(createConnectionApi(props.client));
 const terminals = createTerminalController(createTerminalApi(props.client), props.terminalChannelFactory);
 const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), terminals.applySettings);
 terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
+const sftp = createSftpApi(props.client);
+const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory);
+const activeTransfers = computed(() => transfers.snapshots.value.filter(task => !transferFinished(task)).length);
 const focused = ref(false);
-const workspaces = computed(() => Object.entries(connections.snapshots.value).filter(([id, snapshot]) => servers.value.some(server => server.id === id) && (snapshot.state === 'ready' || terminals.tabs.value.some(tab => tab.connectionId === snapshot.connectionId))));
+const workspaces = computed(() => Object.entries(connections.snapshots.value).filter(([id, snapshot]) => servers.value.some(server => server.id === id) && (snapshot.state === 'ready' || terminals.tabs.value.some(tab => tab.connectionId === snapshot.connectionId) || transfers.snapshots.value.some(task => task.connectionId === snapshot.connectionId))));
 const selectedWorkspace = computed(() => workspaces.value.some(([id]) => id === selectedId.value));
 const selectedId = ref<string | null>(null);
 const about = ref(false);
@@ -96,7 +101,7 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); });
-onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); terminals.dispose(); });
+onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); terminals.dispose(); transfers.dispose(); });
 </script>
 
 <template>
@@ -116,9 +121,9 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         </ConnectionPanel>
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectedId = null" @disconnect="connections.disconnect(id)" @focus-mode="focused = $event" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectedId = null" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" />
       </main>
-      <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" />
+      <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" :transfer-count="activeTransfers" />
     </div>
     <BaseDialog :open="about" title="关于 MauLink" @close="about = false">
       <p>安全、清晰的远程服务器工作台</p>

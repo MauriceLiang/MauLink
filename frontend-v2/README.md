@@ -137,3 +137,11 @@ npm --prefix frontend-v2 run dev
 ```
 
 Ctrl+C ACK 计数与 Ctrl+C keydown 字段仅用于开发诊断；不显示输入内容或 stdout。最新检查、限制和恢复点见 `docs/refactor/frontend-v2-phase-6.md`。用户已取消 Desktop 手动验收门禁；本阶段仍需 Browser 全部通过才能标记验收 PASS，但用户已明确授权先提交推送并进入 Phase 7。
+
+## Phase 7 SFTP 与 Transfer
+
+工作区“文件”视图使用 Core SFTP 分页，一次最多 200 行，支持目录导航、创建、重命名、删除确认和键盘菜单。远程路径保留 POSIX 语义；View/Edit 尚无后端接口，继续禁用。上传下载使用系统 picker token 与 Rust Transfer Manager，前端 Channel 仅消费进度元数据。取消须等待 Core 终态；断开活动传输需要显式勾选停止任务。
+
+Browser 文件组件验收：`http://127.0.0.1:1420/?harness=files`；AppShell 组合验收：`?harness=files&workspace=1`，进入 Web-01 → 连接 → 文件。均为 DEV 内存 Mock，450 项目录、可重置恢复，不访问真实服务器或文件。场景控件支持完成、慢速取消、失败与取消文件选择。真实 SFTP 后端用仓库隔离 OpenSSH 测试验证。
+
+最终 type-check、87/87 tests、build、Browser 和 4 项 OpenSSH SFTP 测试通过；按用户 Browser 门禁标记 PASS，Native GUI / 系统 picker 未实测。详细结果见 `docs/refactor/frontend-v2-phase-7.md`。Phase 6 的剩余验收问题继续保留。

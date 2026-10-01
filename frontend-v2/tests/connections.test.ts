@@ -97,6 +97,12 @@ describe('secure connection flow', () => {
     await store.start(server); await store.cancel(server.id); expect(cancel).not.toHaveBeenCalled();
     await store.disconnect(server.id); expect(disconnect).toHaveBeenCalledWith({ connectionId: initial.connectionId, stopActiveTransfers: false }); expect(store.snapshots.value[server.id]?.state).toBe('closed');
   });
+  it('forwards explicitly confirmed stopActiveTransfers when disconnecting', async () => {
+    const disconnect = vi.fn(() => ({ ...initial, state: 'closed' as const }));
+    const store = storeFor(createMockIpc({ connection_start: () => ({ ...initial, state: 'ready' }), connection_disconnect: disconnect }));
+    await store.start(server); await store.disconnect(server.id, true);
+    expect(disconnect).toHaveBeenCalledWith({ connectionId: initial.connectionId, stopActiveTransfers: true });
+  });
   it('shows retry only for retryable terminal errors; host-key changes stay blocked even with retryable true', async () => {
     const store = storeFor(); const error = { ...fixtureError('CONNECTION_TIMEOUT','errors.connectionTimeout'), retryable: true, stage: 'connectingProxy', requestId: 'safe-request-id' };
     store.snapshots.value = { [server.id]: { ...initial, state: 'failed', error } };

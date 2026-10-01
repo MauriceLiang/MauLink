@@ -9,8 +9,11 @@ import "./styles/servers.css";
 import "./styles/connections.css";
 import "@xterm/xterm/css/xterm.css";
 import "./styles/terminal.css";
+import "./styles/files.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "terminal") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "files") {
+  void import("./harness/FilesHarness.vue").then(({ default: FilesHarness }) => { createApp(FilesHarness).mount("#app"); });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "terminal") {
   void import("./harness/TerminalHarness.vue").then(({ default: TerminalHarness }) => {
     createApp(TerminalHarness).mount("#app");
   });

@@ -76,10 +76,10 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
     if (!snapshot || isFinished(snapshot) || snapshot.state === "ready") return;
     await run(id, async () => { accept(id, await api.cancel({ connectionId: snapshot.connectionId })); });
   }
-  async function disconnect(id: string) {
+  async function disconnect(id: string, stopActiveTransfers = false) {
     const snapshot = snapshots.value[id];
     if (!snapshot || snapshot.state !== "ready") return;
-    await run(id, async () => { accept(id, await api.disconnect({ connectionId: snapshot.connectionId, stopActiveTransfers: false })); });
+    await run(id, async () => { accept(id, await api.disconnect({ connectionId: snapshot.connectionId, stopActiveTransfers })); });
   }
   async function respondHostKey(id: string, decision: HostKeyDecision) {
     const snapshot = snapshots.value[id];
