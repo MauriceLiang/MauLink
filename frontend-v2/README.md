@@ -1,6 +1,6 @@
 # MauLink Frontend v2
 
-Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，Phase 5 已接入 SSH Connection 与安全挑战，自动化和 Browser 通过，按用户更新后的门禁 PASS，Desktop GUI 未实测；Terminal、SFTP、Monitor 与完整 Settings 尚未迁移。
+Vue 3 + TypeScript + Vite 前端迁移工程。Phase 1/2/3/4 已通过；Phase 4 已接入 Server Home、Server/Group CRUD，自动化、Browser 与用户真实 Desktop 验收全部通过。旧 `frontend/` 和正式 Tauri 配置继续保留，Phase 5 已接入 SSH Connection 与安全挑战，自动化和 Browser 通过，按用户更新后的门禁 PASS，Desktop GUI 未实测；Phase 6 已实现 Terminal 工作区，但 Browser 键盘验收未完成，验收当前 BLOCKED，用户已授权先推送并进入 Phase 7；SFTP、Monitor 与完整 Settings 尚未迁移。
 
 ## 安装与前端检查
 
@@ -115,8 +115,25 @@ Desktop Native 验收入口：`?harness=servers&transport=native&theme=light`，
 
 ## Phase 5 SSH Connection 与验收
 
-服务器“查看”进入连接页，连接/取消/断开通过既有 Core。首次 Host Key 明确核对，Esc 拒绝；Changed 默认拒绝，更新信任需展开并确认独立核实。认证挑战仅使用一次性输入，不保存凭据。错误诊断默认折叠，Retry 遵循 error.retryable，变化指纹不自动重试。已连接只表示 SSH ready，终端留在 Phase 6。
+服务器“查看”进入连接页，连接/取消/断开通过既有 Core。首次 Host Key 明确核对，Esc 拒绝；Changed 默认拒绝，更新信任需展开并确认独立核实。认证挑战仅使用一次性输入，不保存凭据。错误诊断默认折叠，Retry 遵循 error.retryable，变化指纹不自动重试。已连接表示 SSH ready；Phase 6 工作区实现已接入，验收状态见下文。
 
 Browser Mock：`http://127.0.0.1:1420/?harness=connections&theme=light`，可选择下一次连接场景及延迟回应。Native：`?harness=connections&transport=native&theme=light`，使用真实 IPC，通过临时 devUrl overlay 打开。Harness 不进入正式构建。
 
 详见 `docs/refactor/frontend-v2-phase-5.md`。当前 Phase 5 按用户更新后的门禁 PASS，可继续 Phase 6。后续阶段通过自动化与 Browser 验收后自动提交推送 main；Tauri GUI 未实测时如实记录，不再请求手动检查。
+
+
+## Phase 6 Terminal 工作区（BLOCKED）
+
+已接入 xterm.js 5.5.0 / FitAddon 0.10.0、多终端、尺寸同步、专注模式与终端设置。正式数据流为 Tauri Channel → 非响应式 Terminal Controller → xterm.write → callback 后 ACK；Vue 只保存标签与状态元数据。默认关闭选中即复制；其偏好沿用旧浏览器存储 key。设置写入既有 Core SettingsService，保留非终端字段与 revision。
+
+当前 type-check、66/66 tests、build、Rust workspace 与真实 OpenSSH terminal ignored test 通过。Browser 已验证真实 SSH、中文/ANSI、大量持续输出、隐藏终端继续消费、多终端、设置应用、专注模式与焦点恢复、top 显示/退出。Ctrl+C 的 Browser 按键操作尚未获得 Core 接受确认，vim、快速切换、关闭、断开和完整视觉检查尚未完成，用户于 2026-10-01 指示“直接推送进入”，允许保留上述验收缺口，先提交推送当前实现并进入 Phase 7；不将未验证项标为 PASS。
+
+开发验收地址：`http://127.0.0.1:1420/?harness=terminal`。本机临时桥接工程为 `/private/tmp/maulink-phase6-bridge`，复用现有 Core 和 OpenSSH fixture，绑定 `127.0.0.1:1421`，仅接受 `http://127.0.0.1:1420` Origin。临时 SQLite / SSH key 不使用正式资料，Host Key 只信任与现场生成公钥指纹一致的 fixture。该桥接未纳入仓库，地址不是产品接口；Harness 与桥接地址不进入正式 bundle。
+
+```bash
+CARGO_TARGET_DIR="$PWD/target" cargo run --manifest-path /private/tmp/maulink-phase6-bridge/Cargo.toml --offline
+# 另一终端
+npm --prefix frontend-v2 run dev
+```
+
+Ctrl+C ACK 计数与 Ctrl+C keydown 字段仅用于开发诊断；不显示输入内容或 stdout。最新检查、限制和恢复点见 `docs/refactor/frontend-v2-phase-6.md`。用户已取消 Desktop 手动验收门禁；本阶段仍需 Browser 全部通过才能标记验收 PASS，但用户已明确授权先提交推送并进入 Phase 7。

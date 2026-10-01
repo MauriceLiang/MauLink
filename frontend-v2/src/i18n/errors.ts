@@ -1,4 +1,8 @@
 export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
+  "errors.terminalConsumerStalled": { "zh-CN": "终端输出积压超出安全窗口，Core 已停止此会话。请关闭标签后重新打开终端。", en: "Terminal output exceeded the safe window. Core stopped this session. Close the tab and open another terminal." },
+  "errors.terminalNotFound": { "zh-CN": "终端已不存在，请关闭标签后重新打开。", en: "The terminal no longer exists. Close the tab and open another terminal." },
+  "errors.terminalClosed": { "zh-CN": "终端已结束，请新建终端。", en: "The terminal stopped. Open another terminal." },
+  "errors.inputBackpressure": { "zh-CN": "输入发送拥塞，已暂停输入。请关闭标签后重新打开终端。", en: "Terminal input stalled and was paused. Close the tab and open another terminal." },
   "errors.authFailed": { "zh-CN": "认证失败，请检查用户名、密码或私钥。", en: "Authentication failed. Check your username, password or private key." },
   "errors.authTimeout": { "zh-CN": "认证超时，请重新确认凭据和服务器状态。", en: "Authentication timed out. Check credentials and server status." },
   "errors.authMethodUnsupported": { "zh-CN": "服务器不支持所选认证方式，请检查服务器配置。", en: "The server does not support this authentication method." },

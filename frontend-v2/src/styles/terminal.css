@@ -1,0 +1,29 @@
+.terminal-workspace { display: grid; min-width: 0; min-height: 0; height: 100%; grid-template-rows: 46px 38px minmax(0, 1fr) 26px auto; overflow: hidden; }
+.workspace-heading { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 5px 15px; border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
+.workspace-heading > div { flex: 1; min-width: 0; }
+.workspace-heading h1 { margin: 0 0 3px; font-size: 15px; font-weight: 600; }
+.workspace-heading span { color: var(--muted); font-size: 11px; }
+.workspace-heading .base-button { min-height: 28px; font-size: 11px; }
+.terminal-toolbar { display: flex; gap: 6px; align-items: center; min-width: 0; padding: 4px 8px; border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
+.terminal-toolbar .base-button { min-height: 28px; padding: 3px 8px; font-size: 12px; white-space: nowrap; }
+.terminal-tabs { display: flex; flex: 1; min-width: 0; overflow-x: auto; }
+.terminal-tab-group { display: flex; align-items: center; flex: none; }
+.terminal-tab-group [role="tab"] { border: 0; background: transparent; }
+.terminal-tab-group [aria-selected="true"] { color: var(--accent); background: var(--surface-selected); }
+.terminal-tab-close { padding: 0 4px !important; border: 0; background: transparent; }
+.terminal-stack { position: relative; min-height: 0; min-width: 0; background: #000; overflow: hidden; }
+.xterm-host { position: absolute; inset: 0; padding: 12px 14px; }
+.terminal-mount { width: 100%; height: 100%; }
+.terminal-mount .xterm { height: 100%; }
+.terminal-empty { padding: 20px; color: #a7b0be; font-size: 13px; }
+.terminal-footer { display: flex; gap: 16px; padding: 5px 12px; background: var(--surface-subtle); color: var(--muted); font-size: 11px; }
+.terminal-warning { margin: 0; padding: 8px 12px; color: var(--danger); font-size: 12px; background: var(--panel); }
+.terminal-settings-form fieldset { display: grid; gap: 14px; min-width: 0; padding: 0; border: 0; }
+.terminal-settings-form label { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.terminal-settings-form input:not([type="checkbox"]), .terminal-settings-form select { flex: 1; min-width: 0; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.application-shell.terminal-focused .shell-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.application-shell.terminal-focused .shell-sidebar, .application-shell.terminal-focused .shell-statusbar, .terminal-workspace.is-focused .workspace-heading { display: none; }
+.application-shell.terminal-focused .shell-main { grid-column: 1; grid-row: 1; }
+.terminal-workspace.is-focused { grid-template-rows: 38px minmax(0, 1fr) 26px auto; }
+
+.shell-main.has-terminal-workspace { display: block; overflow: hidden; }

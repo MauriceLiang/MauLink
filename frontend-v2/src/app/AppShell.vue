@@ -3,6 +3,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import type { AppInfo } from "../ipc/commands";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import type { IpcClient } from "../ipc/client";
+import { createTerminalApi } from "../ipc/terminal";
+import { createSettingsApi } from "../ipc/settings";
+import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
+import { createTerminalPreferences } from "../terminal/preferences";
+import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createConnectionStore } from "../stores/connections";
 import ConnectionPanel from "../components/connection/ConnectionPanel.vue";
@@ -24,11 +29,17 @@ import Sidebar from "./Sidebar.vue";
 import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
 
-const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean }>(), { readOnly: false });
+const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
 const { servers, groups, pending, error, query, filtered } = store;
 const connections = createConnectionStore(createConnectionApi(props.client));
+const terminals = createTerminalController(createTerminalApi(props.client), props.terminalChannelFactory);
+const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), terminals.applySettings);
+terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
+const focused = ref(false);
+const workspaces = computed(() => Object.entries(connections.snapshots.value).filter(([id, snapshot]) => servers.value.some(server => server.id === id) && (snapshot.state === 'ready' || terminals.tabs.value.some(tab => tab.connectionId === snapshot.connectionId))));
+const selectedWorkspace = computed(() => workspaces.value.some(([id]) => id === selectedId.value));
 const selectedId = ref<string | null>(null);
 const about = ref(false);
 const editor = ref(false);
@@ -78,35 +89,36 @@ watch(() => selectedId.value ? connections.snapshots.value[selectedId.value]?.st
 });
 
 function onKeydown(event: KeyboardEvent) {
-  if (connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
+  if ((event.target instanceof Element && event.target.closest(".xterm")) || document.querySelector('[role="dialog"]') || connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     document.getElementById("shell-global-search")?.focus();
   }
 }
 onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); });
-onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); });
+onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); terminals.dispose(); });
 </script>
 
 <template>
-  <div class="application-shell">
+  <div class="application-shell" :class="{ 'terminal-focused': focused }">
     <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" @home="selectedId = null" @about="about = true" @add="openEditor()" />
     <div class="shell-content">
       <Sidebar v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectedId = $event" @add="openEditor()" @groups="manageGroups = true" />
-      <main class="shell-main" :aria-busy="pending">
+      <main class="shell-main" :class="{ 'has-terminal-workspace': selectedWorkspace }" :aria-busy="pending">
         <BaseEmptyState v-if="pending" title="正在加载本地数据…" />
         <BaseEmptyState v-else-if="error" title="本地服务暂不可用" :description="error.message">
           <BaseButton @click="load">重试</BaseButton>
         </BaseEmptyState>
-        <ConnectionPanel v-else-if="selected" :server="selected" :store="connections" :read-only="!canManage">
+        <ConnectionPanel v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :read-only="!canManage">
           <BaseButton @click="selectedId = null">返回服务器</BaseButton>
           <BaseButton :disabled="!canManage" @click="openEditor(selected.id)">编辑服务器</BaseButton>
           <BaseButton :disabled="!canManage" @click="deleteTarget = { ...selected }">删除服务器</BaseButton>
         </ConnectionPanel>
-        <ServerList v-else-if="servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
-        <WelcomeView v-else :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
+        <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" @select="selectedId = $event" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
+        <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectedId = null" @disconnect="connections.disconnect(id)" @focus-mode="focused = $event" />
       </main>
-      <LocalBackendStatus :state="backendState" :version="info?.version" />
+      <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" />
     </div>
     <BaseDialog :open="about" title="关于 MauLink" @close="about = false">
       <p>安全、清晰的远程服务器工作台</p>

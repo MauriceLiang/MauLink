@@ -7,8 +7,14 @@ import "./styles/components.css";
 import "./styles/shell.css";
 import "./styles/servers.css";
 import "./styles/connections.css";
+import "@xterm/xterm/css/xterm.css";
+import "./styles/terminal.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "connections") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "terminal") {
+  void import("./harness/TerminalHarness.vue").then(({ default: TerminalHarness }) => {
+    createApp(TerminalHarness).mount("#app");
+  });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "connections") {
   void import("./harness/ConnectionHarness.vue").then(({ default: ConnectionHarness }) => {
     createApp(ConnectionHarness).mount("#app");
   });
