@@ -27,8 +27,8 @@ describe('shared SettingsService preferences', () => {
   it('saves appearance and language with Core revision while preserving terminal and directory token', async () => {
     const value = {...defaultSettings, downloadDirectoryToken: 'opaque-directory-reference'}; const update = vi.fn(payload => ({value: payload.value, revision: 8, updatedAtMs: 2})); const apply = vi.fn();
     const preferences = createTerminalPreferences(createSettingsApi(createIpcClient(createMockIpc({settings_get: () => ({value, revision:7, updatedAtMs:1}), settings_update:update}))), apply);
-    await preferences.load(); expect(await preferences.save({theme:'dark', language:'en', confirmBeforeDisconnect:false})).toBe(true);
-    expect(update.mock.calls[0]![0]).toEqual({expectedRevision:7, value:{...value,theme:'dark',language:'en',confirmBeforeDisconnect:false}}); expect(preferences.record.value?.revision).toBe(8); expect(apply).toHaveBeenCalledTimes(2);
+    await preferences.load(); expect(await preferences.save({theme:'dark', appIconStyle:'dark', language:'en', confirmBeforeDisconnect:false})).toBe(true);
+    expect(update.mock.calls[0]![0]).toEqual({expectedRevision:7, value:{...value,theme:'dark',appIconStyle:'dark',language:'en',confirmBeforeDisconnect:false}}); expect(preferences.record.value?.revision).toBe(8); expect(apply).toHaveBeenCalledTimes(2);
     expect(localStorage.length).toBe(0);
   });
   it('retains confirmed settings on revision conflict and supports explicit reload', async () => {
@@ -45,6 +45,36 @@ describe('shared SettingsService preferences', () => {
     const fixture=createSettingsMock(); const apply=vi.fn(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),apply); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     button('外观').click(); await flushPromises(); const select=document.querySelector('select')!; select.value='dark'; select.dispatchEvent(new Event('change',{bubbles:true})); expect(fixture.current().value.theme).toBe('system');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value.theme).toBe('dark'); expect(wrapper.emitted('saved')).toHaveLength(1);
+  });
+  it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
+    const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
+    button('外观').click(); await flushPromises();
+    const change=(select: HTMLSelectElement,value:string)=>{select.value=value;select.dispatchEvent(new Event('change',{bubbles:true}));};
+    change(document.querySelectorAll('select')[1]!,'dark'); await flushPromises();
+    expect(document.querySelector('img[alt="应用图标预览"]')?.getAttribute('src')).toContain('maulink-logo-dark');
+    expect(fixture.current().value.appIconStyle).toBe('light');
+    button('取消').click(); await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
+    expect(document.querySelectorAll<HTMLSelectElement>('select')[1]!.value).toBe('light');
+    change(document.querySelectorAll('select')[1]!,'dark');
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value.appIconStyle).toBe('dark'); expect(fixture.current().value.theme).toBe('system'); expect(wrapper.emitted('saved')).toHaveLength(1);
+    await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
+    expect(document.querySelectorAll<HTMLSelectElement>('select')[1]!.value).toBe('dark');
+    change(document.querySelectorAll('select')[0]!,'dark'); change(document.querySelectorAll('select')[1]!,'light');
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value.theme).toBe('dark'); expect(fixture.current().value.appIconStyle).toBe('light');
+  });
+  it('reports a committed setting whose native icon failed and reloads the saved revision', async () => {
+    let stored={value:{...defaultSettings},revision:1,updatedAtMs:1};
+    const transport=createMockIpc({settings_get:()=>structuredClone(stored),settings_update:payload=>{
+      stored={value:payload.value,revision:2,updatedAtMs:2};
+      throw {code:'INTERNAL',messageKey:'errors.appIconApplyFailed',params:{},retryable:false,action:'none',stage:null,requestId:null,details:null};
+    }});
+    const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(transport)),()=>{});
+    await preferences.load(); expect(await preferences.save({appIconStyle:'dark'})).toBe(false);
+    expect(preferences.error.value).toContain('设置已保存，但应用图标更新失败');
+    expect(preferences.record.value?.revision).toBe(1);
+    await preferences.load(); expect(preferences.record.value?.revision).toBe(2); expect(preferences.record.value?.value.appIconStyle).toBe('dark');
   });
   it('keeps settings reload reachable after a read failure', async () => {
     const fixture=createSettingsMock({readFailure:()=>true}); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); mounted(SettingsDialog,{open:true,preferences});

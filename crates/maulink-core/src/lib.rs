@@ -51,7 +51,8 @@ pub use profiles::{
     ServerListPage, ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,
 };
 pub use settings::{
-    AppSettings, CursorStyle, Language, SettingsRecord, SettingsService, SettingsUpdate, Theme,
+    AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
+    SettingsUpdate, Theme,
 };
 pub use sftp::{SftpManager, SftpTransferManager};
 pub use ssh::{SshConnectionManager, SshConnector, SshSession};

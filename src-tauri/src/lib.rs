@@ -1,3 +1,4 @@
+mod app_icon;
 mod commands;
 mod state;
 
@@ -38,6 +39,7 @@ pub fn run() {
 
             let database = Database::open(app_data_directory.join("maulink.sqlite3"))?;
             let settings = tauri::async_runtime::block_on(SettingsService::load(database.clone()))?;
+            app_icon::apply_on_main(app.handle(), settings.current().value.app_icon_style)?;
             let credential_worker = CredentialWorker::native()?;
             let credentials = CredentialManager::new(database.clone(), credential_worker);
             if let Err(error) = tauri::async_runtime::block_on(credentials.recover_pending()) {

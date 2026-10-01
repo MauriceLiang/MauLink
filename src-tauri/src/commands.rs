@@ -592,10 +592,17 @@ pub fn settings_get(
 #[tauri::command]
 pub async fn settings_update(
     request: ApiRequest<SettingsUpdate>,
+    app: AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> Result<SettingsRecord, AppError> {
     let (request_id, payload) = request.validate()?;
-    attach_request_id(request_id, state.settings.update(payload).await)
+    let result = async {
+        let stored = state.settings.update(payload).await?;
+        crate::app_icon::apply(&app, stored.value.app_icon_style).await?;
+        Ok(stored)
+    }
+    .await;
+    attach_request_id(request_id, result)
 }
 
 #[tauri::command]

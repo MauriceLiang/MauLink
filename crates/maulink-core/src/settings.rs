@@ -15,6 +15,14 @@ pub enum Theme {
     Dark,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum AppIconStyle {
+    #[default]
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum Language {
     #[serde(rename = "zh-CN")]
@@ -37,6 +45,8 @@ pub enum CursorStyle {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme: Theme,
+    #[serde(default)]
+    pub app_icon_style: AppIconStyle,
     pub language: Language,
     pub terminal_font_family: String,
     pub terminal_font_size: f32,
@@ -50,6 +60,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             theme: Theme::System,
+            app_icon_style: AppIconStyle::Light,
             language: Language::ZhCn,
             terminal_font_family: "monospace".to_owned(),
             terminal_font_size: 14.0,
@@ -260,6 +271,7 @@ mod tests {
 
         let value = AppSettings {
             theme: Theme::Dark,
+            app_icon_style: AppIconStyle::Dark,
             ..AppSettings::default()
         };
         let stored = service
@@ -289,6 +301,19 @@ mod tests {
             .await
             .expect("reload settings");
         assert_eq!(reloaded.current().value, value);
+    }
+
+    #[test]
+    fn old_settings_default_to_light_icon_and_invalid_styles_fail() {
+        let mut value = serde_json::to_value(AppSettings::default()).expect("settings JSON");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("appIconStyle");
+        let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
+        assert_eq!(old.app_icon_style, AppIconStyle::Light);
+        value["appIconStyle"] = serde_json::json!("system");
+        assert!(serde_json::from_value::<AppSettings>(value).is_err());
     }
 
     #[test]

@@ -1,4 +1,5 @@
 export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
+  "errors.appIconApplyFailed": { "zh-CN": "设置已保存，但应用图标更新失败。请重新加载设置后重试，或重启应用。", en: "Settings saved, but the app icon could not be updated. Reload settings and retry, or restart the app." },
   "errors.settingsDataInvalid": { "zh-CN": "设置数据无效，请重新加载或检查本地存储。", en: "Settings data is invalid. Reload or check local storage." },
   "errors.settingsSerializeFailed": { "zh-CN": "设置未能保存，请重试。", en: "Settings could not be saved. Try again." },
   "errors.terminalFontFamilyInvalid": { "zh-CN": "字体名称需为 1 到 128 个字符，且不含控制字符。", en: "Font family must contain 1 to 128 characters with no control characters." },

@@ -39,3 +39,5 @@
 .base-status-badge { display: inline-flex; padding: 4px 8px; border-radius: 20px; background: var(--surface-subtle); color: var(--muted); font-size: 12px; }
 .base-status-badge--success { color: var(--success); }
 .base-status-badge--error { color: var(--danger); }
+
+.settings-app-icon-preview { display: block; border-radius: 12px; object-fit: contain; }

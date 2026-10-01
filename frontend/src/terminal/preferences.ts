@@ -5,7 +5,7 @@ import type { createSettingsApi } from "../ipc/settings";
 import { mapError } from "../errors/mapper";
 import { locale } from '../i18n/locale';
 import { presentError } from "../errors/presenter";
-export const defaultSettings: AppSettings = { theme: 'system', language: 'zh-CN', terminalFontFamily: 'monospace', terminalFontSize: 14, terminalCursorStyle: 'block', terminalScrollbackLines: 10000, downloadDirectoryToken: null, confirmBeforeDisconnect: true };
+export const defaultSettings: AppSettings = { theme: 'system', appIconStyle: 'light', language: 'zh-CN', terminalFontFamily: 'monospace', terminalFontSize: 14, terminalCursorStyle: 'block', terminalScrollbackLines: 10000, downloadDirectoryToken: null, confirmBeforeDisconnect: true };
 const copyKey = 'maulink.terminal.copyOnSelect';
 export function createTerminalPreferences(api: ReturnType<typeof createSettingsApi>, apply: (settings: AppSettings) => void) {
   const record = shallowRef<SettingsRecord | null>(null);
