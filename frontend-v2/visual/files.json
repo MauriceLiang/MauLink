@@ -1,0 +1,12 @@
+[
+  {"name":"src","fileType":"directory","sizeBytes":null},
+  {"name":"node_modules","fileType":"directory","sizeBytes":null},
+  {"name":"logs","fileType":"directory","sizeBytes":null},
+  {"name":"package.json","fileType":"file","sizeBytes":"2154"},
+  {"name":"deploy.sh","fileType":"file","sizeBytes":"4830"},
+  {"name":".env","fileType":"file","sizeBytes":"1220"},
+  {"name":"README.md","fileType":"file","sizeBytes":"6554"},
+  {"name":".gitignore","fileType":"file","sizeBytes":"312"},
+  {"name":"nginx.conf","fileType":"file","sizeBytes":"1843"},
+  {"name":"中文说明.txt","fileType":"file","sizeBytes":"4096"}
+]

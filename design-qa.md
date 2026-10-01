@@ -1,71 +1,65 @@
 # MauLink 前端逐页改造验收记录
 
-**检查日期：2026-09-30**
-final result: blocked
+检查日期：2026-10-01（Asia/Shanghai）。当前实现：frontend-v2；旧 frontend 保留。
 
-## 对照材料与截图证据
+**Browser visual evidence: PASS（Phase 10）**。
 
-- 视觉基准：本机交互原型 [MauLink_prototype_local.html](/Users/mauriceliang/Documents/code/MauLink/UI/MauLink_prototype_local.html)，文件页地址 `http://127.0.0.1:8080/MauLink_prototype_local.html#view=files&select=web-01`。改造计划：`/Users/mauriceliang/Downloads/MauLink_UI逐页改造计划_Codex执行版_v1.1.md`。
-- 实现：`frontend/index.html`、`frontend/styles.css`、`frontend/src/main.mjs`、`frontend/src/i18n.mjs`、`frontend/src/command-palette.mjs`、`frontend/src/terminal-preferences.mjs`。
-- 实现截图路径：**未落盘**。CUA 截图只在本次工具输出中显示，未生成可复用的项目内 PNG 文件。
-- 本轮 Settings / Terminal 与 Add Server 在隔离 Tauri 构建中复核。QA 窗口配置为 **906×756 logical px**，截图输出为 **1812×1512 device px**（DPR 2）；原型截图输出为 **906×756 px**，其 CSS 视口/DPR 未通过浏览器接口读取。视口证据不支持像素级差分。
-- 此前 Files 页检查使用浅色主题：原型使用虚构的 Web-01、示例文件和三条演示传输；产品使用隔离配置 `io.maulink.uiqa.20260929`、本机回环 SSH/SFTP（`127.0.0.1:49224`）、测试文件和实际传输记录。内容、传输数和视口不一致，截图只可用于粗看结构与 token，不能作为严格视觉验收证据。本轮 Add Server 与 Settings 检查未连接服务器。
-- 本轮 Settings / Terminal 原型与运行态：原型当前可见 14 px、方块光标、“选中即复制”关闭，以及“底部输入栏 / 终端内联输入”选择卡。最新应用在空隔离 profile 中确认 14 px、方块光标、复制关闭；字体 `monospace` 和 10000 行滚动缓冲保留在折叠的高级区。原型未显示字体或滚动缓冲控件。应用没有独立的底部命令输入模式，未将交互式 xterm 替换为输入框。
-- 本轮 Add Server：浅色原型与最新 Tauri QA 构建的弹窗外框约为同一尺寸（原型约 526×557 px，产品 CSS 目标 526×556 px）；字段顺序、认证切换、凭据说明、高级连接选项和按钮层级一致。产品中验证了密码/SSH 密钥切换与高级区展开，表单未提交；原型按钮的 CUA 点击未改变认证/高级状态，因此这些交互只以原型静态默认态和产品真实状态作视觉对照。
-- 本轮 Empty Home：空隔离 profile 的首页在浅色、深色都已打开查看；中央图标、标题、说明、主按钮和侧栏无服务器状态可见。为避免改变服务器资料，未点击原型的 Load demo servers；Learn about MauLink 外链也未打开。
-- 局部截图：未单独裁切。当前截图接口只返回整窗图；密集文件表格的字号、边框与行距还需在同尺寸截图或局部对照中复核。
+**完整产品 / 双平台 release QA：final result: blocked**。该状态包含已有后端能力、Phase 6 行为和平台缺口，不再以“截图未落盘”为原因。用户取消后续 Native 手动门禁，阶段状态按报告的授权范围判断；未实测项不会被改写为 Native PASS。
 
-## 已完成的修正与运行态验证
+2026-09-30 的旧前端历史检查保存在 Git 历史；本文件当前逐页结果针对 Vue frontend-v2，不把旧版动态 SSH / 不同 DPR 的截图当新视觉基线。
 
-- 先前运行态发现文件修改时间占用过宽、无速率数据时显示孤立的“—”。已将时间格式改为紧凑的 `Sep 29 22:51`，并在没有有效速率/剩余时间时隐藏该元信息。最新 Tauri 构建的真实 SFTP 下载完成后，传输卡只显示文件名与完成状态，未出现孤立占位符。
-- 文件页在隔离回环服务器上完成目录浏览、分页加载、创建文件夹、上传、重命名、下载及刷新验证；操作均限于临时 fixture。删除确认流程尚未执行，等待单独的操作时确认。
-- Page 16 命令面板已在 Tauri 中验证打开、搜索、方向键跳过禁用项、Enter 执行动作、Escape 关闭；文件行菜单中下载、复制路径、重命名和删除可用，远程查看/编辑因后端无对应接口而禁用。
-- Settings 的外观、通用、终端、语言页曾在隔离应用中查看；本轮在最新 CSS 构建中检查了终端设置浅/深主题，修正深色下设置标签的低对比度，并恢复浅色。此前 English 单终端复数检查结果仍有效。主题与语言变化均限于隔离 QA profile。
-- Monitor 在本机 fixture 下正确显示指标暂不可用状态；没有 Linux 服务器指标可供验证，没有伪造监控数据。
+## 对照材料与证据
+
+- 原型：本机 `UI/MauLink_prototype_local.html`，SHA256 `fb9e3ad1675fdea4e67d0f1f90b80c160404be02c7ac4faae05bc002fbe02063`。
+- 原型参考：临时冻结副本，保留 layout/CSS；固定 demo clock/random、停止 intervals、隔离偏好、对齐服务器数量/表单默认值/文件清单/传输有无。变换与源 hash：[prototype-source.json](docs/refactor/screenshots/phase-10/prototype-source.json)。不修改原始原型，不把演示内容当真实 Core。
+- 实现：`?harness=visual&page=…&theme=light|dark&locale=zh-CN|en`，生产组件 + Typed Mock IPC。`page` 与确定性 UI 操作 recipe 见 [cases.json](frontend-v2/visual/cases.json)；URL 固定 fixture，脚本点击真实可见控件进入目标状态。
+- 同一 Browser，CSS **1440×920、860×640**，DPR **1**，Light/Dark、zh-CN/English；每张 JPEG 真实像素尺寸与 CSS×DPR 一致。系统字体、Asia/Shanghai 文件日期，不混用历史 DPR=2 Native 图片。
+- [实现图](docs/refactor/screenshots/phase-10/implementation/)：23 场景 × 8 条件 = **184 张**；[原型参考图](docs/refactor/screenshots/phase-10/reference/)：20 场景 × 8 条件 = **160 张**。均两次独立装载 byte-identical。
+- [双列画廊](docs/refactor/screenshots/phase-10/index.html)、[summary](docs/refactor/screenshots/phase-10/summary.json)、每组 capture manifest（URL、实际 CSS/DPR/theme/locale/fonts/overflow、两次 SHA256）。[重建与校验](frontend-v2/visual/README.md)。
+- 默认回归保留旧基线：缺失/变化/重复不等均失败并输出候选，仅审阅后显式 update。23 张中文浅色宽屏及偏好隔离后的八种终端设置条件已另行通过默认 baseline 比较。
+- 原型 `.app` min-width=960px，在 CSS 860px 下出现横向溢出；如实保留原始布局。新实现所有 184 个状态无横向溢出。两者相同 CSS 条件可做结构对照，不要求不同产品能力下的像素相等。
 
 ## 逐页状态
 
-| Page | 页面 | 状态 | 证据或未完成项 |
+“证据 PASS”仅表示页面状态、固定条件、落盘与重复验证完成；功能 / Core / 原生平台结果独立记录。
+
+| Page | 页面 | 当前状态 | 证据与实际差异 / 未完成项 |
 | --- | --- | --- | --- |
-| 0 | Shell 基线 | 部分 | token 与 CSS legacy 清单已记录；缺少同尺寸落盘截图和全部 hover/focus 对照。 |
-| 1 | Application Shell | 部分 | 已检查实际 macOS 应用框架和原生交通灯位置；完整尺寸对照、截图归档未完成。 |
-| 2 | Welcome / Empty Home | 部分 | 空隔离 profile 的浅色与深色首页已运行态查看，主要层级和侧栏状态可见；未改变 profile 加载 demo servers，也未打开 Learn about MauLink 外链，因此对应完整点击路径未验收。 |
-| 3 | Server Home / Cards | 未通过 | 当前实机 profile 与原型演示服务器数据不一致，分组/卡片全状态未逐项核验。 |
-| 4 | Add Server | 部分 | 弹窗宽高已收敛到约 526×556 px，浅色截图与原型结构对齐；密码/SSH 密钥切换和高级区展开已在隔离运行态验证。表单验证、测试连接、保存 Toast 未验收。 |
-| 5 | Edit / Delete Server | 未通过 | 产品资料编辑与删除完整运行路径未验收。 |
-| 6 | Connection Security / Errors | 未通过 | Host Key、凭据挑战、Host Key 变化及连接错误路径未全部重跑。 |
-| 7 | Workspace / Terminal | 部分 | 已进入真实回环 workspace；终端输入、生命周期及原型逐状态对照未完成。 |
-| 8 | Terminal Focus Mode | 未通过 | 焦点模式的进入、退出和键盘行为未验收。 |
-| 9 | Files / SFTP | 部分 | 回环 SFTP 目录、分页、创建目录、上传、重命名、下载和完成传输卡已实测；删除动作待确认。 |
-| 10 | Remote File View / Edit / Delete | 未通过 | 查看和编辑目前因缺少远程文本读写 IPC 而禁用；删除确认流程未执行。不能以模拟内容代替真实文件。 |
-| 11 | Monitor | 部分 | 不可用状态运行正常；没有可用 Linux 指标源验证成功数据态。 |
-| 12 | Settings / General | 部分 | 设置页已查看；完整控件与持久化逐项复核未完成。 |
-| 13 | Settings / Appearance | 部分 | 隔离 profile 已切换暗色并恢复浅色；其余页面的深色回归未逐页完成。 |
-| 14 | Settings / Terminal | 部分 | 顶层字号预设、光标分段选项、选中即复制已运行态复核；字体/自定义字号/滚动缓冲收在折叠高级区，深色标签对比度已修正。没有服务器连接，因此设置应用到活动 xterm 的效果未验证。原型输入方式卡片不适用于当前真实交互式 xterm，没有伪造底部命令输入。 |
-| 15 | Settings / Language | 部分 | 中英文切换、翻译和单终端复数已实测；完整文案矩阵尚未验证。 |
-| 16 | Palette / Context Menu / Toast | 部分 | 命令面板键盘路径、文件菜单和若干文件操作提示已测；服务器菜单与所有 Toast 变体未验收。 |
-| 17 | Dark Theme Regression | 未通过 | 原型深色入口已查看，产品只在有限页面切换过主题；未覆盖全部页面与弹窗。 |
-| 18 | Responsive / macOS / Windows | 未通过 | CSS 断点已检查；计划的四种尺寸未全部在运行态捕获，Windows 环境不可用。 |
-| 19 | Legacy CSS Cleanup | 未通过 | `frontend/styles.css` 仍有旧规则与 prototype-aligned 后置覆盖；尚未完成 selector 使用审计和逐页删除。 |
-| 20 | Final Screenshot QA | 未通过 | 缺少相同 CSS 视口/状态/密度的落盘实现截图与最终逐屏比较。 |
+| 0 | Shell 基线 | 证据 PASS；精确 fidelity 部分 | empty / servers 双主题双语双视口；token、留白与圆角可对照，不宣称全部 hover/focus 或逐像素一致。 |
+| 1 | Application Shell | 证据 PASS；Native 部分 | Sidebar / Topbar / Statusbar / user groups 固定。Browser 为真实 macOS traffic-light 留白，原型是假交通灯；原生窗口四尺寸、minimize/restore 属 Phase 11。 |
+| 2 | Welcome / Empty Home | 证据 PASS | empty 8 条件。新增服务器、About 等生产入口沿用；未伪造 Core 中不存在的 demo 导入或访问外链。 |
+| 3 | Server Home / Cards | 证据 PASS | servers 8 条件，三个固定 profile、两个 group。用户分组名保留原文；卡片菜单与留白存在已有产品差异。CRUD 功能见 Phase 4。 |
+| 4 | Add Server | 证据 PASS | add-server 8 条件；固定默认字段，不保存凭据。生产表单/认证/token 等功能见 Phase 4；原型 segmented controls 与实现呈现不同。 |
+| 5 | Edit / Delete Server | 证据 PASS | edit-server / delete-server 各 8 条件。Delete 只打开确认，不执行真实删除；revision/credential 行为见 Phase 4。 |
+| 6 | Connection Security / Errors | 证据 PASS | 首次/变化 Host Key、authentication、connection-error 各 8 条件。实现保留安全语义，原型是简化示意；真实连接见 Phase 5 / 用户 Phase 9。 |
+| 7 | Workspace / Terminal | 证据 PASS；完整行为仍有缺口 | terminal 8 条件，经生产 xterm 和 Channel 输出固定 UTF-8/ANSI。真实 SSH/输入用户 Phase 9 已确认；Phase 6 Ctrl+C/vim/突发输出等缺口不因截图消失。 |
+| 8 | Terminal Focus Mode | 证据 PASS | focus 8 条件，实际 UI 点击进入，宽度变化有固定输出证据；原型专注层与真实 xterm 结构不同，完整快捷键行为参见 Phase 6 / 9。 |
+| 9 | Files / SFTP | 证据 PASS | files / transfer 各 8 条件，同一 POSIX path 和共享文件 fixture；固定传输进度。真实 SFTP / task 语义见 Phase 7，不用静态进度代替 integration。 |
+| 10 | Remote File View / Edit / Delete | Delete 证据 PASS；View/Edit BLOCKED | file-delete 8 条件；View/Edit 因既有后端缺少文本读写 IPC 持续禁用。这是既有能力差距，不伪造文本读取/保存。 |
+| 11 | Monitor | 证据 PASS；真实 Linux 成功态未现场验证 | monitor / monitor-unavailable 各 8 条件。共享契约质量与 history；原型 process/latency 等缺后端的数据不添加。Core 及 concurrency 见 Phase 8。 |
+| 12 | Settings / General | 证据 PASS；原型能力不同 | settings-general 8 条件；只呈现 Core 支持的断开确认。没有伪造恢复会话/自动更新。用户 Phase 9 已确认保存与重启。 |
+| 13 | Settings / Appearance | 证据 PASS | settings-appearance 8 条件；保存型 Dialog 对照原型全页即时设置。Light/Dark 全矩阵；System 用户 Phase 9 实测，操作系统实际切换未现场验证。 |
+| 14 | Settings / Terminal | 证据 PASS | settings-terminal 8 条件，字号/光标/copy/font/scrollback 与契约一致。无伪底部输入模式；活动应用及重启持久化用户 Phase 9 确认。 |
+| 15 | Settings / Language | 证据 PASS | settings-language 和所有其他场景均 zh-CN/en；参数与单复数有自动化保护，远端内容不翻译。 |
+| 16 | Palette / Context Menu / Toast | 证据 PASS | palette / context-menu / toast 各 8 条件。后两项及 Monitor unavailable 无对应原型固定 hash，但有实现基线；键盘及 restore 见 Phase 9。 |
+| 17 | Dark Theme Regression | 证据 PASS | 23 个实现状态 × 双语 × 双视口 = 92 张 Dark；全部独立重复一致，无横向溢出。完整 WCAG / 全 hover 状态未另立审计。 |
+| 18 | Responsive / macOS / Windows | Browser 两视口 PASS；完整平台 BLOCKED | 860×640、1440×920 全量固定场景已捕获；中等/更大视口与真实平台项目由 Phase 11处理。Windows runner/device 未提供。 |
+| 19 | Legacy CSS Cleanup | 待正式切换阶段 | 旧 frontend / legacy CSS 保留可恢复；新样式按组件模块组织。本阶段未删除旧入口，清理属于后续正式切换。 |
+| 20 | Final Screenshot QA | Browser 证据 PASS；完整产品部分 | 344 张可重复图片、同条件参考、hash/真实像素校验与画廊落盘。没有再用历史不同 viewport/DPR、真实 SSH 动态内容做严格基线；平台与能力问题单独保留。 |
 
-## 必需视觉面的检查结论
+## 视觉对照结论
 
-- **字体与排版：**文件行、表格列和传输状态在运行态可读；原型与应用截图视口不同，没有足够证据比较字形宽度、字重、行高或截断差异。
-- **间距与布局：**侧栏/工具栏尺寸 token 已按原型建立，文件浏览区与传输区的结构已运行。两张文件页画面的视口和示例内容不同，因此比例、行距及边距尚未通过同尺寸核验。
-- **颜色与 token：**浅色紫色强调和灰白表面已运行；深色产品回归未完成，当前没有同密度像素采样。
-- **图像与图标：**已检查的 shell 与文件页继续使用项目现有图标系统；本次目标区域没有需要新增的照片或插画。原型与实现的图标细节仍待局部同尺寸对照。
-- **文案与内容：**中英文 UI 翻译包含单复数运行态检查；SFTP 时间格式与无速率传输卡已修正。动态服务器、路径、文件列表因原型为演示资料而不要求逐字相同。
+- **字体 / 排版：**同环境的 baseline 可做回归，双语无页面横向溢出；终端使用 xterm 与 monospace。原型与产品控件类型、文案及字体 stack 有已知差异，不以截图一致性测试宣称相同排版。
+- **间距 / 布局：**宽屏双列 Server Card、窄屏单列、Sidebar、Files / Transfer 分区、Dialogs 均有固定证据。Server 页内边距、Settings Dialog 对原型全页、Monitor quality/history 对原型 demo panel 的差异明确保留。
+- **颜色 / token：**Light/Dark 贯穿全部实现状态；原型 860px 自身溢出有明确记录。未通过修改原型 min-width 或生产色值制造假匹配。
+- **图标：**使用项目现有图标系统；文件类型符号、真实交通灯留白、更多操作按钮与原型存在已知差异，无新增图片资源。
+- **文案 / 数据：**模块 catalog、用户名称与远端路径分开；Mock 与真实 Core 证据分开。参考 demo metrics 与真实契约范围不同，不能以 prototype process table 假装后端实现。
 
-## 阻塞问题与下一步
+## 未解决项
 
-- **[P1] 文件查看/编辑能力缺失。**原型提供远程文件查看/编辑入口，应用因现有后端未提供文本读取/写回接口而禁用。保持现有 IPC 契约时不能实现真实编辑，也不能伪造预览内容；需另立后端能力范围后才能补齐该页。
-- **[P2] 视觉验收证据不满足对照条件。**本轮 CUA 没有提供将截图保存为指定路径的接口；虽然 Add Server 与 Settings / Terminal 已在相同配置逻辑视口检查，但截图没有落盘，也未做像素差分。仍需归档同主题/状态的全景与文件表格局部截图。
-- **[P2] 页面覆盖与平台验收仍不完整。**余下页面交互、深色全量回归和四种 macOS 窗口尺寸未全部完成；Windows 运行验收依赖可用的 Windows 环境。debug/release bundle ID 冲突已通过 `io.maulink.uiqa.20260930modal` 隔离构建绕开；`cargo tauri` 子命令仍不可用，但 Cargo 离线构建与实际 QA 窗口运行已验证。
-- **[P2] CSS 仍有旧规则叠加。**完成页面视觉验收后，按组件实际使用关系逐步清理旧绿色主题与重复覆盖，避免一次性删除仍被页面使用的规则。
+- **[P1 / 既有能力差距]** 远程文件文本 View/Edit 无对应 Core IPC。本阶段没有扩大后端范围、伪造 preview/save 或将其记为完成。
+- **[P2]** Phase 6 完整终端行为验收缺口保留；此前用户允许先推送进入后续阶段，未将 Phase 6 改为全面 PASS。
+- **[P2]** Windows / 原生四尺寸、minimize/restore、真实 Linux 成功指标等完整 release QA 未全部现场完成；用户 Browser 门禁不等于 Native PASS。
+- **[后续]** 正式前端切换与旧 CSS 清理尚未执行。
 
-## 自动化与构建检查
-
-截至 2026-09-30：`node --check`（`main.mjs`、`i18n.mjs`、`command-palette.mjs`、`terminal-preferences.mjs`）通过；`node --test frontend/tests/*.test.mjs` 为 24 项通过、0 失败；`git diff --check` 通过；本轮正式 Cargo 离线构建与两个唯一 bundle ID 的隔离 QA 构建均通过。最新 QA 窗口实际显示了调整后的 Add Server 弹窗、Terminal 设置页及空首页浅/深主题。
-
-本文件保持 **final result: blocked**，直到截图对照门禁、待验收页面和已知能力限制得到解决；不将交互原型的演示数据算作产品运行证据。
+“实现截图未落盘 / 无固定视觉 fixture / 不同 CSS 视口导致不可对照”的旧阻塞已解决。具体自动化、Browser 过程、限制和退出范围见 [Phase 10 报告](docs/refactor/frontend-v2-phase-10.md)。

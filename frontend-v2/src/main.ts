@@ -13,7 +13,9 @@ import "./styles/files.css";
 import "./styles/monitor.css";
 import "./styles/settings.css";
 
-if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "settings") {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "visual") {
+  void import("./harness/VisualHarness.vue").then(({ default: VisualHarness }) => { createApp(VisualHarness).mount("#app"); });
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "settings") {
   void import("./harness/SettingsHarness.vue").then(({ default: SettingsHarness }) => { createApp(SettingsHarness).mount("#app"); });
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get("harness") === "monitor") {
   void import("./harness/MonitorHarness.vue").then(({ default: MonitorHarness }) => { createApp(MonitorHarness).mount("#app"); });

@@ -1,0 +1,189 @@
+[
+  {
+    "page": "empty",
+    "steps": [],
+    "reference": "noDemo=1&view=home"
+  },
+  {
+    "page": "servers",
+    "steps": [],
+    "reference": "view=home"
+  },
+  {
+    "page": "add-server",
+    "steps": [
+      "add"
+    ],
+    "reference": "view=home&modal=add"
+  },
+  {
+    "page": "edit-server",
+    "steps": [
+      "server-menu",
+      "edit"
+    ],
+    "reference": "view=home&modal=edit"
+  },
+  {
+    "page": "delete-server",
+    "steps": [
+      "server-menu",
+      "delete-server"
+    ],
+    "reference": "view=home&modal=del"
+  },
+  {
+    "page": "host-key",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": "view=home&modal=hostkey"
+  },
+  {
+    "page": "host-key-changed",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": "view=home&modal=changed"
+  },
+  {
+    "page": "authentication",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": "view=home&modal=cred"
+  },
+  {
+    "page": "connection-error",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": "view=home&modal=err"
+  },
+  {
+    "page": "terminal",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": "view=workspace&select=web-01&term=inline"
+  },
+  {
+    "page": "focus",
+    "steps": [
+      "select",
+      "connect",
+      "focus"
+    ],
+    "reference": "view=workspace&select=web-01&term=inline&modal=focus"
+  },
+  {
+    "page": "files",
+    "steps": [
+      "select",
+      "connect",
+      "files"
+    ],
+    "reference": "view=files&select=web-01"
+  },
+  {
+    "page": "transfer",
+    "steps": [
+      "select",
+      "connect",
+      "files"
+    ],
+    "reference": "view=files&select=web-01&transfers=1"
+  },
+  {
+    "page": "file-delete",
+    "steps": [
+      "select",
+      "connect",
+      "files",
+      "file-menu",
+      "delete-file"
+    ],
+    "reference": "view=files&select=web-01&modal=filedel"
+  },
+  {
+    "page": "monitor",
+    "steps": [
+      "select",
+      "connect",
+      "monitor"
+    ],
+    "reference": "view=monitor&select=web-01"
+  },
+  {
+    "page": "monitor-unavailable",
+    "steps": [
+      "select",
+      "connect",
+      "monitor"
+    ],
+    "reference": null
+  },
+  {
+    "page": "settings-general",
+    "steps": [
+      "settings",
+      "general"
+    ],
+    "reference": "view=settings&sec=general"
+  },
+  {
+    "page": "settings-appearance",
+    "steps": [
+      "settings",
+      "appearance"
+    ],
+    "reference": "view=settings&sec=appearance"
+  },
+  {
+    "page": "settings-terminal",
+    "steps": [
+      "settings",
+      "terminal-section",
+      "terminal-settings"
+    ],
+    "reference": "view=settings&sec=termSec"
+  },
+  {
+    "page": "settings-language",
+    "steps": [
+      "settings",
+      "language"
+    ],
+    "reference": "view=settings&sec=language"
+  },
+  {
+    "page": "palette",
+    "steps": [
+      "palette"
+    ],
+    "reference": "view=home&palette=1"
+  },
+  {
+    "page": "context-menu",
+    "steps": [
+      "select",
+      "connect",
+      "files",
+      "file-menu"
+    ],
+    "reference": null
+  },
+  {
+    "page": "toast",
+    "steps": [
+      "settings",
+      "save-settings"
+    ],
+    "reference": null
+  }
+]

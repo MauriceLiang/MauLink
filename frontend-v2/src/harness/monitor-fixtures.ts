@@ -2,9 +2,9 @@ import type { MonitorSnapshot } from "../../../contracts/v1/MonitorSnapshot";
 import type { MonitorQualityStatus } from "../../../contracts/v1/MonitorQualityStatus";
 import { createMockIpc } from "../ipc/mock";
 import { fixtureError } from "./server-fixtures";
-export function monitorFixture(connectionId: string, status: MonitorQualityStatus = 'ok'): MonitorSnapshot {
+export function monitorFixture(connectionId: string, status: MonitorQualityStatus = 'ok', sampledAtMs = Date.now()): MonitorSnapshot {
   const known = status === 'ok' || status === 'stale';
-  const quality = { status, sampledAtMs: status === 'warmingUp' ? null : Date.now() - (status === 'stale' ? 60000 : 0), collectionDurationMs: 24, errorCode: status === 'stale' || status === 'error' ? 'MONITOR_COLLECTION_FAILED' : null };
+  const quality = { status, sampledAtMs: status === 'warmingUp' ? null : sampledAtMs - (status === 'stale' ? 60000 : 0), collectionDurationMs: 24, errorCode: status === 'stale' || status === 'error' ? 'MONITOR_COLLECTION_FAILED' : null };
   return {
     connectionId,
     cpu: { usagePercent: known ? 24.5 : null, logicalCores: known ? 4 : null, quality: { ...quality } },

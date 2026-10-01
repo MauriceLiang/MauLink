@@ -1,0 +1,17 @@
+[
+  {
+    "page": "settings-terminal",
+    "file": "settings-terminal-dark-zh-CN-860x640.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=settings-terminal&theme=dark&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 640,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "dark",
+    "width": 860,
+    "sha256": "9d6554b8ed7cee5e1bce93ce00f314556e986757b5b0f6501eb0a6e2bc390813",
+    "repeatSha256": "9d6554b8ed7cee5e1bce93ce00f314556e986757b5b0f6501eb0a6e2bc390813",
+    "identical": true
+  }
+]

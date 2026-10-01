@@ -155,3 +155,9 @@ Browser 验收：`http://127.0.0.1:1420/?harness=monitor`，Web-01 → 连接。
 ## Phase 9：Settings / i18n / Command Palette
 
 DEV 地址 `http://127.0.0.1:1420/?harness=settings`。真实设置通过 Rust SettingsService 更新；Harness 为显式内存 Settings/SSH fixture，不写正式资料。主题/语言/终端设置、模块 catalog、统一菜单和 Palette 已建立，115 项测试与 build 通过。Browser 工具无法完成终端焦点组合键，用户已在独立 Tauri release 应用完成 1–7 项实测，包含快捷键放行及重启持久化，并确认正常。本阶段 PASS，可进入 Phase 10；保留 Browser 工具限制记录。完整记录见 `docs/refactor/frontend-v2-phase-9.md`。
+
+## Phase 10：固定 Browser 视觉回归
+
+`?harness=visual&page=servers&theme=light&locale=zh-CN` 提供 DEV-only Typed Mock fixture。23 个 test route 与固定真实 UI 操作 recipe 见 `visual/cases.json`，截图自动化通过 CUA Browser 执行。固定 Light/Dark、zh-CN/en、CSS 1440×920/860×640、DPR=1，184 张实现基线与 160 张冻结原型参考图均独立重复 byte-identical。
+
+默认回归不会覆盖旧图，缺失/变化会生成 candidate 并失败；审阅后才显式 update。运行 `node --test frontend-v2/visual/capture.test.mjs` 和 `node frontend-v2/visual/verify.mjs` 校验保护行为、SHA256 与 JPEG 真实尺寸并生成画廊。详见 `visual/README.md`、`docs/refactor/frontend-v2-phase-10.md`、根目录 `design-qa.md`；Browser visual PASS 与完整 Native/platform QA 分开，既有能力缺口保留。
