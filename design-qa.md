@@ -43,7 +43,7 @@
 | 15 | Settings / Language | 证据 PASS | settings-language 和所有其他场景均 zh-CN/en；参数与单复数有自动化保护，远端内容不翻译。 |
 | 16 | Palette / Context Menu / Toast | 证据 PASS | palette / context-menu / toast 各 8 条件。后两项及 Monitor unavailable 无对应原型固定 hash，但有实现基线；键盘及 restore 见 Phase 9。 |
 | 17 | Dark Theme Regression | 证据 PASS | 23 个实现状态 × 双语 × 双视口 = 92 张 Dark；全部独立重复一致，无横向溢出。完整 WCAG / 全 hover 状态未另立审计。 |
-| 18 | Responsive / macOS / Windows | Browser 两视口 PASS；完整平台 BLOCKED | 860×640、1440×920 全量固定场景已捕获；中等/更大视口与真实平台项目由 Phase 11处理。Windows runner/device 未提供。 |
+| 18 | Responsive / macOS / Windows | Browser 四视口 PASS；完整平台 BLOCKED | 860×640、1440×920 全量固定场景；1080×760、1920×1080 各 8 场景独立重复截图；同一活动终端 resize / 专注退出保持实例、输出及焦点。见 Phase 11 报告。原生最小化/恢复及 Windows WebView2 / 凭据 / 路径 / installer 未实测；按用户 Browser 门禁继续。 |
 | 19 | Legacy CSS Cleanup | 待正式切换阶段 | 旧 frontend / legacy CSS 保留可恢复；新样式按组件模块组织。本阶段未删除旧入口，清理属于后续正式切换。 |
 | 20 | Final Screenshot QA | Browser 证据 PASS；完整产品部分 | 344 张可重复图片、同条件参考、hash/真实像素校验与画廊落盘。没有再用历史不同 viewport/DPR、真实 SSH 动态内容做严格基线；平台与能力问题单独保留。 |
 
