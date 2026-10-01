@@ -6,6 +6,7 @@ import type { TerminalSnapshot } from "../../../contracts/v1/TerminalSnapshot";
 import type { IpcTransport } from "../ipc/client";
 import { createMockIpc } from "../ipc/mock";
 import { createServerMock, fixtureError } from "./server-fixtures";
+import { createMonitorMock } from "./monitor-fixtures";
 import { defaultSettings } from "../terminal/preferences";
 import { joinRemotePath, validBasename } from "../files/path";
 export type FileScenario = 'completed' | 'slow' | 'failed' | 'picker-cancel';
@@ -74,7 +75,7 @@ export function createFilesMock(scenario: () => FileScenario = () => 'completed'
 }
 
 export function createFilesWorkspaceMock(files: ReturnType<typeof createFilesMock>) {
-  const servers = createServerMock();
+  const servers = createServerMock(); const monitor = createMonitorMock();
   let connection: ConnectionSnapshot = { connectionId: 'files-fixture', serverId: null, mode: 'workspace', state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: 1, updatedAtMs: 1 };
   const terminals = new Map<string, TerminalSnapshot>();
   const shell = createMockIpc({
@@ -90,6 +91,7 @@ export function createFilesWorkspaceMock(files: ReturnType<typeof createFilesMoc
     terminal_get: ({ terminalId }) => terminals.get(terminalId)!, terminal_resize: value => value, terminal_ack: () => undefined, terminal_write: ({ inputSeq }) => ({ inputSeq, duplicate: false }), terminal_close: ({ terminalId }) => { const value = terminals.get(terminalId)!; value.state = 'closed'; return value; },
   });
   const transport: IpcTransport = { async invoke<T>(command: string, args?: Record<string, unknown>) {
+    if (command.startsWith('monitor_') || command === 'workspace_set_activity') return monitor.invoke<T>(command, args);
     if (command.startsWith('sftp_') || command === 'local_file_select') return files.transport.invoke<T>(command, args);
     if (command.startsWith('connection_') || command.startsWith('terminal_') || command === 'settings_get') return shell.invoke<T>(command, args);
     return servers.invoke<T>(command, args);

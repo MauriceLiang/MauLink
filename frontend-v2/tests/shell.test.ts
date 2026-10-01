@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import AppShell from "../src/app/AppShell.vue";
 import { createIpcClient } from "../src/ipc/client";
@@ -48,8 +48,10 @@ describe("application shell", () => {
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });
 
-  it("loads every navigation page using read-only typed IPC and never connects SSH", async () => {
+  it("loads every navigation page without connecting SSH and marks home inactive for Core monitoring", async () => {
+    const activity = vi.fn();
     const mock = createMockIpc({
+      workspace_set_activity: activity,
       app_get_info: () => shellAppInfo, group_list: () => shellGroups,
       server_list: payload => payload.cursor === null
         ? { items: [shellServers[0]!], nextCursor: "page-2" }
@@ -62,11 +64,13 @@ describe("application shell", () => {
     } });
     await flushPromises();
     expect(wrapper.findAll(".shell-server-item")).toHaveLength(3);
-    expect(commands).toEqual(["app_get_info", "group_list", "server_list", "server_list"]);
+    expect(commands.filter(command => command !== "workspace_set_activity")).toEqual(["app_get_info", "group_list", "server_list", "server_list"]);
+    expect(activity).toHaveBeenCalledTimes(1);
+    expect(activity).toHaveBeenCalledWith({ activeConnectionId: null, monitorVisible: false });
     await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
     expect(wrapper.get("main").text()).toContain("root@192.168.1.20:22 · 尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
-    expect(commands).toHaveLength(4);
+    expect(commands).toHaveLength(5);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
     expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);

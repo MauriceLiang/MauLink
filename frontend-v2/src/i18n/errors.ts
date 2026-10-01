@@ -1,4 +1,7 @@
 export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
+  "errors.monitorCollectionFailed": { "zh-CN": "监控采集失败，请检查连接和服务器状态。", en: "Monitor collection failed. Check the connection and server." },
+  "errors.monitorTimeout": { "zh-CN": "监控采集超时，请稍后刷新。", en: "Monitor collection timed out. Refresh later." },
+  "errors.monitorHistoryRangeInvalid": { "zh-CN": "监控历史时间范围无效。", en: "The monitor history time range is invalid." },
   "errors.connectionNotReady": { "zh-CN": "SSH 尚未就绪，请重新连接。", en: "SSH is not ready. Reconnect." },
   "errors.directoryNotEmpty": { "zh-CN": "目录非空，请先核实目录内容。", en: "The directory is not empty. Review its contents first." },
   "errors.pathExists": { "zh-CN": "目标名称已存在，请使用其他名称。", en: "The target name already exists. Choose another name." },

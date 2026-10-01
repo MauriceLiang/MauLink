@@ -1,0 +1,34 @@
+.terminal-main { display: grid; grid-template-columns: minmax(0, 1fr) 230px; min-width: 0; min-height: 0; overflow: hidden; }
+.terminal-workspace.is-focused .terminal-main { grid-template-columns: minmax(0, 1fr); }
+.terminal-workspace.is-focused .quick-monitor { display: none; }
+.terminal-workspace.is-monitor { grid-template-rows: 46px minmax(0, 1fr); }
+.quick-monitor { border-left: 1px solid var(--line); background: var(--surface-subtle); overflow: auto; padding: 14px; }
+.full-monitor { padding: 22px; overflow: auto; min-height: 0; background: var(--panel); }
+.quick-monitor header, .full-monitor header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.quick-monitor h2, .full-monitor h2 { margin: 0; font-size: 16px; }
+.quick-monitor h2 { font-size: 13px; }
+.full-monitor header p { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.monitor-updated { color: var(--muted); font-size: 11px; margin: 12px 0; }
+.monitor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.monitor-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; background: var(--surface-subtle); }
+.monitor-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.monitor-card h3 { font-size: 12px; margin: 0; font-weight: 500; }
+.monitor-card-heading span { font-size: 10px; color: var(--muted); }
+.monitor-card[data-quality="ok"] .monitor-card-heading span { color: var(--success); }
+.monitor-card[data-quality="stale"] .monitor-card-heading span, .monitor-card[data-quality="error"] .monitor-card-heading span { color: var(--danger); }
+.monitor-card[data-quality="stale"] .monitor-chart { opacity: .4; }
+.monitor-value { display: block; margin: 16px 0 10px; font-size: 24px; font-weight: 600; overflow-wrap: anywhere; }
+.monitor-card p { color: var(--muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.monitor-card[aria-label="网络速率"] .monitor-value { font-size: 15px; }
+.monitor-chart { width: 100%; height: 42px; overflow: visible; }
+.monitor-chart path { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.monitor-chart .is-secondary { stroke: var(--success); }
+.monitor-system dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; font-size: 12px; }
+.monitor-system dt { color: var(--muted); }.monitor-system dd { margin: 0; overflow-wrap: anywhere; }
+.monitor-notice { color: var(--danger); font-size: 12px; overflow-wrap: anywhere; line-height: 1.6; }
+.quick-monitor .monitor-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.quick-monitor .monitor-card { padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.quick-monitor .monitor-value { margin: 8px 0 0; font-size: 15px; }
+.quick-monitor .monitor-chart { margin-top: 8px; height: 24px; }
+.quick-monitor .monitor-open-full { margin-top: 12px; width: 100%; min-height: 30px; font-size: 11px; }
+@media (max-width: 1100px) { .monitor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .terminal-main { grid-template-columns: minmax(0, 1fr) 190px; } .terminal-workspace.is-monitor { grid-template-rows: auto minmax(0, 1fr); } }

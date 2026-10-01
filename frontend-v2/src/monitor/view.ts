@@ -1,0 +1,25 @@
+import type { MonitorHistorySample } from "../../../contracts/v1/MonitorHistorySample";
+import type { MonitorMetricQuality } from "../../../contracts/v1/MonitorMetricQuality";
+import { formatSize as fileSize } from "../files/path";
+export const formatSize = (value: string | null) => fileSize(value).replace(/\b([KMGTPE])B\b/g, "$1iB");
+export const qualityText = { ok: '正常', warmingUp: '正在采样', stale: '数据已过期', unsupported: '不支持', error: '暂不可用' };
+export const effectiveStatus = (quality?: MonitorMetricQuality, fetchFailed = false) => fetchFailed && quality?.status === 'ok' ? 'stale' : quality?.status ?? 'warmingUp';
+export function metricValue(value: string, quality?: MonitorMetricQuality) {
+  const state = quality?.status ?? 'warmingUp';
+  return state === 'unsupported' || state === 'error' || state === 'warmingUp' ? qualityText[state] : value;
+}
+export const percent = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
+export const loadValue = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—';
+export const rate = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? `${formatSize(String(Math.round(value)))}/s` : '—';
+export function uptime(value?: string | null) {
+  if (value == null) return '—';
+  const seconds = Number(value); if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  const days = Math.floor(seconds / 86400); const hours = Math.floor(seconds % 86400 / 3600); const minutes = Math.floor(seconds % 3600 / 60);
+  return days ? `${days} 天 ${hours} 小时` : `${hours} 小时 ${minutes} 分钟`;
+}
+export function sparkline(samples: MonitorHistorySample[], width = 220, height = 42) {
+  const values = samples.slice(-120).filter(sample => Number.isFinite(sample.value)); if (!values.length) return '';
+  const min = Math.min(...values.map(sample => sample.value)); const max = Math.max(...values.map(sample => sample.value));
+  if (values.length === 1) return `M 0 ${height / 2} L ${width} ${height / 2}`;
+  return values.map((sample, index) => `${index ? 'L' : 'M'} ${(index / (values.length - 1) * width).toFixed(1)} ${(height - 2 - (max === min ? .5 : (sample.value - min) / (max - min)) * (height - 4)).toFixed(1)}`).join(' ');
+}

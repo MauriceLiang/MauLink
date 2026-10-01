@@ -145,3 +145,9 @@ Ctrl+C ACK 计数与 Ctrl+C keydown 字段仅用于开发诊断；不显示输�
 Browser 文件组件验收：`http://127.0.0.1:1420/?harness=files`；AppShell 组合验收：`?harness=files&workspace=1`，进入 Web-01 → 连接 → 文件。均为 DEV 内存 Mock，450 项目录、可重置恢复，不访问真实服务器或文件。场景控件支持完成、慢速取消、失败与取消文件选择。真实 SFTP 后端用仓库隔离 OpenSSH 测试验证。
 
 最终 type-check、87/87 tests、build、Browser 和 4 项 OpenSSH SFTP 测试通过；按用户 Browser 门禁标记 PASS，Native GUI / 系统 picker 未实测。详细结果见 `docs/refactor/frontend-v2-phase-7.md`。Phase 6 的剩余验收问题继续保留。
+
+## Phase 8 共享 Monitor
+
+连接工作区的终端侧栏提供 Quick Monitor，“监控”入口打开 Full Monitor。两者使用 AppShell 的同一控制器与 Core Snapshot；前端统一读取快照及六类历史，不为卡片创建 timer。文件 / Home / 专注视图停止前端读取，Core 继续管理采集频率、固定脚本、backoff 和原生最小化生命周期。不可用与旧数据明确标识，手动刷新调用真实 Core 接口。
+
+Browser 验收：`http://127.0.0.1:1420/?harness=monitor`，Web-01 → 连接。控件明确为 DEV Linux metrics fixture，提供五种质量、快照/历史 IPC 失败、计数与主题；不是实际 SSH/Linux 指标。最终 104/104 tests、type-check、build、11 项 Core Monitor 测试及 1 项真实 OpenSSH 监控/终端/传输并发测试通过。Native GUI、真实 Linux 成功指标和最小化/恢复未现场验证；按用户 Browser 门禁 PASS，详情见 `docs/refactor/frontend-v2-phase-8.md`。
