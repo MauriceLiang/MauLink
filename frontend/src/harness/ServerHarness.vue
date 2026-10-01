@@ -59,8 +59,8 @@ watch(theme, value => { document.documentElement.dataset.theme = value; }, { imm
 </template>
 
 <style scoped>
-.server-harness-controls { position: fixed; right: 12px; bottom: 144px; z-index: 50; max-width: 260px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); background: var(--panel); font-size: 11px; }
+.server-harness-controls { position: fixed; right: 12px; bottom: 144px; z-index: 50; max-width: 260px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-secondary); background: var(--color-surface); font-size: 11px; }
 .server-harness-controls summary { cursor: pointer; }
 .server-harness-controls label { display: grid; gap: 4px; margin: 10px 0; }
-.server-harness-controls select { color: var(--ink); background: var(--panel); }
+.server-harness-controls select { color: var(--color-text-primary); background: var(--color-surface); }
 </style>

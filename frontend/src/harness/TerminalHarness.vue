@@ -63,5 +63,5 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", observeKey, true
 </template>
 
 <style scoped>
-.terminal-harness-counter { position: fixed; bottom: 8px; left: 50%; z-index: 50; font-size: 11px; color: var(--muted); }
+.terminal-harness-counter { position: fixed; bottom: 8px; left: 50%; z-index: 50; font-size: 11px; color: var(--color-text-secondary); }
 </style>

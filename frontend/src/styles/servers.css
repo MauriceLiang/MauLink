@@ -1,36 +1,38 @@
 .server-home { padding: 32px; min-width: 0; }
 .server-home h1 { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
-.server-home-lead { margin: 0 0 20px; color: var(--muted); font-size: 13.5px; line-height: 1.7; }
+.server-home-lead { margin: 0 0 20px; color: var(--color-text-secondary); font-size: 13.5px; line-height: 1.7; }
 .server-home-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.server-home-card { position: relative; display: flex; min-width: 0; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-.server-home-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--muted); }
+.server-home-card { position: relative; display: flex; min-width: 0; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.server-home-card:hover { border-color: var(--color-border-hover); }
+.server-home-card:focus-within { border-color: var(--color-primary-border); }
+.server-home-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--color-text-secondary); }
 .server-home-details { display: grid; flex: 1; min-width: 0; gap: 4px; }
 .server-home-details strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.server-home-details > span { overflow: hidden; color: var(--muted); font: 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.server-home-details > span { overflow: hidden; color: var(--color-text-secondary); font: 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .server-home-card .base-button { min-height: 28px; padding: 0 11px; font-size: 12px; }
 .server-card-menu summary { padding: 4px; border-radius: 4px; cursor: pointer; list-style: none; }
 .server-card-menu summary::-webkit-details-marker { display: none; }
-.server-card-menu > div { position: absolute; z-index: 10; top: calc(100% - 8px); right: 8px; display: grid; gap: 4px; min-width: 132px; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: 0 4px 12px var(--overlay); }
+.server-card-menu > div { position: absolute; z-index: 10; top: calc(100% - 8px); right: 8px; display: grid; gap: 4px; min-width: 132px; padding: 6px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); box-shadow: 0 4px 12px var(--color-shadow); }
 .server-dialog .base-dialog-heading h2 { font-size: 16px; }
 .server-dialog .base-dialog-content { padding: 16px 20px; }
 .server-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 14px 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .server-field-full { grid-column: 1 / -1; }
-.server-dialog .base-field { gap: 6px; font-size: 12px; color: var(--muted); }
+.server-dialog .base-field { gap: 6px; font-size: 12px; color: var(--color-text-secondary); }
 .server-dialog .base-input { min-height: 38px; padding: 8px 11px; font-size: 13px; }
-.server-auth-options { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-hover); }
-.server-auth-options .base-button { flex: 1; min-height: 26px; border: 0; color: var(--muted); background: transparent; font-size: 12px; }
-.server-auth-options .base-button[aria-pressed="true"] { color: var(--accent); background: var(--panel); }
+.server-auth-options { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--color-bg-hover); }
+.server-auth-options .base-button { flex: 1; min-height: 26px; border: 0; color: var(--color-text-secondary); background: transparent; font-size: 12px; }
+.server-auth-options .base-button[aria-pressed="true"] { color: var(--color-primary-hover); background: var(--color-primary-soft); }
 .server-secret-field { position: relative; }
 .server-secret-field .base-input { padding-right: 40px; }
-.server-secret-toggle { position: absolute; top: 24px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: pointer; }
-.server-form-note { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
-.server-key-picker { font-size: 12px; color: var(--muted); }
+.server-secret-toggle { position: absolute; top: 24px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--color-text-secondary); background: transparent; cursor: pointer; }
+.server-form-note { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
+.server-key-picker { font-size: 12px; color: var(--color-text-secondary); }
 .server-key-picker > div { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 .server-key-picker > div > span { flex: 1; overflow-wrap: anywhere; }
 .server-key-picker .base-button { min-height: 30px; font-size: 12px; }
-.server-advanced-toggle { justify-content: space-between; min-height: 24px; padding: 4px 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--muted); font-size: 12.5px; }
-.server-advanced-grid { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-subtle); }
-.server-form-error { color: var(--danger); font-size: 13px; line-height: 1.6; }
+.server-advanced-toggle { justify-content: space-between; min-height: 24px; padding: 4px 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-text-secondary); font-size: 12.5px; }
+.server-advanced-grid { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-subtle); }
+.server-form-error { color: var(--color-danger); font-size: 13px; line-height: 1.6; }
 .server-group-manager { display: grid; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
 .server-group-manager li { display: flex; align-items: center; gap: 8px; }
 .server-group-manager li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }

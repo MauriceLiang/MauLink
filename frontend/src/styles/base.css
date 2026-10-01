@@ -11,8 +11,8 @@ body,
 }
 
 body {
-  color: var(--ink);
-  background: var(--canvas);
+  color: var(--color-text-primary);
+  background: var(--color-bg-app);
   font-family: var(--font-sans);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
@@ -26,6 +26,20 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+input::placeholder, textarea::placeholder { color: var(--color-text-tertiary); opacity: 1; }
+input[type="checkbox"], input[type="radio"], progress { accent-color: var(--color-primary); }
+select:hover:not(:disabled) { border-color: var(--color-border-hover); }
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+select:focus-visible, textarea:focus-visible {
+  border-color: var(--color-border-active);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+input[aria-invalid="true"]:focus-visible { border-color: var(--color-danger); }
+select:disabled, input:disabled, textarea:disabled { color: var(--color-text-disabled); }
+
+option:checked { color: var(--color-primary-hover); background: var(--color-primary-soft); }

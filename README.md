@@ -8,7 +8,7 @@
   <p><strong>连接服务器，专注工作。</strong></p>
   <p>将 SSH 终端、远程文件与主机监控，收进一个本地桌面工作台。</p>
   <p>
-    <img src="https://img.shields.io/badge/version-0.1.0-6366f1?style=flat-square" alt="版本 0.1.0">
+    <img src="https://img.shields.io/badge/version-0.1.0-3b82f6?style=flat-square" alt="版本 0.1.0">
     <img src="https://img.shields.io/badge/status-development-64748b?style=flat-square" alt="开发与内部试用">
     <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square" alt="Tauri 2">
     <img src="https://img.shields.io/badge/Rust-2024-dc7844?style=flat-square" alt="Rust 2024 edition">
@@ -39,19 +39,19 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
     <th>深色 · 统一的工作台外观</th>
   </tr>
   <tr>
-    <td><img src="./docs/refactor/screenshots/logo/light.jpg" alt="MauLink 浅色服务器主页" width="480"></td>
-    <td><img src="./docs/refactor/screenshots/logo/dark.jpg" alt="MauLink 深色服务器主页" width="480"></td>
+    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue 浅色服务器主页" width="480"></td>
+    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue 深色服务器主页" width="480"></td>
   </tr>
 </table>
 
 <details>
 <summary><strong>展开查看终端与 Quick Monitor 工作区</strong></summary>
 
-![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/phase-12/terminal-light-zh-CN-1440x920.jpg)
+![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/color-v1-review/terminal-light-zh-CN-1440x920.jpg)
 
 </details>
 
-截图来自实际 Vue 界面的 Browser Harness，服务器、终端输出和监控指标使用隔离测试数据；终端截图保留迁移时的旧品牌标记。更多页面与回归证据见 [设计 QA](./design-qa.md)。
+截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。配色已由用户在 app 中确认；检查记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，历史页面与回归证据见 [设计 QA](./design-qa.md)。
 
 ## 核心能力
 
@@ -69,6 +69,8 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指定不同用户名。代理目前支持无认证 SOCKS5 和 HTTP CONNECT。远程文件 View / Edit、Docker 管理、数据库客户端、进程列表及 Disk I/O 监控不在当前实现范围内。
 
 ### 图标与外观
+
+界面采用 **MauLink Blue + White / Slate Neutral**：浅色 Primary 为 `#3B82F6`，深色为 `#60A5FA`。主按钮、焦点和选中态共享语义 Token；页面、侧栏与卡片使用中性色，成功、提醒和危险操作使用各自的状态色。布局、组件尺寸和业务交互保持不变。
 
 品牌 Logo 随浅深主题切换；设置中的「应用图标样式」独立选择浅色或深色，保存后更新运行图标并在重启后恢复。macOS Dock 使用所选样式，**Finder 固定使用浅色圆角安装图标**。图标使用真实透明圆角；实现和签名检查见 [图标验收报告](./docs/refactor/app-icon-rounded.md)。
 
@@ -114,7 +116,7 @@ cargo tauri build -- --locked
 cargo tauri build --bundles app --ci -- --locked
 ```
 
-产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。最新图标产物记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)，正式前端切换记录见 [Phase 12](./docs/refactor/frontend-v2-phase-12.md)。
+产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。最新配色构建与用户确认记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，图标记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)，正式前端切换记录见 [Phase 12](./docs/refactor/frontend-v2-phase-12.md)。
 
 <details>
 <summary><strong>macOS 内部打包与签名检查</strong></summary>
@@ -324,7 +326,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 
 ## 验证与发布状态
 
-以下后端状态保留 2026-09-28 的验收范围；前端最新迁移、Browser 与 macOS 构建状态更新至 **2026-10-01**，见 [迁移总结](./docs/refactor/frontend-migration-summary.md)。图标最新验收见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)：128/128 前端测试、Browser 预览与保存回读、macOS arm64 构建及严格签名校验通过；Finder / Dock 原生 GUI 未实测。
+以下后端状态保留 2026-09-28 的验收范围；前端最新迁移、Browser 与 macOS 构建状态更新至 **2026-10-01**，见 [迁移总结](./docs/refactor/frontend-migration-summary.md)。最新颜色系统通过类型检查、128/128 前端测试、58 个 Browser 场景组合、macOS arm64 构建及严格签名校验，用户已确认 app 配色，见 [颜色系统验收](./docs/refactor/color-system-v1.md)。图标专项记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)；上述配色确认不代替完整原生与双平台 QA。
 
 | 范围 | 当前状态 | 仍需完成 |
 | --- | --- | --- |
@@ -353,7 +355,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 | --- | --- |
 | 产品与交互 | [PRD](./docs/MauLink_PRD_v0.1.md) · [MVP 定义](./docs/MauLink_MVP_设计文档_v0.1.md) · [UX 设计](./docs/MauLink_UX_设计文档_v0.1.md) · [UI 说明](./UI/MauLink_UI_描述文档_v0.1.md) |
 | 开发与架构 | [前端说明](./frontend/README.md) · [后端实施](./docs/MauLink_后端开发实施文档_v0.1.md) · [依赖决策](./docs/technical-decisions/dependencies.md) |
-| 迁移与验收 | [前端迁移总结](./docs/refactor/frontend-migration-summary.md) · [视觉回归](./frontend/visual/README.md) · [设计 QA](./design-qa.md) · [图标验收](./docs/refactor/app-icon-rounded.md) |
+| 迁移与验收 | [前端迁移总结](./docs/refactor/frontend-migration-summary.md) · [视觉回归](./frontend/visual/README.md) · [设计 QA](./design-qa.md) · [颜色系统验收](./docs/refactor/color-system-v1.md) · [图标验收](./docs/refactor/app-icon-rounded.md) |
 
 ## 贡献约定
 

@@ -21,9 +21,9 @@ watch(theme, value => { document.documentElement.dataset.theme = value; }, { imm
 </template>
 
 <style scoped>
-.shell-harness-controls { position: fixed; right: 12px; bottom: 36px; z-index: 50; max-width: 240px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); background: var(--panel); font-size: 11px; }
+.shell-harness-controls { position: fixed; right: 12px; bottom: 36px; z-index: 50; max-width: 240px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-secondary); background: var(--color-surface); font-size: 11px; }
 .shell-harness-controls summary { cursor: pointer; }
 .shell-harness-controls label { display: grid; gap: 4px; margin: 10px 0; }
-.shell-harness-controls select { color: var(--ink); background: var(--panel); }
+.shell-harness-controls select { color: var(--color-text-primary); background: var(--color-surface); }
 .shell-harness-controls p { margin: 8px 0 0; }
 </style>

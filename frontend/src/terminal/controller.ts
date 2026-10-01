@@ -133,7 +133,8 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (runtime) { host.append(runtime.mount); fit(id); return; }
     const metadata = tab(id); if (!metadata || disposed) return;
     const mount = document.createElement('div'); mount.className = 'terminal-mount'; host.append(mount);
-    const terminal = new Terminal({ allowProposedApi: false, cursorBlink: true, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: 1.35, theme: { background: '#000000', foreground: '#a7b0be', cursor: '#5b5ce2', selectionBackground: '#373785' } });
+    const colors = getComputedStyle(document.documentElement);
+    const terminal = new Terminal({ allowProposedApi: false, cursorBlink: true, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: 1.35, theme: { background: colors.getPropertyValue('--color-terminal-bg').trim(), foreground: colors.getPropertyValue('--color-terminal-text').trim(), cursor: colors.getPropertyValue('--color-terminal-cursor').trim(), selectionBackground: colors.getPropertyValue('--color-terminal-selection').trim() } });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
     runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false };

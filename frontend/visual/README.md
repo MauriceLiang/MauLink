@@ -1,5 +1,11 @@
 # Phase 10：固定视觉回归
 
+## 当前配色参考
+
+2026-10-01 的 MauLink Blue 配色已由用户在 app 中确认。当前界面参考位于 `docs/refactor/screenshots/color-v1-review/`：中文 Light / Dark 1440×920 各 23 个场景，英文 Light / Dark 860×640 各 6 个场景，共 58 个组合。使用下面的 `captureCases` 时将 `outputDir` 指向该目录，并选择已有的视口 / 语言 / 页面组合；默认模式仍要求截图与已确认参考一致。
+
+Phase 10 / 11 / 12 截图保留为旧配色的历史证据。下文的 184 张实现基线与 160 张原型图，以及 `verify.mjs` 的校验范围属于历史记录，不代表新色板与旧截图像素相同。完整新色板矩阵尚未扩展至 184 个组合，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
+
 入口：`http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`。
 
 `cases.json` 为稳定 test route 清单：URL 固定 fixture，`steps` 固定真实 UI 操作顺序。例如 add-server URL 先加载固定首页，再由脚本点击“添加服务器”；不会使用 DOM 注入、假事件、原生 Tauri 或真实 SSH。它不是新的产品路由。普通手动打开时也可按这些步骤进入目标页面。
@@ -18,7 +24,7 @@
 const capture = await import('/Users/mauriceliang/Documents/code/MauLink/frontend/visual/capture.mjs');
 // tab 为 cua.createBrowserTab 返回的页面；viewport 为 browser.capabilities.get('viewport')。
 await capture.captureCases({ tab, viewport,
-  outputDir:'/Users/mauriceliang/Documents/code/MauLink/docs/refactor/screenshots/phase-10/implementation',
+  outputDir:'/Users/mauriceliang/Documents/code/MauLink/docs/refactor/screenshots/color-v1-review',
   width:1440,height:920,theme:'light',locale:'zh-CN' });
 ```
 
