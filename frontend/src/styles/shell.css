@@ -3,7 +3,14 @@
 .shell-topbar { display: grid; grid-template-columns: var(--app-sidebar-width) minmax(180px, 1fr) var(--app-sidebar-width); align-items: center; border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
 .shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); padding-left: var(--app-traffic-light-space); }
 .shell-brand { display: flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; color: var(--ink); background: transparent; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.shell-brand-mark { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 6px; color: white; background: var(--accent-solid); font-size: 11px; font-weight: 700; }
+.shell-brand-mark { display: block; width: 32px; height: 32px; flex: none; border-radius: 6px; object-fit: contain; }
+.shell-brand-mark-dark { display: none; }
+:root[data-theme="dark"] .shell-brand-mark-light { display: none; }
+:root[data-theme="dark"] .shell-brand-mark-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .shell-brand-mark-light { display: none; }
+  :root[data-theme="system"] .shell-brand-mark-dark { display: block; }
+}
 .shell-topbar .base-icon-button { width: 30px; min-height: 30px; padding: 0; border-color: transparent; color: var(--muted); background: transparent; }
 .shell-topbar .base-icon-button:hover:not(:disabled) { background: var(--surface-subtle); color: var(--ink); }
 .shell-search { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); background: var(--panel); }

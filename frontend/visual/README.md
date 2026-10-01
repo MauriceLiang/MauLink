@@ -45,3 +45,7 @@ node frontend/visual/verify.mjs
 ```
 
 校验 canonical manifest、完整数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，拒绝未审阅 candidate/repeat。成功生成 `docs/refactor/screenshots/phase-10/summary.json` 与 `index.html` 双列对照画廊。画廊可用同目录静态 HTTP 服务打开，也可保留相邻目录直接查看。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。
+
+## 后续品牌更新
+
+2026-10-01 顶部 logo 已替换。上述 Phase 10 图片保留历史 M 标记，当前主题实测及严格截图回归的环境限制见 `docs/refactor/frontend-logo-update.md`；不将历史资料完整性校验等同于新界面像素回归通过。

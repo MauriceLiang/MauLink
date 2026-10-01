@@ -5,6 +5,8 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseIconButton from "../components/base/BaseIconButton.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import ShellIcon from "./ShellIcon.vue";
+import logoLight from "../assets/maulink-logo-light.png";
+import logoDark from "../assets/maulink-logo-dark.png";
 const t = messages(shellMessages);
 defineProps<{ query: string; home: boolean; shortcut: string; canManage: boolean; settingsEnabled?: boolean }>();
 defineEmits<{ "update:query": [value: string]; home: []; about: []; add: []; settings: []; palette: [] }>();
@@ -14,7 +16,9 @@ defineEmits<{ "update:query": [value: string]; home: []; about: []; add: []; set
   <header class="shell-topbar" data-tauri-drag-region>
     <div class="shell-brand-group" data-tauri-drag-region>
       <button class="shell-brand" type="button" :aria-label="t('maulinkServerWorkspace')" @click="$emit('home')">
-        <span class="shell-brand-mark" aria-hidden="true">M</span><span>MauLink</span>
+        <img class="shell-brand-mark shell-brand-mark-light" :src="logoLight" alt="" aria-hidden="true" width="32" height="32" />
+        <img class="shell-brand-mark shell-brand-mark-dark" :src="logoDark" alt="" aria-hidden="true" width="32" height="32" />
+        <span>MauLink</span>
       </button>
       <BaseIconButton class="shell-home-button" :label="t('servers')" :aria-current="home ? 'page' : undefined" @click="$emit('home')"><ShellIcon name="house" /></BaseIconButton>
     </div>
