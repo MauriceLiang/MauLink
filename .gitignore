@@ -22,7 +22,12 @@
 *.pfx
 *.jks
 *.keystore
-UI
+id_rsa
+id_ed25519
+secrets.json
+credentials.json
+UI/
+docs/
 
 # IDE state
 .idea/
@@ -32,3 +37,21 @@ UI
 .DS_Store
 ._*
 *.log
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary QA artifacts
+**/diagnostics/
+**/.capture-*.json
+*-candidate.jpg
+*-repeat.jpg
+
+# Local release artifacts
+*.zip
+*.app
+*.dmg
+*.msi
+*.exe

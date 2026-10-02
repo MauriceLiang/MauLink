@@ -1,10 +1,10 @@
-# Phase 10：固定视觉回归
+# MauLink 前端视觉回归
 
 ## 当前配色参考
 
 2026-10-01 的 MauLink Blue 配色已由用户在 app 中确认。当前界面参考位于 `docs/refactor/screenshots/color-v1-review/`：中文 Light / Dark 1440×920 各 23 个场景，英文 Light / Dark 860×640 各 6 个场景，共 58 个组合。使用下面的 `captureCases` 时将 `outputDir` 指向该目录，并选择已有的视口 / 语言 / 页面组合；默认模式仍要求截图与已确认参考一致。
 
-Phase 10 / 11 / 12 截图保留为旧配色的历史证据。下文的 184 张实现基线与 160 张原型图，以及 `verify.mjs` 的校验范围属于历史记录，不代表新色板与旧截图像素相同。完整新色板矩阵尚未扩展至 184 个组合，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
+旧配色的 Phase 10 / 11 / 12 截图归档已从当前仓库清理，阶段报告保留当时的验收结论。当前 58 张已确认基线供视觉回归使用，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
 
 入口：`http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`。
 
@@ -21,10 +21,11 @@ Phase 10 / 11 / 12 截图保留为旧配色的历史证据。下文的 184 张�
 先在终端运行 `npm --prefix frontend run dev`。截图只在 `cua_repl` 中通过受支持接口执行，无额外浏览器驱动/依赖。先读取 CUA 浏览器、viewport 文档；使用同一浏览器，保持当前截图 Tab 为该浏览器的活动 Tab。后建的原型/画廊 Tab 会成为活动 Tab，应关闭它后再对实现截图。
 
 ```js
-const capture = await import('/Users/mauriceliang/Documents/code/MauLink/frontend/visual/capture.mjs');
+const repoRoot = '/path/to/MauLink'; // 替换为本地克隆目录
+const capture = await import(`${repoRoot}/frontend/visual/capture.mjs`);
 // tab 为 cua.createBrowserTab 返回的页面；viewport 为 browser.capabilities.get('viewport')。
 await capture.captureCases({ tab, viewport,
-  outputDir:'/Users/mauriceliang/Documents/code/MauLink/docs/refactor/screenshots/color-v1-review',
+  outputDir:`${repoRoot}/docs/refactor/screenshots/color-v1-review`,
   width:1440,height:920,theme:'light',locale:'zh-CN' });
 ```
 
@@ -43,14 +44,14 @@ python3 -m http.server 8080 --bind 127.0.0.1 --directory /private/tmp/maulink-ph
 
 20 个原型状态有稳定 hash，由 `captureReferences` 生成相同 CSS 视口、DPR、主题/语言的 JPEG。原型只在 boot 读取 hash，因此每次导航必须 reload；四个 Settings 还检查页面 heading，防止错误路由落到 Language。原型自身 `.app` min-width=960px，在 CSS 860×640 出现溢出；如实记录，不把原型截图放大或改样式。参考数据能力与 Rust 不同，不对两种实现要求字节/像素相等，也不把示意数据当 Core 实测。
 
-## 校验与画廊
+## 校验
 
 ```bash
 node --test frontend/visual/capture.test.mjs
 node frontend/visual/verify.mjs
 ```
 
-校验 canonical manifest、完整数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，拒绝未审阅 candidate/repeat。成功生成 `docs/refactor/screenshots/phase-10/summary.json` 与 `index.html` 双列对照画廊。画廊可用同目录静态 HTTP 服务打开，也可保留相邻目录直接查看。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。
+校验当前目录中的 capture manifest、58 张基线数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，并拒绝未审阅 candidate/repeat。历史 Phase 10 双列画廊已随旧截图归档清理。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。
 
 ## 后续品牌更新
 

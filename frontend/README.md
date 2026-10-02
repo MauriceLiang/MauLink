@@ -137,13 +137,13 @@ DEV 地址 `http://127.0.0.1:1420/?harness=settings`。真实设置通过 Rust S
 
 ## Phase 10：固定 Browser 视觉回归
 
-`?harness=visual&page=servers&theme=light&locale=zh-CN` 提供 DEV-only Typed Mock fixture。23 个 test route 与固定真实 UI 操作 recipe 见 `visual/cases.json`，截图自动化通过 CUA Browser 执行。固定 Light/Dark、zh-CN/en、CSS 1440×920/860×640、DPR=1，184 张实现基线与 160 张冻结原型参考图均独立重复 byte-identical。
+`?harness=visual&page=servers&theme=light&locale=zh-CN` 提供 DEV-only Typed Mock fixture。23 个 test route 与固定真实 UI 操作 recipe 见 `visual/cases.json`，截图自动化通过 CUA Browser 执行。Phase 10 当时记录了 184 张实现图和 160 张原型参考图；旧视觉归档已从当前仓库清理，现保留的颜色回归基线有 58 张。
 
-默认回归不会覆盖旧图，缺失/变化会生成 candidate 并失败；审阅后才显式 update。运行 `node --test frontend/visual/capture.test.mjs` 和 `node frontend/visual/verify.mjs` 校验保护行为、SHA256 与 JPEG 真实尺寸并生成画廊。详见 `visual/README.md`、`docs/refactor/frontend-v2-phase-10.md`、根目录 `design-qa.md`；Browser visual PASS 与完整 Native/platform QA 分开，既有能力缺口保留。
+默认回归不会覆盖旧图，缺失/变化会生成 candidate 并失败；审阅后才显式 update。`node frontend/visual/verify.mjs` 校验当前 58 张基线的 SHA256 与 JPEG 真实尺寸。详见 `visual/README.md`、`docs/refactor/frontend-v2-phase-10.md`、根目录 `design-qa.md`；Browser visual PASS 与完整 Native/platform QA 分开，既有能力缺口保留。
 
 ## Phase 11：响应式 Browser QA
 
-四种视口及同一活动 Terminal 连续 resize / 专注模式焦点恢复通过；新增 16 张中等/大视口截图均独立重复一致。产品源码未改，沿用 Phase 10 的 125/125 tests、type-check 和 build。按用户 Browser 门禁 PASS，可进入 Phase 12；原生最小化/恢复与 Windows 真机仍未实测，完整平台发布验收未通过。见 `docs/refactor/frontend-v2-phase-11.md` 与 `design-qa.md` Page 18。
+四种视口及同一活动 Terminal 连续 resize / 专注模式焦点恢复通过；Phase 11 当时新增的 16 张中等/大视口截图均独立重复一致，相关归档现已清理。产品源码未改，沿用 Phase 10 的 125/125 tests、type-check 和 build。按用户 Browser 门禁 PASS，可进入 Phase 12；原生最小化/恢复与 Windows 真机仍未实测，完整平台发布验收未通过。见 `docs/refactor/frontend-v2-phase-11.md` 与 `design-qa.md` Page 18。
 
 ## Phase 12：正式切换完成
 

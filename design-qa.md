@@ -2,6 +2,8 @@
 
 检查日期：2026-10-01（Asia/Shanghai）。当前实现：Vue 正式 frontend；旧入口由切换前 Git 提交 f75d21a 保留。
 
+> Phase 10 的历史截图、capture manifest 和画廊已从当前仓库清理；本页文字保留当时的 QA 结论。当前视觉回归基线位于 `docs/refactor/screenshots/color-v1-review/`。
+
 **Browser visual evidence: PASS（Phase 10）**。
 
 **完整产品 / 双平台 release QA：final result: blocked**。该状态包含已有后端能力、Phase 6 行为和平台缺口，不再以“截图未落盘”为原因。用户取消后续 Native 手动门禁，阶段状态按报告的授权范围判断；未实测项不会被改写为 Native PASS。
@@ -10,12 +12,12 @@
 
 ## 对照材料与证据
 
-- 原型：本机 `UI/MauLink_prototype_local.html`，SHA256 `fb9e3ad1675fdea4e67d0f1f90b80c160404be02c7ac4faae05bc002fbe02063`。
-- 原型参考：临时冻结副本，保留 layout/CSS；固定 demo clock/random、停止 intervals、隔离偏好、对齐服务器数量/表单默认值/文件清单/传输有无。变换与源 hash：[prototype-source.json](docs/refactor/screenshots/phase-10/prototype-source.json)。不修改原始原型，不把演示内容当真实 Core。
+- 原型：本机 `UI/MauLink_prototype_local.html`，SHA256 `fb9e3ad1675fdea4e67d0f1f90b80c160404be02c7ac4faae05bc002fbe02063`；原型文件不纳入 Git。
+- 原型参考：曾使用临时冻结副本，保留 layout/CSS；固定 demo clock/random、停止 intervals、隔离偏好、对齐服务器数量/表单默认值/文件清单/传输有无。变换摘要与源 hash记录在 Phase 10 报告中；对应截图归档已清理。不把演示内容当真实 Core。
 - 实现：`?harness=visual&page=…&theme=light|dark&locale=zh-CN|en`，生产组件 + Typed Mock IPC。`page` 与确定性 UI 操作 recipe 见 [cases.json](frontend/visual/cases.json)；URL 固定 fixture，脚本点击真实可见控件进入目标状态。
 - 同一 Browser，CSS **1440×920、860×640**，DPR **1**，Light/Dark、zh-CN/English；每张 JPEG 真实像素尺寸与 CSS×DPR 一致。系统字体、Asia/Shanghai 文件日期，不混用历史 DPR=2 Native 图片。
-- [实现图](docs/refactor/screenshots/phase-10/implementation/)：23 场景 × 8 条件 = **184 张**；[原型参考图](docs/refactor/screenshots/phase-10/reference/)：20 场景 × 8 条件 = **160 张**。均两次独立装载 byte-identical。
-- [双列画廊](docs/refactor/screenshots/phase-10/index.html)、[summary](docs/refactor/screenshots/phase-10/summary.json)、每组 capture manifest（URL、实际 CSS/DPR/theme/locale/fonts/overflow、两次 SHA256）。[重建与校验](frontend/visual/README.md)。
+- 实现图曾覆盖 23 场景 × 8 条件（**184 张**），原型参考图覆盖 20 场景 × 8 条件（**160 张**）；两次独立装载 byte-identical。对应历史图像与 manifest 已清理。
+- 历史双列画廊和 summary 已随截图归档清理；当前基线重跑与校验方式见 [视觉回归说明](frontend/visual/README.md)。
 - 默认回归保留旧基线：缺失/变化/重复不等均失败并输出候选，仅审阅后显式 update。23 张中文浅色宽屏及偏好隔离后的八种终端设置条件已另行通过默认 baseline 比较。
 - 原型 `.app` min-width=960px，在 CSS 860px 下出现横向溢出；如实保留原始布局。新实现所有 184 个状态无横向溢出。两者相同 CSS 条件可做结构对照，不要求不同产品能力下的像素相等。
 
