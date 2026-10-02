@@ -254,7 +254,7 @@ async function save() {
 </script>
 
 <template>
-  <BaseDialog :open="open" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" panel-class="server-dialog" @close="closeDialog">
+  <BaseDialog :open="open" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" initial-focus="input" panel-class="server-dialog" @close="closeDialog">
     <div v-if="phase === 'loading'" class="server-dialog-loading" role="status">{{ t('loading') }}</div>
     <TabsRoot v-else v-model="section" class="server-dialog-layout">
       <TabsList class="server-dialog-tabs" :aria-label="t('serverConfigSections')">
