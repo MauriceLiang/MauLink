@@ -77,9 +77,12 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
       accept(server.id, next);
     });
   }
-  async function startDraftTest(profile: ServerProfileDraft, credential: string | null) {
+  async function startDraftTest(profile: ServerProfileDraft, credential: string | null, savedProfile?: { serverId: string; expectedRevision: number; useSavedCredential: boolean }) {
     if (draftTestActive.value || challenge.value) return null;
-    const snapshot = await api.start({ source: { kind: "draft", profile, credential }, mode: "test" });
+    const source = savedProfile
+      ? { kind: "draftWithSavedProfile" as const, profile, ...savedProfile, credential }
+      : { kind: "draft" as const, profile, credential };
+    const snapshot = await api.start({ source, mode: "test" });
     draftIdentities.value = { ...draftIdentities.value, [snapshot.connectionId]: { username: profile.username, host: profile.host } };
     accept(snapshot.connectionId, snapshot);
     return snapshot;

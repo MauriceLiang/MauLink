@@ -23,7 +23,7 @@ export function createConnectionMock(scenario: () => ConnectionScenario, delay: 
       const id = crypto.randomUUID();
       const choice = scenario(); states.set(id, choice);
       modes.set(id, mode);
-      if (source.kind === "draft" && source.credential) suppliedCredentials.add(id);
+      if ((source.kind === "draft" && source.credential) || (source.kind === "draftWithSavedProfile" && (source.credential || source.useSavedCredential))) suppliedCredentials.add(id);
       const snapshot: ConnectionSnapshot = { connectionId: id, serverId: source.kind === "saved" ? source.serverId : null, mode, state: "connecting", hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: Date.now(), updatedAtMs: Date.now() };
       snapshots.set(id, snapshot); return structuredClone(snapshot);
     },

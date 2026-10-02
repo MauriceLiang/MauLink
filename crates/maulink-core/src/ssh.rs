@@ -617,13 +617,75 @@ impl SshConnectionManager {
         input: crate::ServerProfileInput,
         credential: Option<Secret>,
     ) -> Result<ConnectionSnapshot, AppError> {
+        self.start_draft_test_from(input, credential, None).await
+    }
+
+    pub async fn start_draft_test_with_saved_profile(
+        &self,
+        input: crate::ServerProfileInput,
+        server_id: String,
+        expected_revision: u32,
+        credential: Option<Secret>,
+        use_saved_credential: bool,
+    ) -> Result<ConnectionSnapshot, AppError> {
+        self.start_draft_test_from(
+            input,
+            credential,
+            Some((server_id, expected_revision, use_saved_credential)),
+        )
+        .await
+    }
+
+    async fn start_draft_test_from(
+        &self,
+        input: crate::ServerProfileInput,
+        credential: Option<Secret>,
+        saved_profile_source: Option<(String, u32, bool)>,
+    ) -> Result<ConnectionSnapshot, AppError> {
         let _operation_guard = self.operations_lock.lock().await;
         let input = crate::profiles::validate_server_input(input)?;
-        let private_key_path = input
-            .private_key_path
-            .clone()
-            .map(crate::profiles::native_path_from_stored)
-            .transpose()?;
+        let saved_profile = if let Some((server_id, expected_revision, use_saved_credential)) =
+            saved_profile_source
+        {
+            let server = self.profiles.get_server(server_id).await?;
+            if server.revision != expected_revision {
+                return Err(
+                    AppError::new(ErrorCode::RevisionConflict, "errors.revisionConflict")
+                        .with_param("expected", expected_revision.to_string())
+                        .with_param("actual", server.revision.to_string()),
+                );
+            }
+            if use_saved_credential
+                && (server.host != input.host
+                    || server.port != input.port
+                    || server.username != input.username
+                    || server.auth_type != input.auth_type)
+            {
+                return Err(AppError::new(
+                    ErrorCode::ValidationFailed,
+                    "errors.savedCredentialIdentityChanged",
+                ));
+            }
+            Some((server, use_saved_credential))
+        } else {
+            None
+        };
+        let private_key_path = match input.private_key_path.clone() {
+            Some(path) => Some(crate::profiles::native_path_from_stored(path)?),
+            None if input.auth_type == AuthType::PrivateKey
+                && saved_profile
+                    .as_ref()
+                    .is_some_and(|(server, _)| server.has_private_key) =>
+            {
+                let (server, _) = saved_profile.as_ref().expect("saved profile checked above");
+                Some(
+                    self.profiles
+                        .private_key_path_for_authentication(server.id.clone(), server.revision)
+                        .await?,
+                )
+            }
+            None => None,
+        };
         let attempt = ConnectionAttempt {
             profile: SshConnectionProfile {
                 host: input.host,
@@ -639,7 +701,9 @@ impl SshConnectionManager {
                 proxy_host: input.proxy_host,
                 proxy_port: input.proxy_port,
             },
-            credential_server_id: None,
+            credential_server_id: saved_profile
+                .filter(|(_, use_saved_credential)| *use_saved_credential)
+                .map(|(server, _)| server.id),
             credential,
         };
         self.reserve_start(None).await?;

@@ -33,7 +33,7 @@ function outside(event: Event) { if (props.busy) event.preventDefault(); }
       <component :is="parts.Overlay" class="base-dialog-overlay" />
       <component :is="parts.Content" class="base-dialog" :class="panelClass" :aria-busy="busy" aria-modal="true" :aria-describedby="undefined" @open-auto-focus="openAutoFocus" @close-auto-focus="closeAutoFocus" @escape-key-down="escape" @interact-outside="outside">
         <header class="base-dialog-heading"><component :is="parts.Title" as="h2">{{ title }}</component>
-          <BaseIconButton :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="update(false)"><BaseIcon name="x" /></BaseIconButton>
+          <BaseIconButton class="base-dialog-close" :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="update(false)"><BaseIcon name="x" /></BaseIconButton>
         </header>
         <div class="base-dialog-content"><slot /></div>
         <footer v-if="$slots.footer" class="base-dialog-footer"><slot name="footer" /></footer>

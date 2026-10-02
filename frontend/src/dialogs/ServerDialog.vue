@@ -147,9 +147,10 @@ function closeDialog() {
 }
 
 async function testConnection() {
-  if (!props.connectionStore || props.serverId || formBusy.value) return;
+  if (!props.connectionStore || formBusy.value) return;
   const profile = normalizeServerDraft(draft, key.value);
-  const invalid = validateServerDraft(profile, null, key.value);
+  const invalid = validateServerDraft(profile, current.value, key.value)
+    ?? (current.value && mode.value === "keep" ? credentialValidation(current.value, profile, { mode: "keep" }) : null);
   if (invalid) {
     section.value = "basic";
     errorSection.value = "basic";
@@ -166,7 +167,16 @@ async function testConnection() {
   challengeDurationMs = 0;
   testRunning.value = true;
   try {
-    const snapshot = await props.connectionStore.startDraftTest(profile, secret.value || null);
+    const savedProfile = current.value && !key.value
+      && (current.value.hasPrivateKey || (mode.value === "keep" && current.value.hasSavedCredential))
+      ? {
+          serverId: current.value.id,
+          expectedRevision: current.value.revision,
+          useSavedCredential: mode.value === "keep" && current.value.hasSavedCredential,
+        }
+      : undefined;
+    const credential = !current.value || mode.value === "replace" ? secret.value || null : null;
+    const snapshot = await props.connectionStore.startDraftTest(profile, credential, savedProfile);
     if (!snapshot) {
       if (generation === testRunGeneration) {
         error.value = t("testConnectionUnavailable");
@@ -311,7 +321,7 @@ async function save() {
     </TabsRoot>
     <template #footer>
       <div class="server-dialog-footer-leading">
-        <BaseButton v-if="connectionStore && !serverId" :disabled="busy" :loading="testRunning" @click="testConnection">{{ t(testRunning ? 'testingConnection' : 'testConnection') }}</BaseButton>
+        <BaseButton v-if="connectionStore" :disabled="busy" :loading="testRunning" @click="testConnection">{{ t(testRunning ? 'testingConnection' : 'testConnection') }}</BaseButton>
       </div>
       <div class="server-dialog-footer-actions">
         <BaseButton :disabled="busy" @click="closeDialog">{{ t('cancel') }}</BaseButton>

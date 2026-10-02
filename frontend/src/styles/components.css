@@ -22,6 +22,8 @@
 .base-button--danger:hover:not(:disabled) { border-color: transparent; background: var(--color-danger-hover); }
 .base-button--danger:active:not(:disabled) { background: var(--color-danger-hover); }
 .base-icon-button { width: 36px; padding: 0; }
+.base-dialog-close { border: 0; background: transparent; }
+.base-dialog-close:hover:not(:disabled) { border: 0; background: var(--color-bg-hover); }
 .base-field { display: grid; gap: 8px; }
 .base-input { width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-primary); background: var(--color-surface); }
 .base-input:hover:not(:disabled) { border-color: var(--color-border-hover); }

@@ -299,6 +299,33 @@ pub async fn connection_start(
             // Keep a selected key token reusable so the tested draft can still be saved.
             state.connections.start_draft_test(input, credential).await
         }
+        maulink_core::ConnectionStartSource::DraftWithSavedProfile {
+            profile,
+            server_id,
+            expected_revision,
+            credential,
+            use_saved_credential,
+        } => {
+            if payload.mode != maulink_core::ConnectionMode::Test {
+                return Err(AppError::new(
+                    maulink_core::ErrorCode::ValidationFailed,
+                    "errors.draftConnectionMustBeTestMode",
+                )
+                .with_request_id(request_id));
+            }
+            let input = profile_input(profile, &state.local_files)
+                .map_err(|error| error.with_request_id(request_id.clone()))?;
+            state
+                .connections
+                .start_draft_test_with_saved_profile(
+                    input,
+                    server_id,
+                    expected_revision,
+                    credential,
+                    use_saved_credential,
+                )
+                .await
+        }
     };
     attach_request_id(request_id, result)
 }

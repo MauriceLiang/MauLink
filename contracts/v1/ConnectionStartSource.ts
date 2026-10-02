@@ -2,4 +2,4 @@
 import type { Secret } from "./Secret";
 import type { ServerProfileDraft } from "./ServerProfileDraft";
 
-export type ConnectionStartSource = { "kind": "saved", serverId: string, expectedRevision: number, } | { "kind": "draft", profile: ServerProfileDraft, credential: Secret | null, };
+export type ConnectionStartSource = { "kind": "saved", serverId: string, expectedRevision: number, } | { "kind": "draft", profile: ServerProfileDraft, credential: Secret | null, } | { "kind": "draftWithSavedProfile", profile: ServerProfileDraft, serverId: string, expectedRevision: number, credential: Secret | null, useSavedCredential: boolean, };

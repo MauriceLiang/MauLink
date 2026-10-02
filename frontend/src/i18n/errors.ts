@@ -66,6 +66,7 @@ export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
   "errors.serverNameInvalid": { "zh-CN": "服务器名称不符合要求。", en: "The server name is invalid." },
   "errors.serverInUse": { "zh-CN": "服务器正在使用中，无法修改连接信息。", en: "This server is in use. Connection details cannot be changed." },
   "errors.revisionConflict": { "zh-CN": "资料已被其他操作更新，请重新加载后再确认修改。", en: "The profile changed. Reload it before confirming your changes." },
+  "errors.savedCredentialIdentityChanged": { "zh-CN": "已保存凭据与当前服务器地址或账号不匹配，请替换凭据后再测试。", en: "The saved credential does not match the current server identity. Replace it before testing." },
   "errors.listCursorExpired": { "zh-CN": "服务器列表已变化，请重新加载。", en: "The server list changed. Reload it." },
   "errors.serverNotFound": { "zh-CN": "资料已不存在，请刷新列表。", en: "The profile no longer exists. Refresh the list." },
   "errors.resourceNotFound": { "zh-CN": "资料已不存在，请刷新列表。", en: "The resource no longer exists. Refresh the list." },

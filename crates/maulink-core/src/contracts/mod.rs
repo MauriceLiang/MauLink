@@ -82,6 +82,13 @@ pub enum ConnectionStartSource {
         profile: ServerProfileDraft,
         credential: Option<crate::Secret>,
     },
+    DraftWithSavedProfile {
+        profile: ServerProfileDraft,
+        server_id: String,
+        expected_revision: u32,
+        credential: Option<crate::Secret>,
+        use_saved_credential: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
