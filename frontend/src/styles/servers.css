@@ -41,7 +41,9 @@
 .server-secret-field { position: relative; }
 .server-secret-field .base-input { padding-right: 40px; }
 .server-secret-toggle { position: absolute; top: 24px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--color-text-secondary); background: transparent; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
-.server-secret-toggle:hover { color: var(--color-text-primary); background: var(--color-bg-hover); }
+.server-secret-toggle .base-icon { transition: transform var(--motion-fast) var(--ease-standard); }
+.server-secret-toggle:hover { color: var(--color-text-primary); background: transparent; }
+.server-secret-toggle:hover .base-icon { transform: scale(1.1); }
 .server-secret-toggle:active { transform: scale(.94); }
 .server-form-note { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
 .server-key-picker { font-size: 12px; color: var(--color-text-secondary); }

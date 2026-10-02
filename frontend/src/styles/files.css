@@ -1,5 +1,11 @@
 .terminal-workspace.is-files { grid-template-rows: 46px minmax(0, 1fr); }
-.workspace-heading .workspace-view[aria-pressed="true"] { color: var(--color-primary); background: var(--color-primary-soft); }
+.workspace-heading .workspace-view-tabs { display: flex; flex: none; align-self: stretch; align-items: stretch; gap: 18px; height: 46px; margin-block: -5px; }
+.workspace-heading .workspace-view-tab { position: relative; height: 100%; min-height: 0; padding: 0 2px; border: 0; border-radius: 0; color: var(--color-text-secondary); background: transparent; box-shadow: none; font-family: inherit; font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard); }
+.workspace-heading .workspace-view-tab:hover:not(:disabled) { border-color: transparent; color: var(--color-text-primary); background: transparent; }
+.workspace-heading .workspace-view-tab[aria-pressed="true"] { color: var(--color-primary); background: transparent; }
+.workspace-heading .workspace-view-tab:focus-visible { border-radius: 3px; outline: 2px solid var(--color-focus-ring); outline-offset: -4px; }
+.workspace-heading .workspace-view-tab::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--color-primary); content: ""; opacity: 0; transform: scaleX(.5); transform-origin: center; transition: opacity var(--motion-fast) var(--ease-standard), transform var(--motion-normal) var(--ease-enter); }
+.workspace-heading .workspace-view-tab[aria-pressed="true"]::after { opacity: 1; transform: scaleX(1); }
 .files-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: 0; min-width: 0; overflow: hidden; background: var(--color-surface); }
 .files-browser { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .files-heading, .files-location, .files-toolbar, .files-pagination { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
@@ -48,6 +54,7 @@
 .transfer-panel progress::-webkit-progress-value { transition: width var(--motion-normal) linear; }
 .transfer-panel p { font-size: 11px; overflow-wrap: anywhere; line-height: 1.6; }
 @media (max-width: 1000px) { .files-workspace { grid-template-columns: minmax(0, 1fr) 230px; } .workspace-heading { flex-wrap: wrap; } .terminal-workspace.is-files { grid-template-rows: auto minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .workspace-heading .workspace-view-tab::after { transition-duration: 1ms !important; } }
 
 
 .workspace-heading > div > span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
