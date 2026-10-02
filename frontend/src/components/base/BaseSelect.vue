@@ -22,7 +22,7 @@ function update(next: unknown) {
       </SelectTrigger>
       <SelectPortal><SelectContent class="base-select-content" position="popper" :side-offset="5" :collision-padding="8">
         <SelectViewport><SelectItem v-for="option in options" :key="encode(option.value)" class="base-select-item" :value="encode(option.value)" :disabled="option.disabled">
-          <SelectItemText>{{ option.label }}</SelectItemText><SelectItemIndicator><BaseIcon name="check" /></SelectItemIndicator>
+          <SelectItemText>{{ option.label }}</SelectItemText><SelectItemIndicator class="base-select-indicator"><BaseIcon name="check" /></SelectItemIndicator>
         </SelectItem></SelectViewport>
       </SelectContent></SelectPortal>
     </SelectRoot>

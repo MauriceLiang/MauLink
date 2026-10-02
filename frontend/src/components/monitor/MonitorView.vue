@@ -28,7 +28,7 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
 </script>
 <template>
   <section :class="quick ? 'quick-monitor' : 'full-monitor'" :aria-label="quick ? 'Quick Monitor' : 'Full Monitor'">
-    <header><div><h2>{{ quick ? 'Quick Monitor' : t('serverOverview') }}</h2><p v-if="!quick">{{ t('historyNote') }}</p></div><BaseButton v-if="!quick" :disabled="!ready || store.pending.value" @click="store.refresh()">{{ store.refreshing.value ? t('refreshing') : t('refreshNow') }}</BaseButton></header>
+    <header><div><h2>{{ quick ? 'Quick Monitor' : t('serverOverview') }}</h2><p v-if="!quick">{{ t('historyNote') }}</p></div><BaseButton v-if="!quick" :disabled="!ready || store.pending.value" :loading="store.refreshing.value" @click="store.refresh()">{{ t('refreshNow') }}</BaseButton></header>
     <p v-if="!ready" class="monitor-notice" role="status">{{ snapshot ? t('connectionEndedLastSampleRetained') : t('connectionEndedNoSamplesAvailable') }}</p>
     <BaseAlert v-if="store.error.value" class="monitor-notice" >{{ presentError(store.error.value).message }}<span v-if="snapshot"> {{ t('snapshotNote') }}</span></BaseAlert>
     <BaseAlert v-if="store.activityError.value" class="monitor-notice" >{{ t('syncFailed') }}{{ presentError(store.activityError.value).message }}</BaseAlert>

@@ -6,4 +6,4 @@ defineProps<{ modelValue: boolean; label: string; disabled?: boolean }>();
 defineEmits<{ 'update:modelValue': [value: boolean] }>();
 const id=useId();
 </script>
-<template><div class="base-toggle-field"><CheckboxRoot :id="id" class="base-checkbox" :model-value="modelValue" :disabled="disabled" @update:model-value="$emit('update:modelValue', $event === true)"><CheckboxIndicator><BaseIcon name="check" /></CheckboxIndicator></CheckboxRoot><label :for="id">{{ label }}</label></div></template>
+<template><div class="base-toggle-field"><CheckboxRoot :id="id" class="base-checkbox" :model-value="modelValue" :disabled="disabled" @update:model-value="$emit('update:modelValue', $event === true)"><CheckboxIndicator class="base-checkbox-indicator"><BaseIcon name="check" /></CheckboxIndicator></CheckboxRoot><label :for="id">{{ label }}</label></div></template>

@@ -13,7 +13,7 @@
 }
 .shell-topbar .base-icon-button { width: 30px; min-height: 30px; padding: 0; border-color: transparent; color: var(--color-text-secondary); background: transparent; }
 .shell-topbar .base-icon-button:hover:not(:disabled) { background: var(--color-bg-subtle); color: var(--color-text-primary); }
-.shell-search { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-secondary); background: var(--color-surface); }
+.shell-search { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-secondary); background: var(--color-surface); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
 .shell-global-search { width: min(100%, var(--app-search-width)); height: 32px; justify-self: center; padding: 0 10px; }
 .shell-search .shell-icon { width: 14px; height: 14px; }
 .shell-search .base-field { flex: 1; min-width: 0; }
@@ -36,11 +36,13 @@
 .shell-server-group { margin-top: var(--space-3); }
 .shell-group-title { display: flex; gap: 6px; margin: 0; padding: 4px 8px; color: var(--color-text-secondary); font-size: 11px; font-weight: 600; }
 .shell-group-title > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.shell-server-item { display: flex; width: 100%; min-height: 42px; justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; text-align: left; }
-.shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); }
+.shell-server-item { display: flex; width: 100%; min-height: 42px; justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
+.shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); transform: translateX(2px); }
+.shell-server-item:active:not(:disabled) { transform: translateX(1px); }
 .shell-server-item.is-selected { color: var(--color-text-primary); background: var(--color-primary-soft); }
 .shell-server-item.is-selected:hover:not(:disabled) { background: var(--color-primary-soft-hover); }
-.shell-server-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-secondary); }
+.shell-server-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-secondary); transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-enter); }
+.shell-server-item.is-selected .shell-server-dot { transform: scale(1.18); }
 .shell-server-meta { display: grid; min-width: 0; }
 .shell-server-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
 .shell-server-host { overflow: hidden; color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
@@ -48,15 +50,19 @@
 .shell-sidebar-bottom .base-button { width: 100%; min-height: 32px; font-size: 12.5px; font-weight: 600; }
 .shell-main { display: grid; min-width: 0; min-height: 0; overflow: auto; background: var(--color-bg-app); }
 .shell-main > .base-empty-state { align-self: center; margin: var(--space-6); }
-.shell-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
-.shell-welcome-icon { display: grid; width: var(--app-welcome-icon-size); height: var(--app-welcome-icon-size); place-items: center; margin-bottom: 22px; border-radius: 18px; color: var(--color-primary); background: var(--color-primary-soft); }
+.shell-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; animation: view-enter var(--motion-slow) var(--ease-enter); }
+.shell-welcome-icon { display: grid; width: var(--app-welcome-icon-size); height: var(--app-welcome-icon-size); place-items: center; margin-bottom: 22px; border-radius: 18px; color: var(--color-primary); background: var(--color-primary-soft); animation: welcome-icon-in var(--motion-slow) var(--ease-enter); }
+@keyframes view-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes welcome-icon-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
 .shell-welcome-icon .shell-icon { width: 30px; height: 30px; }
 .shell-welcome h1 { margin: 0 0 10px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
 .shell-welcome p { max-width: 440px; margin: 0 0 26px; color: var(--color-text-secondary); font-size: 13.5px; line-height: 1.7; white-space: pre-line; }
 .shell-welcome .base-button { height: 36px; padding: 0 18px; font-size: 12.5px; font-weight: 600; }
 .shell-learn-link { margin-top: var(--space-5); padding: 0; border: 0; color: var(--color-primary); background: transparent; font-size: 12.5px; cursor: pointer; }
 .shell-statusbar { display: flex; grid-column: 1 / -1; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-bg-subtle); font-size: 10px; white-space: nowrap; }
-.shell-backend-indicator { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-secondary); }
+.shell-backend-indicator { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-secondary); transition: background-color var(--motion-normal) var(--ease-standard), opacity var(--motion-normal) var(--ease-standard); }
+.shell-backend-indicator[data-state="pending"] { animation: backend-pulse 1400ms ease-in-out infinite; }
+@keyframes backend-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 .shell-backend-indicator[data-state="ready"] { background: var(--color-success); }
 .shell-backend-indicator[data-state="error"] { background: var(--color-danger); }
 .shell-statusbar-spacer { flex: 1; }

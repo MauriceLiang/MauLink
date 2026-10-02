@@ -1,4 +1,4 @@
-.connection-panel { padding: 32px; }
+.connection-panel { padding: 32px; animation: view-enter var(--motion-slow) var(--ease-enter); }
 .connection-panel h1 { font-size: 20px; }
 .connection-muted { color: var(--color-text-secondary); font-size: 13px; line-height: 1.7; }
 .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
@@ -16,4 +16,5 @@
 
 .connection-dot-ready { background: var(--color-success); }
 .connection-dot-failed { background: var(--color-danger); }
-.connection-dot-connecting, .connection-dot-authenticating, .connection-dot-awaitingHostTrust, .connection-dot-awaitingCredentials { background: var(--color-primary); opacity: .65; }
+.connection-dot-connecting, .connection-dot-authenticating, .connection-dot-awaitingHostTrust, .connection-dot-awaitingCredentials { background: var(--color-primary); opacity: .65; animation: connection-pulse 1400ms ease-in-out infinite; }
+@keyframes connection-pulse { 0%, 100% { opacity: .55; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.12); } }

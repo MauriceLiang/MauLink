@@ -18,12 +18,16 @@
 .files-table th, .files-table td { padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
 .files-table td:first-child { width: 55%; overflow-wrap: anywhere; }
 .files-table td:not(:first-child) { white-space: nowrap; }
+.files-table tbody tr { transition: background-color var(--motion-instant) var(--ease-standard); }
 .files-table tr.selected { background: var(--color-primary-soft); }
+.file-name, .file-open, .files-breadcrumb button { transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
+.file-name:hover:not(:disabled), .file-open:hover:not(:disabled), .files-breadcrumb button:hover:not(:disabled) { color: var(--color-primary); }
 .file-name { background: transparent; border: 0; padding: 4px 0; color: var(--color-text-primary); text-align: left; font-size: 12px; }
 .file-name span { color: var(--color-text-secondary); margin-right: 8px; }
 .file-open { background: transparent; border: 0; color: var(--color-primary); margin-left: 8px; font-size: 11px; }
 .files-empty { padding: 22px 14px; color: var(--color-text-secondary); font-size: 12px; }
 .files-message { margin: 0; padding: 8px 14px; font-size: 12px; overflow-wrap: anywhere; }
+.files-message[role="status"] { animation: feedback-in var(--motion-normal) var(--ease-enter); }
 .files-message[role="alert"], .transfer-panel [role="alert"] { color: var(--color-danger); }
 .files-pagination { border-top: 1px solid var(--color-border); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
 .files-pagination span { flex: 1; }
@@ -32,10 +36,16 @@
 .transfer-panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .transfer-panel ol { list-style: none; padding: 0; margin: 14px 0; }
 .transfer-panel li { border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; margin: 10px 0; }
+.transfer-panel li[data-state="completed"] { animation: transfer-complete var(--motion-slow) var(--ease-enter); }
+@keyframes transfer-complete {
+  0% { border-color: color-mix(in srgb, var(--color-success) 48%, var(--color-border)); background: color-mix(in srgb, var(--color-success) 8%, transparent); }
+  100% { border-color: var(--color-border); background: transparent; }
+}
 .transfer-title, .transfer-details { display: flex; gap: 6px; justify-content: space-between; font-size: 11px; }
 .transfer-title strong { overflow-wrap: anywhere; min-width: 0; }
 .transfer-title span, .transfer-details { color: var(--color-text-secondary); }
 .transfer-panel progress { width: 100%; height: 6px; margin: 12px 0; accent-color: var(--color-primary); }
+.transfer-panel progress::-webkit-progress-value { transition: width var(--motion-normal) linear; }
 .transfer-panel p { font-size: 11px; overflow-wrap: anywhere; line-height: 1.6; }
 @media (max-width: 1000px) { .files-workspace { grid-template-columns: minmax(0, 1fr) 230px; } .workspace-heading { flex-wrap: wrap; } .terminal-workspace.is-files { grid-template-rows: auto minmax(0, 1fr); } }
 

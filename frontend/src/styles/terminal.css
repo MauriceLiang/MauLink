@@ -7,10 +7,12 @@
 .terminal-toolbar { display: flex; gap: 6px; align-items: center; min-width: 0; padding: 4px 8px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .terminal-toolbar .base-button { min-height: 28px; padding: 3px 8px; font-size: 12px; white-space: nowrap; }
 .terminal-tabs { display: flex; flex: 1; min-width: 0; overflow-x: auto; }
-.terminal-tab-group { display: flex; align-items: center; flex: none; }
-.terminal-tab-group [role="tab"] { border: 0; background: transparent; }
+.terminal-tab-group { display: flex; align-items: center; flex: none; animation: terminal-tab-in var(--motion-normal) var(--ease-enter); }
+@keyframes terminal-tab-in { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+.terminal-tab-group [role="tab"] { border: 0; background: transparent; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .terminal-tab-group [aria-selected="true"] { color: var(--color-primary); background: var(--color-primary-soft); }
-.terminal-tab-close { padding: 0 4px !important; border: 0; background: transparent; }
+.terminal-tab-close { padding: 0 4px !important; border: 0; background: transparent; opacity: .6; transition: opacity var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
+.terminal-tab-group:hover .terminal-tab-close, .terminal-tab-close:focus-visible { opacity: 1; }
 .terminal-stack { position: relative; min-height: 0; min-width: 0; background: var(--color-terminal-bg); overflow: hidden; }
 .xterm-host { position: absolute; inset: 0; padding: 12px 14px; }
 .terminal-mount { width: 100%; height: 100%; }

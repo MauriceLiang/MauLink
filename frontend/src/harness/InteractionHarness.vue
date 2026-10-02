@@ -16,13 +16,14 @@ import BaseAlertDialog from '../components/base/BaseAlertDialog.vue';
 import BaseAlert from '../components/base/BaseAlert.vue';
 import BaseToastViewport from '../components/base/BaseToastViewport.vue';
 import { useToast } from '../composables/useToast';
-const theme=ref('light'); const selection=ref<string>(); const text=ref(''); const checked=ref(false); const enabled=ref(false); const advanced=ref(false); const dialog=ref(false); const alert=ref(false); const busy=ref(false); const action=ref('未执行'); const count=ref(0);
+const theme=ref('light'); const selection=ref<string>(); const text=ref(''); const checked=ref(false); const enabled=ref(false); const advanced=ref(false); const dialog=ref(false); const alert=ref(false); const busy=ref(false); const action=ref('未执行'); const count=ref(0); const slowMotion=ref(false);
 const toast=useToast();
 const menu=[{id:'disabled',label:'不可用项',disabled:true},{id:'edit',label:'编辑'},{id:'delete',label:'删除',danger:true}];
 watch(theme,value=>{document.documentElement.dataset.theme=value;},{immediate:true});
 </script>
 <template>
-  <main class="interaction-harness"><h1>Reka UI · 交互验收</h1><p>DEV 组件预览，无真实 IPC、服务器或文件操作。Tab / Shift+Tab、方向键、Enter、Space、Esc 均可验收。</p>
+  <main class="interaction-harness" :class="{ 'is-slow-motion': slowMotion }"><h1>Reka UI · 交互验收</h1><p>DEV 组件预览，无真实 IPC、服务器或文件操作。Tab / Shift+Tab、方向键、Enter、Space、Esc 均可验收。</p>
+    <section class="motion-qa"><h2>动效 QA</h2><BaseSwitch v-model="slowMotion" label="Slow Motion" /><p>用于放慢下方 Select、Menu、Popover、Dialog、Toast 和基础控件动效。</p></section>
     <BaseSelect v-model="theme" label="主题" :options="[{value:'light',label:'Light'},{value:'dark',label:'Dark'},{value:'system',label:'System'}]" />
     <section><h2>按钮与字段</h2><div class="interaction-row"><BaseButton @click="count++">普通按钮</BaseButton><BaseButton variant="primary">主要按钮</BaseButton><BaseButton variant="danger">危险按钮</BaseButton><BaseButton disabled @click="count++">禁用按钮</BaseButton><BaseButton loading>加载按钮</BaseButton><BaseIconButton label="说明"><BaseIcon name="info" /></BaseIconButton><output>动作次数 {{ count }}</output></div><BaseInput v-model="text" label="输入" /><BaseInput v-model="text" label="错误输入" error="示例错误" /><BaseInput v-model="text" label="禁用输入" disabled /></section>
     <section><h2>选择与切换</h2><BaseSelect v-model="selection" label="选择项目" placeholder="请选择" :options="[{value:'one',label:'第一项'},{value:'off',label:'禁用项',disabled:true},{value:'two',label:'第二项'}]" /><BaseSelect label="禁用选择" disabled :options="[{value:'one',label:'第一项'}]" /><BaseCheckbox v-model="checked" label="确认选项" /><BaseCheckbox :model-value="true" label="禁用勾选" disabled /><BaseSwitch v-model="enabled" label="启用选项" /><BaseCollapsible v-model:open="advanced" label="高级设置"><BaseInput v-model="text" label="高级输入" /></BaseCollapsible></section>
@@ -38,4 +39,6 @@ watch(theme,value=>{document.documentElement.dataset.theme=value;},{immediate:tr
 .interaction-harness section { margin: 24px 0; display: grid; gap: 12px; }
 .interaction-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .interaction-context { padding: 12px; color: var(--color-text-primary); background: var(--color-bg-subtle); border: 1px dashed var(--color-border-hover); border-radius: var(--radius-md); }
+.interaction-harness.is-slow-motion { --motion-instant: 300ms; --motion-fast: 500ms; --motion-normal: 800ms; --motion-slow: 1000ms; }
+:global(html:has(.interaction-harness.is-slow-motion)) { --motion-instant: 300ms; --motion-fast: 500ms; --motion-normal: 800ms; --motion-slow: 1000ms; }
 </style>

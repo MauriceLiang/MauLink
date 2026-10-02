@@ -17,7 +17,7 @@ const states = computed(() => ({ created: t('queued'), transferring: t('transfer
     <header><h2>{{ t('transfers') }}</h2><BaseButton :disabled="!tasks.some(task => task.state === 'completed')" @click="store.clearCompleted(connectionId)">{{ t('clearCompleted') }}</BaseButton></header>
     <p v-if="store.errors.value[connectionId]" role="alert">{{ presentError(store.errors.value[connectionId]!).message }}</p>
     <p v-if="!tasks.length" class="files-empty">{{ t('emptyTransfers') }}</p>
-    <ol><li v-for="task in tasks" :key="task.transferId" :aria-label="`${task.fileName} ${states[task.state]}`">
+    <ol><li v-for="task in tasks" :key="task.transferId" :data-state="task.state" :aria-label="`${task.fileName} ${states[task.state]}`">
       <div class="transfer-title"><strong :title="task.finalPath">{{ task.fileName }}</strong><span>{{ task.direction === 'upload' ? t('upload') : t('download') }}</span></div>
       <progress :max="100" :value="task.state === 'completed' ? 100 : progress(task.totalBytes, task.transferredBytes) ?? (transferFinished(task) ? 0 : undefined)" :aria-label="t('progress', {name: task.fileName})" />
       <div class="transfer-details"><span :title="`${task.transferredBytes} / ${task.totalBytes ?? t('unknown')} bytes`">{{ formatSize(task.transferredBytes) }} / {{ formatSize(task.totalBytes) }}</span><span>{{ states[task.state] }}</span></div>
