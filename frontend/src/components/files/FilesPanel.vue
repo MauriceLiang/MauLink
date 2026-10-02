@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import BaseAlert from "../base/BaseAlert.vue";
+import BaseTooltip from "../base/BaseTooltip.vue";
+import BaseAlertDialog from "../base/BaseAlertDialog.vue";
 import { messages } from "../../i18n/locale";
 import { filesMessages } from "../../i18n/files";
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
@@ -71,12 +74,12 @@ onBeforeUnmount(files.dispose);
   <div class="files-workspace">
     <section class="files-browser" :aria-label="t('remoteFiles')">
       <div class="files-heading"><h2>{{ t('remoteFiles') }}</h2><span>SFTP</span><BaseButton :disabled="!ready || pending || mutating" @click="navigate(path || '.')">{{ t('refreshDirectory') }}</BaseButton></div>
-      <form class="files-location" @submit.prevent="navigate(location)"><BaseButton :disabled="!ready || pending || mutating || !path || path === '/'" :aria-label="t('parentDirectory')" @click="navigate(parentRemotePath(path))">↑</BaseButton><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" /><BaseButton type="submit" :disabled="!ready || pending || mutating">{{ t('go') }}</BaseButton></form>
+      <form class="files-location" @submit.prevent="navigate(location)"><BaseTooltip :label="t('parentDirectory')"><BaseButton :disabled="!ready || pending || mutating || !path || path === '/'" :aria-label="t('parentDirectory')" @click="navigate(parentRemotePath(path))">↑</BaseButton></BaseTooltip><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" /><BaseButton type="submit" :disabled="!ready || pending || mutating">{{ t('go') }}</BaseButton></form>
       <nav class="files-breadcrumb" :aria-label="t('directoryNavigation')"><button v-for="part in breadcrumbs(path)" :key="part.path" :aria-current="part.path === path ? 'location' : undefined" :disabled="!ready || pending || mutating" @click="navigate(part.path)">{{ part.name }}</button></nav>
       <div class="files-toolbar"><BaseButton :disabled="unavailable || transfers.starting.value[connectionId]" @click="transfer('upload')">{{ t('uploadFile') }}</BaseButton><BaseButton :disabled="unavailable" @click="edit('mkdir')">{{ t('newFolder') }}</BaseButton><BaseButton :disabled="unavailable || !selected || !downloadable(selected) || transfers.starting.value[connectionId]" @click="selected && transfer('download', selected)">{{ t('downloadFile') }}</BaseButton><BaseButton disabled :title="t('previewUnavailable')">{{ t('viewEdit') }}</BaseButton></div>
-      <p v-if="!ready" class="files-message" role="alert">{{ t('disconnected') }}</p>
-      <p v-if="error" class="files-message" role="alert">{{ presentError(error).message }}</p>
-      <p v-if="cleanupError" class="files-message" role="alert">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</p>
+      <BaseAlert v-if="!ready" class="files-message">{{ t('disconnected') }}</BaseAlert>
+      <BaseAlert v-if="error" class="files-message">{{ presentError(error).message }}</BaseAlert>
+      <BaseAlert v-if="cleanupError" class="files-message">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</BaseAlert>
       <p v-if="notice" class="files-message" role="status">{{ notice }}</p>
       <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
         <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @dblclick="files.open(entry)" @keydown.enter.prevent="files.open(entry)"><span aria-hidden="true">{{ entry.isSymlink ? '↗' : entry.fileType === 'directory' ? '▰' : '▤' }}</span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td :title="entry.sizeBytes ?? ''">{{ entry.fileType === 'directory' ? '—' : formatSize(entry.sizeBytes) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" @action="action($event, entry)" /></td></tr>
@@ -84,11 +87,11 @@ onBeforeUnmount(files.dispose);
       <footer class="files-pagination"><span>{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>
     <TransferPanel :store="transfers" :connection-id="connectionId" />
-    <BaseDialog :open="!!operation" :title="operation === 'mkdir' ? t('newFolder') : operation === 'rename' ? t('renameFile') : t('confirmDeletion')" :busy="mutating" @close="operation = null">
+    <component :is="operation === 'delete' ? BaseAlertDialog : BaseDialog" :open="!!operation" :title="operation === 'mkdir' ? t('newFolder') : operation === 'rename' ? t('renameFile') : t('confirmDeletion')" :busy="mutating" @close="operation = null">
       <p v-if="operation === 'delete'">{{ t('deleteNote', {name: target?.name ?? '—'}) }}</p>
       <form v-else id="file-operation" @submit.prevent="submit"><label class="file-name-field">{{ t('name') }}<input v-model="name" :aria-label="t('fileName')" :disabled="mutating" /></label><p v-if="!validBasename(name)">{{ t('nameInvalid') }}</p></form>
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
-      <template #footer><BaseButton :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'primary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
-    </BaseDialog>
+      <template #footer><BaseButton data-dialog-cancel :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'primary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
+    </component>
   </div>
 </template>

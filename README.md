@@ -39,19 +39,28 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
     <th>深色 · 统一的工作台外观</th>
   </tr>
   <tr>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue 浅色服务器主页" width="480"></td>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue 深色服务器主页" width="480"></td>
+    <td><img src="./docs/refactor/screenshots/reka-ui-review/implementation/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue 浅色服务器主页" width="480"></td>
+    <td><img src="./docs/refactor/screenshots/reka-ui-review/implementation/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue 深色服务器主页" width="480"></td>
   </tr>
 </table>
 
 <details>
 <summary><strong>展开查看终端与 Quick Monitor 工作区</strong></summary>
 
-![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/color-v1-review/terminal-light-zh-CN-1440x920.jpg)
+![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/reka-ui-review/implementation/terminal-light-zh-CN-1440x920.jpg)
 
 </details>
 
-截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。配色已由用户在 app 中确认；检查记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，历史页面与回归证据见 [设计 QA](./design-qa.md)。
+<details>
+<summary><strong>展开查看统一下拉控件与顶部操作反馈</strong></summary>
+
+![深色弹窗与主题选择](./docs/refactor/screenshots/reka-ui-review/select-in-dialog-dark.jpg)
+
+![顶部居中的成功提示](./docs/refactor/screenshots/reka-ui-review/implementation/toast-light-zh-CN-1440x920.jpg)
+
+</details>
+
+截图来自当前 MauLink Blue 配色和 Reka UI 组件的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。用户已确认本轮 macOS app 与顶部提示；检查记录见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)、[颜色系统验收](./docs/refactor/color-system-v1.md)，历史页面与回归证据见 [设计 QA](./design-qa.md)。
 
 ## 核心能力
 
@@ -70,7 +79,9 @@ Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指
 
 ### 图标与外观
 
-界面采用 **MauLink Blue + White / Slate Neutral**：浅色 Primary 为 `#3B82F6`，深色为 `#60A5FA`。主按钮、焦点和选中态共享语义 Token；页面、侧栏与卡片使用中性色，成功、提醒和危险操作使用各自的状态色。布局、组件尺寸和业务交互保持不变。
+界面采用 **MauLink Blue + White / Slate Neutral**：浅色 Primary 为 `#3B82F6`，深色为 `#60A5FA`。主按钮、焦点和选中态共享语义 Token；页面、侧栏与卡片使用中性色，成功、提醒和危险操作使用各自的状态色。
+
+Reka UI 通过现有 `Base*` 组件统一下拉选择、菜单、弹窗和切换控件，支持键盘导航、焦点恢复与边缘自动定位。操作提示在应用顶部居中，以绿色成功、蓝色信息、橙色警告和红色错误文字提供反馈，按内容收缩并自动消失；需要确认的危险操作仍使用确认弹窗。动画保持轻量，并提供减少动态效果的样式支持。
 
 品牌 Logo 随浅深主题切换；设置中的「应用图标样式」独立选择浅色或深色，保存后更新运行图标并在重启后恢复。macOS Dock 使用所选样式，**Finder 固定使用浅色圆角安装图标**。图标使用真实透明圆角；实现和签名检查见 [图标验收报告](./docs/refactor/app-icon-rounded.md)。
 
@@ -104,7 +115,7 @@ Tauri 自动启动 Vite 并加载 Vue 前端，支持 HMR；请先停止独立 V
 npm --prefix frontend run dev
 ```
 
-打开 `http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`，使用 DEV-only Typed Mock IPC 验证界面，数据与正式资料隔离。普通 Browser 入口需要 Native IPC；Harness 不进入 release。更多场景见 [前端开发说明](./frontend/README.md) 和 [视觉回归说明](./frontend/visual/README.md)。
+打开 `http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`，使用 DEV-only Typed Mock IPC 验证界面，数据与正式资料隔离。`http://127.0.0.1:1420/?harness=interaction` 提供基础控件、键盘、弹层和提示的独立预览。普通 Browser 入口需要 Native IPC；Harness 不进入 release。更多场景见 [前端开发说明](./frontend/README.md) 和 [视觉回归说明](./frontend/visual/README.md)。
 
 ### 构建应用
 
@@ -116,7 +127,7 @@ cargo tauri build -- --locked
 cargo tauri build --bundles app --ci -- --locked
 ```
 
-产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。最新配色构建与用户确认记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，图标记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)，正式前端切换记录见 [Phase 12](./docs/refactor/frontend-v2-phase-12.md)。
+产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。最新组件构建与用户确认记录见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)，配色记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，图标记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)，正式前端切换记录见 [Phase 12](./docs/refactor/frontend-v2-phase-12.md)。
 
 <details>
 <summary><strong>macOS 内部打包与签名检查</strong></summary>
@@ -171,7 +182,7 @@ flowchart LR
 | 类型契约 | `crates/maulink-core/src/contracts/`、`contracts/v1/` | Rust DTO、稳定 IPC payload 与由 Rust 导出的 TypeScript 类型 |
 | 本地持久化 | `crates/maulink-core/migrations/` | SQLite schema 与有版本的数据库迁移 |
 
-正式前端使用 Vue 3、精确固定的 TypeScript 5.9.3 与 Vite；模块化 @tauri-apps/api 调用既有 Typed IPC。xterm.js、fit addon 和图标随本地 bundle 分发，应用运行不需要访问 CDN。DEV Harness 仅用于开发验收，不进入 release。
+正式前端使用 Vue 3、精确固定的 TypeScript 5.9.3 与 Vite；Reka UI 管理复杂控件交互，项目 CSS 和语义 Token 管理外观，模块化 @tauri-apps/api 调用既有 Typed IPC。xterm.js、fit addon 和图标随本地 bundle 分发，应用运行不需要访问 CDN。DEV Harness 仅用于开发验收，不进入 release。
 
 <details>
 <summary><strong>版本化 IPC 契约与流控</strong></summary>
@@ -296,6 +307,7 @@ npm --prefix frontend run test
 npm --prefix frontend run build
 node --test frontend/visual/capture.test.mjs
 node frontend/visual/verify.mjs
+node frontend/visual/verify.mjs docs/refactor/screenshots/reka-ui-review --implementation-only
 ```
 
 真实 OpenSSH 生命周期、Terminal 和 SFTP 集成测试默认标记为 ignored；它们会启动隔离的 loopback OpenSSH fixture，不使用用户的 SSH 配置或私钥。按需运行，例如：
@@ -326,7 +338,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 
 ## 验证与发布状态
 
-以下后端状态保留 2026-09-28 的验收范围；前端最新迁移、Browser 与 macOS 构建状态更新至 **2026-10-01**，见 [迁移总结](./docs/refactor/frontend-migration-summary.md)。最新颜色系统通过类型检查、128/128 前端测试、58 个 Browser 场景组合、macOS arm64 构建及严格签名校验，用户已确认 app 配色，见 [颜色系统验收](./docs/refactor/color-system-v1.md)。图标专项记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)；上述配色确认不代替完整原生与双平台 QA。
+以下后端状态保留 2026-09-28 的验收范围；前端组件与交互更新至 **2026-10-02**。本轮通过类型检查、136/136 前端测试、Browser 键盘与弹层实测、184 张视觉截图复验、macOS arm64 构建及严格签名校验，用户已确认应用与顶部提示，见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)。本机 Windows 交叉构建因缺少 MSVC SDK 头文件失败，仍为 BLOCKED；System-Dark 与系统 Reduced Motion 尚未专项实测，用户确认不代替完整双平台 QA。迁移、配色与图标历史见 [迁移总结](./docs/refactor/frontend-migration-summary.md)、[颜色系统验收](./docs/refactor/color-system-v1.md) 和 [圆角图标报告](./docs/refactor/app-icon-rounded.md)。
 
 | 范围 | 当前状态 | 仍需完成 |
 | --- | --- | --- |
@@ -334,7 +346,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 | M4：Terminal | PTY、多终端、取消与有界流控实现；本机 OpenSSH 压力场景通过 | 真实 WebView/Tauri IPC 吞吐与延迟测量尚未完成，因此不登记为完整性能验收通过 |
 | M5：SFTP | 浏览、目录操作、文件传输实现；隔离 OpenSSH 回归和大文件往返验证通过 | Windows 文件发布与目标服务器故障矩阵验收 |
 | M6：Monitor | 采集、解析、有限历史和工作区页面实现；当前可用环境检查通过 | Linux 主机实测指标比对、Windows 窗口最小化/恢复行为验收 |
-| 桌面 UI | Vue 正式入口；Browser 四视口、双语、双主题与固定视觉回归；macOS release 应用 | Phase 6 既有验收缺口、原生最小化/恢复、Windows 桌面验收 |
+| 桌面 UI | Vue 正式入口与 Reka UI 组件；Browser 双语、双主题与固定视觉回归；macOS release 应用经用户确认 | Phase 6 既有验收缺口、系统主题/减少动态效果专项实测、原生最小化/恢复；Windows 构建环境及桌面验收 |
 | 发布 | 本机开发 bundle 可用 | Developer ID / Windows 签名、macOS 公证、DMG 和公开发行检查 |
 
 当前界面提供简体中文与 English catalog；用户名称、远端路径和终端输出保持原内容。MVP 当前不包含 Docker 管理、数据库客户端、进程列表和 Disk I/O 监控。M4 IPC 数值测试按用户选择跳过，README 不提供未经实测的吞吐或延迟数据。
@@ -355,7 +367,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 | --- | --- |
 | 产品与交互 | [PRD](./docs/MauLink_PRD_v0.1.md) · [MVP 定义](./docs/MauLink_MVP_设计文档_v0.1.md) · [UX 设计](./docs/MauLink_UX_设计文档_v0.1.md) · [UI 说明](./UI/MauLink_UI_描述文档_v0.1.md) |
 | 开发与架构 | [前端说明](./frontend/README.md) · [后端实施](./docs/MauLink_后端开发实施文档_v0.1.md) · [依赖决策](./docs/technical-decisions/dependencies.md) |
-| 迁移与验收 | [前端迁移总结](./docs/refactor/frontend-migration-summary.md) · [视觉回归](./frontend/visual/README.md) · [设计 QA](./design-qa.md) · [颜色系统验收](./docs/refactor/color-system-v1.md) · [图标验收](./docs/refactor/app-icon-rounded.md) |
+| 迁移与验收 | [前端迁移总结](./docs/refactor/frontend-migration-summary.md) · [组件与交互验收](./docs/refactor/reka-ui-v1.md) · [视觉回归](./frontend/visual/README.md) · [设计 QA](./design-qa.md) · [颜色系统验收](./docs/refactor/color-system-v1.md) · [图标验收](./docs/refactor/app-icon-rounded.md) |
 
 ## 贡献约定
 

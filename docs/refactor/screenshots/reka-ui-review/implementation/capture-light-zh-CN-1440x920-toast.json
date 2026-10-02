@@ -1,0 +1,17 @@
+[
+  {
+    "page": "toast",
+    "file": "toast-light-zh-CN-1440x920.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=toast&theme=light&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 920,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 1440,
+    "sha256": "5d37fb1bd5287e2f6f3b1b46ecb1a7ba280d3b8be49dcde3043e57e25593b784",
+    "repeatSha256": "5d37fb1bd5287e2f6f3b1b46ecb1a7ba280d3b8be49dcde3043e57e25593b784",
+    "identical": true
+  }
+]

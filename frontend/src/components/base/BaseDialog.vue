@@ -1,73 +1,43 @@
 <script setup lang="ts">
-import { locale } from "../../i18n/locale";
-import { nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
-import BaseIconButton from "./BaseIconButton.vue";
-
-const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string }>(), {
-  busy: false, closeLabel: "", panelClass: "",
-});
+import { computed, provide, watch } from 'vue';
+import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, AlertDialogRoot, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogTitle } from 'reka-ui';
+import { locale } from '../../i18n/locale';
+import BaseIconButton from './BaseIconButton.vue';
+import BaseIcon from './BaseIcon.vue';
+import { dialogEscapeKey } from './dialog-context';
+const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; alert?: boolean }>(), { busy:false, closeLabel:'', panelClass:'', alert:false });
 const emit = defineEmits<{ close: [] }>();
-const titleId = useId();
-const dialog = ref<HTMLElement>();
+// Both modal types share the same surface and external API; Reka owns their behavior.
+const parts = computed(() => props.alert
+  ? {Root:AlertDialogRoot,Portal:AlertDialogPortal,Overlay:AlertDialogOverlay,Content:AlertDialogContent,Title:AlertDialogTitle}
+  : {Root:DialogRoot,Portal:DialogPortal,Overlay:DialogOverlay,Content:DialogContent,Title:DialogTitle});
 let returnFocus: HTMLElement | null = null;
-
-function focusableElements() {
-  // Walk in DOM order so selector-list ordering cannot change the Tab sequence.
-  return Array.from(dialog.value?.querySelectorAll<HTMLElement>("*") ?? [])
-    .filter(element => element.matches('button, input, select, textarea, a[href], [tabindex]')
-      && element.tabIndex >= 0 && !element.matches(':disabled, input[type="hidden"]')
-      && !element.closest('[hidden], [inert], [aria-hidden="true"]'))
-    .sort((left, right) => (left.tabIndex || Infinity) - (right.tabIndex || Infinity));
+watch(() => props.open, open => { if (open) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; }, { immediate:true, flush:'sync' });
+provide(dialogEscapeKey, () => update(false));
+function update(open: boolean) { if (!open && !props.busy) emit('close'); }
+function openAutoFocus(event: Event) {
+  const selector = props.initialFocus ?? (props.alert ? '[data-dialog-cancel]' : undefined);
+  const target = selector && event.target instanceof HTMLElement ? event.target.querySelector<HTMLElement>(selector) : null;
+  if (target && !target.matches(':disabled')) { event.preventDefault(); target.focus({preventScroll:true}); }
 }
-
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!props.busy) emit("close");
-  } else if (event.key === "Tab") {
-    const elements = focusableElements();
-    const first = elements[0];
-    const last = elements.at(-1);
-    if (!first) {
-      event.preventDefault();
-      dialog.value?.focus();
-    } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.value)) {
-      event.preventDefault();
-      last?.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
+function closeAutoFocus(event: Event) {
+  event.preventDefault();
+  if (returnFocus?.isConnected) returnFocus.focus({preventScroll:true});
 }
-
-watch(() => props.open, async open => {
-  if (open) {
-    returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    await nextTick();
-    if (props.open) (focusableElements().find(element => props.initialFocus && element.matches(props.initialFocus)) ?? focusableElements()[0] ?? dialog.value)?.focus();
-  } else {
-    returnFocus?.focus();
-    returnFocus = null;
-  }
-}, { immediate: true });
-
-onBeforeUnmount(() => returnFocus?.focus());
+function escape(event: KeyboardEvent) { if (props.busy) event.preventDefault(); }
+function outside(event: Event) { if (props.busy) event.preventDefault(); }
 </script>
-
 <template>
-  <Teleport to="body">
-    <div v-if="open" class="base-dialog-overlay">
-      <section ref="dialog" class="base-dialog" :class="panelClass" role="dialog" aria-modal="true" :aria-labelledby="titleId"
-        :aria-busy="busy" tabindex="-1" @keydown="onKeydown">
-        <header class="base-dialog-heading">
-          <h2 :id="titleId">{{ title }}</h2>
-          <BaseIconButton :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="emit('close')">×</BaseIconButton>
+  <component :is="parts.Root" :open="open" @update:open="update">
+    <component :is="parts.Portal">
+      <component :is="parts.Overlay" class="base-dialog-overlay" />
+      <component :is="parts.Content" class="base-dialog" :class="panelClass" :aria-busy="busy" aria-modal="true" :aria-describedby="undefined" @open-auto-focus="openAutoFocus" @close-auto-focus="closeAutoFocus" @escape-key-down="escape" @interact-outside="outside">
+        <header class="base-dialog-heading"><component :is="parts.Title" as="h2">{{ title }}</component>
+          <BaseIconButton :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="update(false)"><BaseIcon name="x" /></BaseIconButton>
         </header>
         <div class="base-dialog-content"><slot /></div>
         <footer v-if="$slots.footer" class="base-dialog-footer"><slot name="footer" /></footer>
-      </section>
-    </div>
-  </Teleport>
+      </component>
+    </component>
+  </component>
 </template>

@@ -12,7 +12,6 @@
 .server-home-card .base-button { min-height: 28px; padding: 0 11px; font-size: 12px; }
 .server-card-menu summary { padding: 4px; border-radius: 4px; cursor: pointer; list-style: none; }
 .server-card-menu summary::-webkit-details-marker { display: none; }
-.server-card-menu > div { position: absolute; z-index: 10; top: calc(100% - 8px); right: 8px; display: grid; gap: 4px; min-width: 132px; padding: 6px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); box-shadow: 0 4px 12px var(--color-shadow); }
 .server-dialog .base-dialog-heading h2 { font-size: 16px; }
 .server-dialog .base-dialog-content { padding: 16px 20px; }
 .server-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 14px 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -39,5 +38,4 @@
 .server-group-manager .base-button { min-height: 30px; font-size: 12px; }
 .server-group-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .server-group-form .base-field { flex: 1; min-width: 180px; }
-.server-notice { position: fixed; z-index: 150; right: 16px; bottom: 42px; max-width: min(520px, calc(100vw - 32px)); }
 @media (max-width: 1080px) { .server-home-list { grid-template-columns: minmax(0, 1fr); } }

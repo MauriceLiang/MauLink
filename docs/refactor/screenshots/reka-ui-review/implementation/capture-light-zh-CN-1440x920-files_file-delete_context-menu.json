@@ -1,0 +1,47 @@
+[
+  {
+    "page": "files",
+    "file": "files-light-zh-CN-1440x920.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=files&theme=light&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 920,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 1440,
+    "sha256": "2f7fced2ab0ed8310988c29534ae95d3ac6fb41cfb93c0bfb6d31e6f73e856ef",
+    "repeatSha256": "2f7fced2ab0ed8310988c29534ae95d3ac6fb41cfb93c0bfb6d31e6f73e856ef",
+    "identical": true
+  },
+  {
+    "page": "file-delete",
+    "file": "file-delete-light-zh-CN-1440x920.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=file-delete&theme=light&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 920,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 1440,
+    "sha256": "da6b259c23758dc8f9348fa61922bc4f3b75278b10f0194df5fd644b5bdd8713",
+    "repeatSha256": "da6b259c23758dc8f9348fa61922bc4f3b75278b10f0194df5fd644b5bdd8713",
+    "identical": true
+  },
+  {
+    "page": "context-menu",
+    "file": "context-menu-light-zh-CN-1440x920.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=context-menu&theme=light&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 920,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 1440,
+    "sha256": "b67b1fbe62d4d5e63dee94399843136cb9f5528d329c767a117edf81e995afd7",
+    "repeatSha256": "b67b1fbe62d4d5e63dee94399843136cb9f5528d329c767a117edf81e995afd7",
+    "identical": true
+  }
+]

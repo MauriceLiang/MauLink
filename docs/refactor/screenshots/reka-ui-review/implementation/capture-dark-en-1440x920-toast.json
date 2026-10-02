@@ -1,0 +1,17 @@
+[
+  {
+    "page": "toast",
+    "file": "toast-dark-en-1440x920.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=toast&theme=dark&locale=en",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 920,
+    "locale": "en",
+    "overflow": false,
+    "theme": "dark",
+    "width": 1440,
+    "sha256": "eefce202d562626280b859770e8d8b084ab8b3dda38997e07b4e1faf1dda5e07",
+    "repeatSha256": "eefce202d562626280b859770e8d8b084ab8b3dda38997e07b4e1faf1dda5e07",
+    "identical": true
+  }
+]

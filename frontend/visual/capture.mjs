@@ -63,8 +63,8 @@ async function prepare(tab, item, locale) {
     'host-key-changed':['服务器身份发生变化','Server identity changed'], authentication:['输入 SSH 密码','Enter SSH password'],
     'connection-error':['服务器拒绝连接','Connection refused'], 'file-delete':['确认删除？','Confirm deletion?'],
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
-    'settings-appearance':['跟随系统','System'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
-    'settings-language':['English','English'], palette:['combobox','combobox'],
+    'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
+    'settings-language':['中文','English'], palette:['combobox','combobox'],
     transfer:['config.yml','config.yml'], monitor:['24.5%','24.5%'], 'monitor-unavailable':['不支持','Unsupported'],
     toast:['设置已保存。','Settings saved.'],
   }[item.page];

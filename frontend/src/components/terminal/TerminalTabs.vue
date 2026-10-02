@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import BaseTooltip from "../base/BaseTooltip.vue";
+import BaseIcon from "../base/BaseIcon.vue";
 import { messages } from "../../i18n/locale";
 import { terminalMessages } from "../../i18n/terminal";
 import type { TerminalTab } from "../../terminal/controller";
@@ -18,7 +20,7 @@ function navigate(event: KeyboardEvent, id: string, tabs: TerminalTab[]) {
   <div class="terminal-tabs" role="tablist" :aria-label="t('terminalTabs')">
     <div v-for="tab in tabs" :key="tab.id" class="terminal-tab-group">
       <BaseButton :id="`terminal-tab-${tab.id}`" role="tab" :aria-selected="tab.id === activeId" :aria-controls="`terminal-panel-${tab.id}`" :tabindex="tab.id === activeId ? 0 : -1" @click="emit('activate',tab.id, true)" @keydown="navigate($event, tab.id, tabs)">{{ tab.title }}<span v-if="tab.state !== 'running'"> · {{ tab.state === 'opening' ? t('opening') : tab.state === 'closing' ? t('closing') : t('stopped') }}</span></BaseButton>
-      <BaseButton class="terminal-tab-close" :aria-label="t('closeTab', {name: tab.title})" :disabled="tab.state === 'opening' || tab.state === 'closing'" @click="emit('close', tab.id)">×</BaseButton>
+      <BaseTooltip :label="t('closeTab', {name: tab.title})"><BaseButton class="terminal-tab-close" :aria-label="t('closeTab', {name: tab.title})" :disabled="tab.state === 'opening' || tab.state === 'closing'" @click="emit('close', tab.id)"><BaseIcon name="x" /></BaseButton></BaseTooltip>
     </div>
   </div>
 </template>

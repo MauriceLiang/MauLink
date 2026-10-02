@@ -56,7 +56,7 @@ describe('one shared monitor controller', () => {
     failure = false; await store.refresh(); await flushPromises(); expect(full.findAll('[role="alert"]').filter(alert => alert.isVisible())).toHaveLength(0); expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe('ok');
   });
   it('skips unsupported histories rather than fabricating empty metrics as zero', async () => {
-    const { store, history } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, 'unsupported') }); store.activate('conn-a', true); await flushPromises(); expect(history).not.toHaveBeenCalled(); const full = view(store); expect(full.get('[aria-label="CPU 使用率"] .monitor-value').text()).toBe('不支持'); expect(full.findAll('svg')).toHaveLength(0);
+    const { store, history } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, 'unsupported') }); store.activate('conn-a', true); await flushPromises(); expect(history).not.toHaveBeenCalled(); const full = view(store); expect(full.get('[aria-label="CPU 使用率"] .monitor-value').text()).toBe('不支持'); expect(full.findAll('svg.monitor-chart')).toHaveLength(0);
   });
   it('bounds history and reports every metric failure including network transmit', async () => {
     let failure = false; const { store } = controller({ monitor_get_history: ({ connectionId, metric }) => { if (failure && metric === 'networkTransmitRate') throw fixtureError('MONITOR_TIMEOUT', 'errors.monitorTimeout'); return { connectionId, metric, samples: Array.from({ length: 900 }, (_, index) => ({ sampledAtMs: index, value: index })) }; } });

@@ -28,8 +28,8 @@
 .base-input[aria-invalid="true"], .base-input[aria-invalid="true"]:hover { border-color: var(--color-danger); }
 .base-input:disabled { opacity: .52; cursor: not-allowed; }
 .base-field-error { margin: 0; color: var(--color-danger); font-size: 12px; }
-.base-dialog-overlay { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: var(--color-overlay); }
-.base-dialog { width: min(526px, 100%); max-height: calc(100dvh - 40px); overflow: auto; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-elevated); }
+.base-dialog-overlay { position: fixed; z-index: var(--z-dialog-overlay); inset: 0; background: var(--color-overlay); }
+.base-dialog { position: fixed; z-index: var(--z-dialog); top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(526px, calc(100vw - 40px)); box-shadow: var(--shadow-lg); max-height: calc(100dvh - 40px); overflow: auto; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-elevated); }
 .base-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--color-border); }
 .base-dialog-heading h2 { margin: 0; font-size: 18px; }
 .base-dialog-content { padding: 20px; }

@@ -1,0 +1,17 @@
+[
+  {
+    "page": "toast",
+    "file": "toast-light-en-860x640.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=toast&theme=light&locale=en",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 640,
+    "locale": "en",
+    "overflow": false,
+    "theme": "light",
+    "width": 860,
+    "sha256": "277d8cfabf3fc05f37dd9e7ab2d6b3baa99c12720ab9f0c98e2a3557d2bd1515",
+    "repeatSha256": "277d8cfabf3fc05f37dd9e7ab2d6b3baa99c12720ab9f0c98e2a3557d2bd1515",
+    "identical": true
+  }
+]

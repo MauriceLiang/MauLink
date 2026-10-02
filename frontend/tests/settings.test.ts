@@ -16,13 +16,21 @@ import { settingsMessages } from '../src/i18n/settings';
 import { paletteMessages } from '../src/i18n/palette';
 import SettingsDialog from '../src/dialogs/SettingsDialog.vue';
 import CommandPalette from '../src/components/base/CommandPalette.vue';
-import BaseContextMenu from '../src/components/base/BaseContextMenu.vue';
+import BaseDropdownMenu from '../src/components/base/BaseDropdownMenu.vue';
 import SettingsHarness from '../src/harness/SettingsHarness.vue';
 const wrappers: VueWrapper[] = [];
 beforeEach(() => { const values = new Map<string, string>(); vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key,value), clear: () => values.clear(), key: (index: number) => [...values.keys()][index] ?? null, get length() { return values.size; } }); });
 function mounted(component: Parameters<typeof mount>[0], props: Record<string, unknown> = {}): VueWrapper { const wrapper = mount(component, { props, attachTo: document.body }); wrappers.push(wrapper); return wrapper; }
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); locale.value = 'zh-CN'; document.body.innerHTML = ''; localStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const button = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find(element => element.textContent?.trim() === label)!;
+async function changeSelect(index: number, label: string) {
+  const trigger = document.querySelectorAll<HTMLElement>('[role=combobox]')[index]!;
+  trigger.dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowDown', bubbles:true, cancelable:true }));
+  await flushPromises();
+  const option = [...document.querySelectorAll<HTMLElement>('[role=option]')].find(item => item.textContent?.trim() === label)!;
+  option.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', bubbles:true, cancelable:true }));
+  await flushPromises();
+}
 describe('shared SettingsService preferences', () => {
   it('saves appearance and language with Core revision while preserving terminal and directory token', async () => {
     const value = {...defaultSettings, downloadDirectoryToken: 'opaque-directory-reference'}; const update = vi.fn(payload => ({value: payload.value, revision: 8, updatedAtMs: 2})); const apply = vi.fn();
@@ -43,24 +51,23 @@ describe('shared SettingsService preferences', () => {
   });
   it('does not apply an unsaved dialog draft and saves valid values through IPC', async () => {
     const fixture=createSettingsMock(); const apply=vi.fn(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),apply); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
-    button('外观').click(); await flushPromises(); const select=document.querySelector('select')!; select.value='dark'; select.dispatchEvent(new Event('change',{bubbles:true})); expect(fixture.current().value.theme).toBe('system');
+    button('外观').click(); await flushPromises(); await changeSelect(0, '深色'); expect(fixture.current().value.theme).toBe('system');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value.theme).toBe('dark'); expect(wrapper.emitted('saved')).toHaveLength(1);
   });
   it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     button('外观').click(); await flushPromises();
-    const change=(select: HTMLSelectElement,value:string)=>{select.value=value;select.dispatchEvent(new Event('change',{bubbles:true}));};
-    change(document.querySelectorAll('select')[1]!,'dark'); await flushPromises();
+    await changeSelect(1, '深色'); await flushPromises();
     expect(document.querySelector('img[alt="应用图标预览"]')?.getAttribute('src')).toContain('app-icon-dark');
     expect(fixture.current().value.appIconStyle).toBe('light');
     button('取消').click(); await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
-    expect(document.querySelectorAll<HTMLSelectElement>('select')[1]!.value).toBe('light');
-    change(document.querySelectorAll('select')[1]!,'dark');
+    expect(document.querySelectorAll('[role=combobox]')[1]!.textContent).toContain('浅色');
+    await changeSelect(1, '深色');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value.appIconStyle).toBe('dark'); expect(fixture.current().value.theme).toBe('system'); expect(wrapper.emitted('saved')).toHaveLength(1);
     await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
-    expect(document.querySelectorAll<HTMLSelectElement>('select')[1]!.value).toBe('dark');
-    change(document.querySelectorAll('select')[0]!,'dark'); change(document.querySelectorAll('select')[1]!,'light');
+    expect(document.querySelectorAll('[role=combobox]')[1]!.textContent).toContain('深色');
+    await changeSelect(0, '深色'); await changeSelect(1, '浅色');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value.theme).toBe('dark'); expect(fixture.current().value.appIconStyle).toBe('light');
   });
@@ -92,16 +99,16 @@ describe('catalogs and command palette', () => {
   });
   it('focuses search, moves selection, executes Enter, closes with Esc, and restores trigger', async () => {
     const trigger=document.createElement('button');document.body.append(trigger);trigger.focus();const wrapper=mounted(CommandPalette,{open:false,commands:[{id:'disabled',label:'Disabled',disabled:true},{id:'one',label:'One'},{id:'two',label:'Two'}]}); await wrapper.setProps({open:true});await flushPromises();
-    const input=document.querySelector<HTMLInputElement>('[role="combobox"]')!;expect(document.activeElement).toBe(input); const selected=()=>document.querySelector('[role="option"][aria-selected="true"]')?.textContent?.trim();expect(selected()).toBe('One');const scrolling=vi.fn(); Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{value:scrolling,configurable:true}); input.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));await flushPromises();expect(selected()).toBe('Two');input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));expect(wrapper.emitted('execute')).toEqual([['two']]);input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));expect(wrapper.emitted('close')).toHaveLength(1);await wrapper.setProps({open:false});expect(document.activeElement).toBe(trigger);
+    const input=document.querySelector<HTMLInputElement>('[role="combobox"]')!;expect(document.activeElement).toBe(input); const selected=()=>document.querySelector('[role="option"][aria-selected="true"]')?.textContent?.trim();expect(selected()).toBe('One');const scrolling=vi.fn(); Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{value:scrolling,configurable:true}); input.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));await flushPromises();expect(selected()).toBe('Two');input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));expect(wrapper.emitted('execute')).toEqual([['two']]);input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));expect(wrapper.emitted('close')).toHaveLength(1);await wrapper.setProps({open:false});await flushPromises();expect(document.activeElement).toBe(trigger);
   });
   it('shows no matches without executing or focusing a disabled result', async () => {
-    const wrapper=mounted(CommandPalette,{open:true,commands:[{id:'off',label:'Disabled',disabled:true}]});const input=document.querySelector<HTMLInputElement>('[role="combobox"]')!; input.value='missing'; input.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises(); input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));expect(document.querySelector('[role="status"]')?.textContent).toBe('没有匹配的命令');expect(wrapper.emitted('execute')).toBeUndefined();
+    const wrapper=mounted(CommandPalette,{open:true,commands:[{id:'off',label:'Disabled',disabled:true}]});await flushPromises();const input=document.querySelector<HTMLInputElement>('[role="combobox"]')!; input.value='missing'; input.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises(); input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));expect(document.querySelector('[role="status"]')?.textContent).toBe('没有匹配的命令');expect(wrapper.emitted('execute')).toBeUndefined();
   });
   it('leaves terminal Ctrl/Cmd K intact while ordinary UI opens the palette', async () => {
     mounted(SettingsHarness);await flushPromises();const term=document.createElement('div');term.className='xterm';const input=document.createElement('textarea');term.append(input);document.body.append(term);expect(isTerminalTarget(input)).toBe(true);input.focus();const remote=new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true,cancelable:true});input.dispatchEvent(remote);await flushPromises();expect(remote.defaultPrevented).toBe(false);expect(document.querySelector('[role="dialog"]')).toBeNull();
     const normal=new KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true,cancelable:true});document.querySelector('input')!.dispatchEvent(normal);await flushPromises();expect(normal.defaultPrevented).toBe(true);expect(document.activeElement?.getAttribute('role')).toBe('combobox');
   });
   it('uses one menu with disabled skipping, Esc focus restore and action dispatch', async () => {
-    const wrapper=mounted(BaseContextMenu,{label:'Actions',items:[{id:'off',label:'Unavailable',disabled:true},{id:'first',label:'First'},{id:'last',label:'Last'}]});const trigger=wrapper.get('button');trigger.element.focus();await trigger.trigger('keydown',{key:'ArrowDown'});await flushPromises();expect(document.activeElement?.textContent).toBe('First');await wrapper.get('[role="menu"]').trigger('keydown',{key:'End'});expect(document.activeElement?.textContent).toBe('Last');await wrapper.get('[role="menu"]').trigger('keydown',{key:'Escape'});expect(document.activeElement).toBe(trigger.element);await trigger.trigger('click');await flushPromises();await wrapper.findAll('[role="menuitem"]')[1]!.trigger('click');expect(wrapper.emitted('action')).toEqual([['first']]);
+    const wrapper=mounted(BaseDropdownMenu,{label:'Actions',items:[{id:'off',label:'Unavailable',disabled:true},{id:'first',label:'First'},{id:'last',label:'Last'}]});const trigger=wrapper.get('button');const menu=()=>({trigger:async(_event:string,options:{key:string})=>{document.querySelector('[role=menu]')!.dispatchEvent(new KeyboardEvent('keydown',{...options,bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,0));await flushPromises();}});trigger.element.focus();await trigger.trigger('keydown',{key:'ArrowDown'});await flushPromises();await new Promise(resolve=>setTimeout(resolve,0));expect(document.activeElement?.textContent).toBe('First');await menu().trigger('keydown',{key:'End'});expect(document.activeElement?.textContent).toBe('Last');await menu().trigger('keydown',{key:'Escape'});await new Promise(resolve=>setTimeout(resolve,0));expect(document.activeElement).toBe(trigger.element);await trigger.trigger('click');await flushPromises();document.querySelectorAll<HTMLElement>('[role=menuitem]')[1]!.click(); await new Promise(resolve=>setTimeout(resolve,0));await flushPromises();expect(wrapper.emitted('action')).toEqual([['first']]);
   });
 });

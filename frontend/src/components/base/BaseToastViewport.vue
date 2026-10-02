@@ -1,0 +1,13 @@
+<script setup lang="ts">
+import { ToastProvider, ToastViewport } from 'reka-ui';
+import { locale } from '../../i18n/locale';
+import type { ToastQueue } from '../../composables/useToast';
+import BaseToast from './BaseToast.vue';
+defineProps<{ queue: ToastQueue }>();
+</script>
+<template>
+  <ToastProvider :label="locale === 'en' ? 'Notification' : '通知'" disable-swipe>
+    <BaseToast v-for="toast in queue.messages.value" :key="toast.id" :toast="toast" @close="queue.dismiss(toast.id)" @remove="queue.remove(toast.id)" />
+    <Teleport to="body"><ToastViewport class="base-toast-viewport" :label="locale === 'en' ? 'Notifications ({hotkey})' : '通知（{hotkey}）'" /></Teleport>
+  </ToastProvider>
+</template>

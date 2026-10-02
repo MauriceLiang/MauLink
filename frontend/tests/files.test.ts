@@ -1,3 +1,4 @@
+import { DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { Channel } from '@tauri-apps/api/core';
@@ -26,7 +27,7 @@ function tasks(handlers: MockHandlers = {}, picker = vi.fn(async () => ({ token:
   const store = createTransferStore(apiFor({ sftp_upload: upload, sftp_transfer_get: () => initial, sftp_transfer_list: () => [], sftp_transfer_cancel: cancel, ...handlers }), picker, () => channel);
   disposals.push(store.dispose); return { store, channel, picker, upload, cancel };
 }
-async function harness() { const wrapper = mount(FilesHarness, { attachTo: document.body, global: { stubs: { Teleport: true } } }); wrappers.push(wrapper); await flushPromises(); return wrapper; }
+async function harness() { const wrapper = mount(FilesHarness, { attachTo: document.body }); wrappers.push(wrapper); await flushPromises(); return wrapper; }
 const button = (wrapper: VueWrapper, text: string) => wrapper.findAll('button').find(value => value.text() === text)!;
 describe('remote paths and directory lifecycle', () => {
   it('preserves POSIX basenames, quotes, Unicode and backslashes without shell escaping', () => {
@@ -127,18 +128,18 @@ describe('file UI acceptance', () => {
     await wrapper.get('[aria-label="远程路径"]').setValue('/fixture/denied'); await wrapper.get('.files-location').trigger('submit'); await flushPromises(); expect(wrapper.get('[role="alert"]').text()).toContain('检查权限'); expect(button(wrapper, '上传文件').attributes('disabled')).toBeDefined();
   });
   it('requires a second delete confirmation and restores focus after a disappeared trigger', async () => {
-    const wrapper = await harness(); const trigger = wrapper.get('[aria-label="file-001.txt 操作"]'); (trigger.element as HTMLButtonElement).focus(); await trigger.trigger('click'); await flushPromises(); await wrapper.get('[role="menuitem"]').trigger('keydown', { key: 'End' });
-    expect(document.activeElement?.textContent).toBe('删除'); await wrapper.findAll('[role="menuitem"]').find(value => value.text() === '删除')!.trigger('click'); await flushPromises();
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(true); expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(true);
-    await button(wrapper, '取消').trigger('click'); await flushPromises(); expect(document.activeElement).toBe(trigger.element);
-    await trigger.trigger('click'); await flushPromises(); await wrapper.findAll('[role="menuitem"]').find(value => value.text() === '删除')!.trigger('click'); await flushPromises(); await button(wrapper, '确认删除').trigger('click'); await flushPromises();
+    const wrapper = await harness(); const trigger = wrapper.get('[aria-label="file-001.txt 操作"]'); (trigger.element as HTMLButtonElement).focus(); await trigger.trigger('click'); await flushPromises(); await new DOMWrapper(document.querySelector('[role=menuitem]')!).trigger('keydown', { key: 'End' });
+    await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement?.textContent).toBe('删除'); await [...document.querySelectorAll('[role=menuitem]')].map(element => new DOMWrapper(element)).find(value => value.text() === '删除')!.trigger('click'); await new Promise(resolve=>setTimeout(resolve,0)); await flushPromises();
+    expect(document.querySelector('[role=dialog], [role=alertdialog]') !== null).toBe(true); expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(true);
+    await new DOMWrapper(document.body).findAll('button').find(value=>value.text()==='取消')!.trigger('click'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement).toBe(trigger.element);
+    await trigger.trigger('click'); await flushPromises(); await [...document.querySelectorAll('[role=menuitem]')].map(element => new DOMWrapper(element)).find(value => value.text() === '删除')!.trigger('click'); await new Promise(resolve=>setTimeout(resolve,0)); await flushPromises(); await new DOMWrapper(document.body).findAll('button').find(value=>value.text()==='确认删除')!.trigger('click'); await flushPromises();
     expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(false); expect(document.activeElement).toBe(wrapper.get('[aria-label="远程路径"]').element);
   });
   it('supports keyboard menu order, skips disabled items, and restores trigger on Escape', async () => {
     const wrapper = mount(FileMenu, { attachTo: document.body, props: { name: 'folder', disabled: false, downloadable: false } }); wrappers.push(wrapper);
-    const trigger = wrapper.get('.file-menu-trigger'); await trigger.trigger('keydown', { key: 'ArrowDown' }); await flushPromises(); expect(document.activeElement?.textContent).toBe('复制路径');
-    await wrapper.get('[role="menu"]').trigger('keydown', { key: 'ArrowUp' }); expect(document.activeElement?.textContent).toBe('删除');
-    await wrapper.get('[role="menu"]').trigger('keydown', { key: 'ArrowDown' }); expect(document.activeElement?.textContent).toBe('复制路径');
-    await wrapper.get('[role="menu"]').trigger('keydown', { key: 'Escape' }); await flushPromises(); expect(document.activeElement).toBe(trigger.element); expect(wrapper.find('[role="menu"]').exists()).toBe(false);
+    const trigger = wrapper.get('.base-menu-trigger'); await trigger.trigger('keydown', { key: 'ArrowDown' }); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement?.textContent).toBe('复制路径');
+    await new DOMWrapper(document.querySelector('[role=menu]')!).trigger('keydown', { key: 'ArrowUp' }); await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement?.textContent).toBe('删除');
+    await new DOMWrapper(document.querySelector('[role=menu]')!).trigger('keydown', { key: 'ArrowDown' }); await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement?.textContent).toBe('复制路径');
+    await new DOMWrapper(document.querySelector('[role=menu]')!).trigger('keydown', { key: 'Escape' }); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0)); expect(document.activeElement).toBe(trigger.element); expect(wrapper.find('[role="menu"]').exists()).toBe(false);
   });
 });

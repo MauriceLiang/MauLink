@@ -31,7 +31,8 @@ import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
-import BaseToast from "../components/base/BaseToast.vue";
+import BaseToastViewport from "../components/base/BaseToastViewport.vue";
+import { useToast } from "../composables/useToast";
 import ServerList from "../components/server/ServerList.vue";
 import ServerDialog from "../dialogs/ServerDialog.vue";
 import ConfirmDialog from "../dialogs/ConfirmDialog.vue";
@@ -71,8 +72,8 @@ async function executeCommand(id: string) {
   if (id.startsWith('server:')) selectedId.value = id.slice(7);
   else if (id === 'add') openEditor();
   else if (id === 'settings') settingsOpen.value = true;
-  else if (id === 'theme' || id === 'language') { const current = terminalPreferences.record.value?.value; if (current && await terminalPreferences.save(id === 'theme' ? { theme: getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'light' : 'dark' } : { language: current.language === 'en' ? 'zh-CN' : 'en' })) notice.value = settingsText('saved'); }
-  else if (id === 'clear') { new Set(transfers.snapshots.value.map(task => task.connectionId)).forEach(id => transfers.clearCompleted(id)); notice.value = paletteText('cleared'); }
+  else if (id === 'theme' || id === 'language') { const current = terminalPreferences.record.value?.value; if (current && await terminalPreferences.save(id === 'theme' ? { theme: getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'light' : 'dark' } : { language: current.language === 'en' ? 'zh-CN' : 'en' })) toast.success(settingsText('saved')); }
+  else if (id === 'clear') { new Set(transfers.snapshots.value.map(task => task.connectionId)).forEach(id => transfers.clearCompleted(id)); toast.info(paletteText('cleared')); }
   else if (workspace) await workspace.view(id === 'workspace' ? 'terminal' : id as 'monitor' | 'files');
 }
 const about = ref(false);
@@ -80,7 +81,7 @@ const editor = ref(false);
 const editingId = ref<string | null>(null);
 const manageGroups = ref(false);
 const deleteTarget = ref<ServerProfile | null>(null);
-const notice = ref("");
+const toast = useToast();
 const selected = computed(() => servers.value.find(server => server.id === selectedId.value));
 const backendState = computed(() => pending.value ? "pending" : error.value ? "error" : "ready");
 const shortcut = computed(() => info.value?.platform === "windows" ? "Ctrl K" : "⌘ K");
@@ -93,7 +94,7 @@ function openEditor(id: string | null = null) {
 }
 
 async function onRemoved(message: string) {
-  notice.value = message;
+  toast.success(message);
   selectedId.value = null;
   await nextTick();
   // The delete trigger may disappear with its server, so return to Home.
@@ -158,12 +159,12 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="notice = $event" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="toast.success($event)" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
-    <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="notice = $event" />
+    <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
     <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || editor || manageGroups || !!deleteTarget" />
-    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" @close="settingsOpen = false" @saved="notice = settingsText('saved')" />
+    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
-    <BaseToast v-if="notice" class="server-notice" :message="notice" kind="info" @close="notice = ''" />
+    <BaseToastViewport :queue="toast" />
   </div>
 </template>

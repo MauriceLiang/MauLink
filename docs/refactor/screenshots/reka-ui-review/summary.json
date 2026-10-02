@@ -1,0 +1,10 @@
+{
+  "implementation": {
+    "pages": 23,
+    "conditions": 8,
+    "screenshots": 184,
+    "independentRepeat": "byte-identical",
+    "dpr": 1,
+    "overflow": []
+  }
+}

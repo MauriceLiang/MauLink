@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BaseCheckbox from "../base/BaseCheckbox.vue";
 import { messages } from "../../i18n/locale";
 import { terminalMessages } from "../../i18n/terminal";
 import { computed, nextTick, ref, watch } from "vue";
@@ -65,7 +66,7 @@ defineExpose({ connectionId: props.snapshot.connectionId, view });
     <TerminalSettingsDialog :open="settingsOpen" :preferences="preferences" @close="closeSettings" />
     <BaseDialog :open="disconnectOpen" :title="t('disconnectSSH')" :busy="busy" @close="disconnectOpen = false">
       <p>{{ t('disconnectNote', {name: server.name}) }}</p>
-      <label v-if="requireStopConfirmation"><input v-model="stopTransfers" type="checkbox" :disabled="busy" />{{ t('stopTransfersForThisConnectionBeforeDisconnecting') }}</label>
+      <BaseCheckbox v-if="requireStopConfirmation" v-model="stopTransfers" :disabled="busy" :label="t('stopTransfersForThisConnectionBeforeDisconnecting')" />
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
       <template #footer><BaseButton :disabled="busy" @click="disconnectOpen = false">{{ t('keepConnection') }}</BaseButton><BaseButton variant="danger" :disabled="busy || (requireStopConfirmation && !stopTransfers)" @click="emit('disconnect', stopTransfers)">{{ t('confirmDisconnect') }}</BaseButton></template>
     </BaseDialog>

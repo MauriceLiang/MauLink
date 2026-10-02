@@ -18,5 +18,9 @@ document.documentElement.dataset.visualFixture = config.page;
 <style>
 /* Only imported by the DEV visual route. Keep focus rings; suppress time-dependent raster changes. */
 html[data-visual-fixture] *, html[data-visual-fixture] *::before, html[data-visual-fixture] *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }
+/* Pin native overlay scrollbars in DEV captures; their OS fade is unrelated to app state. */
+html[data-visual-fixture] .files-table-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+html[data-visual-fixture] .files-table-scroll::-webkit-scrollbar-track { background: var(--color-bg-subtle); }
+html[data-visual-fixture] .files-table-scroll::-webkit-scrollbar-thumb { background: var(--color-border-hover); border-radius: 4px; }
 html[data-visual-fixture] .xterm-cursor { visibility: hidden !important; }
 </style>

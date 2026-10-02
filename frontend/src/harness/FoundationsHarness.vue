@@ -4,7 +4,7 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseIconButton from "../components/base/BaseIconButton.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
-import BaseToast from "../components/base/BaseToast.vue";
+import BaseAlert from "../components/base/BaseAlert.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
 import BaseStatusBadge from "../components/base/BaseStatusBadge.vue";
 import { createIpcClient } from "../ipc/client";
@@ -55,7 +55,7 @@ onMounted(() => load());
     </div>
     <BaseInput v-model="name" label="示例名称" placeholder="支持键盘输入" />
     <BaseEmptyState title="暂无服务器" description="这是开发验收 fixture，不会访问真实服务器。" />
-    <BaseToast v-if="error" :message="error.message" kind="error" @close="error = null" />
+    <BaseAlert v-if="error">{{ error.message }}</BaseAlert>
     <BaseButton v-if="error?.retryable" @click="load()">重试</BaseButton>
     <BaseDialog :open="open" :busy="busy" title="基础对话框" @close="open = false">
       <BaseInput v-model="name" label="示例名称" />

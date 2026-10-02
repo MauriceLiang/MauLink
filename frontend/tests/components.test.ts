@@ -97,9 +97,10 @@ describe("base keyboard interactions", () => {
     const middleFocusable = dialog.querySelector<HTMLElement>('[data-focus="middle"]')!;
     middleFocusable.focus();
     expect(pressKey(middleFocusable, "Tab").defaultPrevented).toBe(false);
-    expect(pressKey(dialog, "Escape").defaultPrevented).toBe(true);
+    pressKey(dialog, "Escape");
     expect(wrapper.emitted("close")).toHaveLength(1);
     await wrapper.setProps({ open: false });
+    await flushPromises();
     expect(document.activeElement).toBe(opener);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
@@ -118,13 +119,13 @@ describe("base keyboard interactions", () => {
     expect(document.activeElement).toBe(firstFocusable);
   });
 
-  it("respects positive tabindex before the DOM-ordered default focusables", async () => {
+  it("keeps ordinary tabindex in visual DOM order including custom focusables", async () => {
     const wrapper = mount(BaseDialog, { attachTo: document.body, props: { open: true, title: "测试" },
-      slots: { default: '<input tabindex="2" /><input tabindex="1" data-focus="first" /><input data-focus="last" />' } });
+      slots: { default: '<div tabindex="0" data-focus="custom">自定义焦点</div><input data-focus="last" />' } });
     wrappers.push(wrapper);
     await flushPromises();
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
-    const firstFocusable = dialog.querySelector<HTMLElement>('[data-focus="first"]')!;
+    const firstFocusable = dialog.querySelector<HTMLElement>('[aria-label="关闭对话框"]')!;
     const lastFocusable = dialog.querySelector<HTMLElement>('[data-focus="last"]')!;
     expect(document.activeElement).toBe(firstFocusable);
     pressKey(firstFocusable, "Tab", true);

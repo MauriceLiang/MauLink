@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BaseAlert from "../base/BaseAlert.vue";
 import { messages } from "../../i18n/locale";
 import { monitorMessages } from "../../i18n/monitor";
 import { computed } from "vue";
@@ -29,9 +30,9 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
   <section :class="quick ? 'quick-monitor' : 'full-monitor'" :aria-label="quick ? 'Quick Monitor' : 'Full Monitor'">
     <header><div><h2>{{ quick ? 'Quick Monitor' : t('serverOverview') }}</h2><p v-if="!quick">{{ t('historyNote') }}</p></div><BaseButton v-if="!quick" :disabled="!ready || store.pending.value" @click="store.refresh()">{{ store.refreshing.value ? t('refreshing') : t('refreshNow') }}</BaseButton></header>
     <p v-if="!ready" class="monitor-notice" role="status">{{ snapshot ? t('connectionEndedLastSampleRetained') : t('connectionEndedNoSamplesAvailable') }}</p>
-    <p v-if="store.error.value" class="monitor-notice" role="alert">{{ presentError(store.error.value).message }}<span v-if="snapshot"> {{ t('snapshotNote') }}</span></p>
-    <p v-if="store.activityError.value" class="monitor-notice" role="alert">{{ t('syncFailed') }}{{ presentError(store.activityError.value).message }}</p>
-    <p v-for="(failure, metric) in store.historyErrors.value" v-show="failure" :key="metric" class="monitor-notice" role="alert">{{ {cpuUsage: 'CPU', memoryUsage: t('memory'), diskUsage: t('disk'), networkReceiveRate: t('receiveRate'), networkTransmitRate: t('transmitRate'), loadOneMinute: t('load')}[metric] }}{{ t('historyFailed') }}{{ failure && presentError(failure).message }}</p>
+    <BaseAlert v-if="store.error.value" class="monitor-notice" >{{ presentError(store.error.value).message }}<span v-if="snapshot"> {{ t('snapshotNote') }}</span></BaseAlert>
+    <BaseAlert v-if="store.activityError.value" class="monitor-notice" >{{ t('syncFailed') }}{{ presentError(store.activityError.value).message }}</BaseAlert>
+    <BaseAlert v-for="(failure, metric) in store.historyErrors.value" v-show="failure" :key="metric" class="monitor-notice" >{{ {cpuUsage: 'CPU', memoryUsage: t('memory'), diskUsage: t('disk'), networkReceiveRate: t('receiveRate'), networkTransmitRate: t('transmitRate'), loadOneMinute: t('load')}[metric] }}{{ t('historyFailed') }}{{ failure && presentError(failure).message }}</BaseAlert>
     <p class="monitor-updated" role="status">{{ latest ? t('latest', {time: new Date(latest).toLocaleTimeString()}) : t('awaitingSamples') }}</p>
     <div class="monitor-grid"><article v-for="card in cards" :key="card.key" :aria-label="card.label" class="monitor-card" :data-quality="effectiveStatus(card.quality, !!store.error.value || !ready)">
       <div class="monitor-card-heading"><h3>{{ card.label }}</h3><span>{{ qualityLabel(effectiveStatus(card.quality, !!store.error.value || !ready)) }}</span></div>

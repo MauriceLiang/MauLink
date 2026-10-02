@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import BaseCheckbox from "../components/base/BaseCheckbox.vue";
+import BaseAlert from "../components/base/BaseAlert.vue";
+import BaseSelect from "../components/base/BaseSelect.vue";
 import { messages } from "../i18n/locale";
 import { terminalMessages } from "../i18n/terminal";
 import { ref, watch } from "vue";
@@ -18,13 +21,13 @@ async function save() { if (await props.preferences.save({ terminalFontFamily: f
   <BaseDialog :open="open" :title="t('terminalSettings')" :busy="preferences.busy.value" @close="emit('close')">
     <form id="terminal-settings-form" class="terminal-settings-form" @submit.prevent="save">
       <fieldset :disabled="preferences.busy.value || !preferences.record.value">
-        <label>{{ t('fontSize') }}<input v-model.number="size" type="number" min="8" max="72" step="1" required /></label>
-        <label>{{ t('cursor') }}<select v-model="cursor"><option value="block">{{ t('block') }}</option><option value="bar">{{ t('bar') }}</option><option value="underline">{{ t('underline') }}</option></select></label>
-        <label><input v-model="copy" type="checkbox" />{{ t('copyOnSelect') }}</label><p class="connection-muted">{{ t('copyNote') }}</p>
-        <label>{{ t('fontFamily') }}<input v-model="font" maxlength="128" required /></label><label>{{ t('scrollbackLines') }}<input v-model.number="scrollback" type="number" min="1000" max="100000" step="1" required /></label>
+        <label>{{ t('fontSize') }}<input class="base-input" v-model.number="size" type="number" min="8" max="72" step="1" required /></label>
+        <BaseSelect v-model="cursor" :label="t('cursor')" :disabled="preferences.busy.value || !preferences.record.value" :options="[{value:'block',label:t('block')},{value:'bar',label:t('bar')},{value:'underline',label:t('underline')}]" />
+        <BaseCheckbox v-model="copy" :label="t('copyOnSelect')" :disabled="preferences.busy.value || !preferences.record.value" /><p class="connection-muted">{{ t('copyNote') }}</p>
+        <label>{{ t('fontFamily') }}<input class="base-input" v-model="font" maxlength="128" required /></label><label>{{ t('scrollbackLines') }}<input class="base-input" v-model.number="scrollback" type="number" min="1000" max="100000" step="1" required /></label>
       </fieldset>
     </form>
-    <p v-if="preferences.error.value" class="server-form-error" role="alert">{{ preferences.error.value }}</p>
+    <BaseAlert v-if="preferences.error.value">{{ preferences.error.value }}</BaseAlert>
     <BaseButton v-if="preferences.error.value" :disabled="preferences.busy.value" @click="preferences.load().then(reset)">{{ t('reloadSettingsDiscardChanges') }}</BaseButton>
     <template #footer><BaseButton :disabled="preferences.busy.value" @click="emit('close')">{{ t('cancel') }}</BaseButton><BaseButton variant="primary" type="submit" form="terminal-settings-form" :disabled="!preferences.record.value" :loading="preferences.busy.value">{{ t('saveSettings') }}</BaseButton></template>
   </BaseDialog>

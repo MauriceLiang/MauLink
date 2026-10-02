@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BaseIcon from "./BaseIcon.vue";
 withDefaults(defineProps<{
   disabled?: boolean;
   loading?: boolean;
@@ -8,8 +9,8 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <button class="base-button" :class="`base-button--${variant}`" :type="type"
+  <button class="base-button" :class="[`base-button--${variant}`, {'base-button--loading': loading}]" :type="type"
     :disabled="disabled || loading" :aria-busy="loading">
-    <slot />
+    <span class="base-button-label"><slot /></span><BaseIcon v-if="loading" name="spinner" class="base-button-spinner" />
   </button>
 </template>

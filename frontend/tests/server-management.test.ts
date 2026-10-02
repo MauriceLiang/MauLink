@@ -1,3 +1,4 @@
+import { DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createIpcClient, type IpcTransport } from "../src/ipc/client";
@@ -14,18 +15,19 @@ import AppShell from "../src/app/AppShell.vue";
 import { startOccupancyProbe } from "../src/harness/occupancy-probe";
 import type { ServerMutationResult } from "../../contracts/v1/ServerMutationResult";
 
+const ui = () => new DOMWrapper(document.body);
 const wrappers: VueWrapper[] = [];
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); document.body.innerHTML = ""; });
 const profile = shellServers[0]!;
 const makeStore = (transport: IpcTransport = createServerMock()) => createServerStore(createServerApi(createIpcClient(transport)));
 function mountEditor(store = makeStore(), serverId: string | null = null) {
-  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store }, global: { stubs: { Teleport: true } } });
+  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store } });
   wrappers.push(wrapper);
   return wrapper;
 }
-async function enterRequired(wrapper: VueWrapper) {
-  await wrapper.get('input[placeholder="192.168.1.10"]').setValue("test.example.com");
-  await wrapper.get('input[placeholder="root"]').setValue("deploy");
+async function enterRequired(_wrapper: VueWrapper) {
+  await ui().get('input[placeholder="192.168.1.10"]').setValue("test.example.com");
+  await ui().get('input[placeholder="root"]').setValue("deploy");
 }
 
 describe("server management contracts", () => {
@@ -103,19 +105,19 @@ describe("server management contracts", () => {
     const create = vi.fn(() => ({ server: profile, credentialCleanupPending: false }));
     const wrapper = mountEditor(makeStore(createMockIpc({ server_create: create })));
     await flushPromises();
-    await wrapper.get("form").trigger("submit");
+    await ui().get("form").trigger("submit");
     expect(create).not.toHaveBeenCalled();
-    expect(wrapper.get('[role="alert"]').text()).toContain("主机地址");
+    expect(ui().get('[role="alert"]').text()).toContain("主机地址");
     await enterRequired(wrapper);
-    await wrapper.get('input[type="password"]').setValue("test-transient-secret");
-    await wrapper.get("form").trigger("submit");
+    await ui().get('input[type="password"]').setValue("test-transient-secret");
+    await ui().get("form").trigger("submit");
     await flushPromises();
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "replace", secret: "test-transient-secret" }, profile: expect.objectContaining({ host: "test.example.com", privateKeyToken: null }) }));
     expect(wrapper.emitted("saved")?.[0]).toEqual(["服务器已添加。"]);
     await wrapper.setProps({ open: false });
     await wrapper.setProps({ open: true });
     await flushPromises();
-    expect(wrapper.get<HTMLInputElement>('input[type="password"]').element.value).toBe("");
+    expect(ui().get<HTMLInputElement>('input[type="password"]').element.value).toBe("");
   });
 
   it("passes only the selected private key token and preserves an existing key without exposing its path", async () => {
@@ -123,13 +125,13 @@ describe("server management contracts", () => {
     const wrapper = mountEditor(makeStore(createMockIpc({ server_create: create, local_file_select: () => ({ token: "opaque-key-token", displayName: "fixture-key", purpose: "privateKey", expiresAtMs: Date.now() + 60000 }) })));
     await flushPromises();
     await enterRequired(wrapper);
-    await wrapper.findAll("button").find(button => button.text() === "SSH 密钥")!.trigger("click");
-    await wrapper.get("form").trigger("submit");
+    await ui().findAll("button").find(button => button.text() === "SSH 密钥")!.trigger("click");
+    await ui().get("form").trigger("submit");
     expect(create).not.toHaveBeenCalled();
-    await wrapper.findAll("button").find(button => button.text() === "选择私钥")!.trigger("click");
+    await ui().findAll("button").find(button => button.text() === "选择私钥")!.trigger("click");
     await flushPromises();
-    expect(wrapper.text()).toContain("fixture-key");
-    await wrapper.get("form").trigger("submit");
+    expect(ui().text()).toContain("fixture-key");
+    await ui().get("form").trigger("submit");
     await flushPromises();
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ privateKeyToken: "opaque-key-token" }), credential: { mode: "clear" } }));
     expect(validateServerDraft({ ...newServerDraft({ ...profile, authType: "privateKey", hasPrivateKey: true }) }, { ...profile, authType: "privateKey", hasPrivateKey: true }, null)).toBeNull();
@@ -140,9 +142,9 @@ describe("server management contracts", () => {
     const update = vi.fn(() => ({ server: { ...current, revision: 8 }, credentialCleanupPending: true }));
     const wrapper = mountEditor(makeStore(createMockIpc({ server_get: () => current, server_update: update })), profile.id);
     await flushPromises();
-    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
-    await wrapper.get('input[placeholder="Production Web"]').setValue("Renamed");
-    await wrapper.get("form").trigger("submit");
+    expect(ui().find('input[type="password"]').exists()).toBe(false);
+    await ui().get('input[placeholder="Production Web"]').setValue("Renamed");
+    await ui().get("form").trigger("submit");
     await flushPromises();
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ serverId: profile.id, expectedRevision: 7, credential: { mode: "keep" } }));
     expect(wrapper.emitted("saved")?.[0]?.[0]).toContain("旧凭据清理尚未完成");
@@ -153,14 +155,14 @@ describe("server management contracts", () => {
     await store.load();
     const wrapper = mountEditor(store, profile.id);
     await flushPromises();
-    await wrapper.get('input[placeholder="Production Web"]').setValue("Attempted change");
-    await wrapper.get("form").trigger("submit");
+    await ui().get('input[placeholder="Production Web"]').setValue("Attempted change");
+    await ui().get("form").trigger("submit");
     await flushPromises();
-    expect(wrapper.get('[role="alert"]').text()).not.toMatch(/Fixture|database|debug/);
+    expect(ui().get('[role="alert"]').text()).not.toMatch(/Fixture|database|debug/);
     expect(wrapper.emitted("close")).toBeUndefined();
     expect(store.servers.value[0]?.name).toBe(profile.name);
-    if (failure === "inUse") expect(wrapper.text()).toContain("服务器正在使用中");
-    if (failure === "revision") expect(wrapper.text()).toContain("重新加载（放弃修改）");
+    if (failure === "inUse") expect(ui().text()).toContain("服务器正在使用中");
+    if (failure === "revision") expect(ui().text()).toContain("重新加载（放弃修改）");
   });
 
   it("prevents duplicate submission and Esc during a pending mutation", async () => {
@@ -170,11 +172,11 @@ describe("server management contracts", () => {
     const wrapper = mountEditor(makeStore(createMockIpc({ server_create: create })));
     await flushPromises();
     await enterRequired(wrapper);
-    await wrapper.get("form").trigger("submit");
-    await wrapper.get("form").trigger("submit");
-    await wrapper.get('[role="dialog"]').trigger("keydown", { key: "Escape" });
+    await ui().get("form").trigger("submit");
+    await ui().get("form").trigger("submit");
+    await ui().get('[role="dialog"], [role="alertdialog"]').trigger("keydown", { key: "Escape" });
     expect(create).toHaveBeenCalledTimes(1);
-    expect(wrapper.get<HTMLFieldSetElement>("fieldset").element.disabled).toBe(true);
+    expect(ui().get<HTMLFieldSetElement>("fieldset").element.disabled).toBe(true);
     expect(wrapper.emitted("close")).toBeUndefined();
     resolve({ server: profile, credentialCleanupPending: false });
     await flushPromises();
@@ -183,53 +185,54 @@ describe("server management contracts", () => {
 
   it("deletes only after explicit confirmation with the displayed revision and credential removal", async () => {
     const remove = vi.fn(() => ({ credentialCleanupPending: false }));
-    const wrapper = mount(ConfirmDialog, { attachTo: document.body, props: { server: { ...profile, revision: 4 }, store: makeStore(createMockIpc({ server_delete: remove })) }, global: { stubs: { Teleport: true } } });
+    const wrapper = mount(ConfirmDialog, { attachTo: document.body, props: { server: { ...profile, revision: 4 }, store: makeStore(createMockIpc({ server_delete: remove })) } });
     wrappers.push(wrapper);
     await flushPromises();
     expect(remove).not.toHaveBeenCalled();
-    await wrapper.get('button.base-button--danger').trigger("click");
+    await ui().get('button.base-button--danger').trigger("click");
     await flushPromises();
     expect(remove).toHaveBeenCalledWith({ serverId: profile.id, expectedRevision: 4, removeCredentials: true });
     expect(wrapper.emitted("removed")?.[0]).toEqual(["服务器与已保存凭据已删除。"]);
   });
 
   it("returns focus to Home after successful deletion removes the original trigger", async () => {
-    const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(createServerMock()) }, global: { stubs: { Teleport: true } } });
+    const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(createServerMock()) } });
     wrappers.push(wrapper);
     await flushPromises();
-    await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
-    const trigger = wrapper.get("main").findAll("button").find(button => button.text() === "删除服务器")!;
+    await ui().get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
+    const trigger = ui().get("main").findAll("button").find(button => button.text() === "删除服务器")!;
     trigger.element.focus();
     await trigger.trigger("click");
     await flushPromises();
-    await wrapper.get(".base-button--danger").trigger("click");
+    await ui().get(".base-button--danger").trigger("click");
     await flushPromises();
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
-    expect(document.activeElement).toBe(wrapper.get(".shell-brand").element);
+    expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(ui().get(".shell-brand").element);
   });
 
   it("supports group create/rename and confirms deletion before moving members to ungrouped", async () => {
     const mock = createServerMock();
     const store = makeStore(mock);
     await store.load();
-    const wrapper = mount(GroupDialog, { attachTo: document.body, props: { open: true, store }, global: { stubs: { Teleport: true } } });
+    const wrapper = mount(GroupDialog, { attachTo: document.body, props: { open: true, store } });
     wrappers.push(wrapper);
-    await wrapper.get("input").setValue("QA");
-    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    await ui().get("input").setValue("QA");
+    await ui().get("form").trigger("submit");
     await flushPromises();
     expect(store.groups.value.map(group => group.name)).toContain("QA");
-    await wrapper.get('[aria-label="重命名 Production"]').trigger("click");
-    await wrapper.get("input").setValue("Production renamed");
-    await wrapper.get("form").trigger("submit");
+    await ui().get('[aria-label="重命名 Production"]').trigger("click");
+    await ui().get("input").setValue("Production renamed");
+    await ui().get("form").trigger("submit");
     await flushPromises();
     expect(store.groups.value.find(group => group.id === "production")?.revision).toBe(2);
-    await wrapper.get('[aria-label="删除分组 Production renamed"]').trigger("click");
+    await ui().get('[aria-label="删除分组 Production renamed"]').trigger("click");
     expect(mock.commands).not.toContain("group_delete");
-    expect(wrapper.text()).toContain("删除分组不会删除服务器");
-    await wrapper.get('button.base-button--danger').trigger("click");
+    expect(ui().text()).toContain("删除分组不会删除服务器");
+    await ui().get('button.base-button--danger').trigger("click");
     await flushPromises();
     expect(store.servers.value).toHaveLength(3);
     expect(store.servers.value.filter(server => server.groupId === null)).toHaveLength(2);
-    expect(document.activeElement).toBe(wrapper.get("input").element);
+    expect(document.activeElement).toBe(ui().get("input").element);
   });
 });

@@ -20,7 +20,6 @@
 .terminal-warning { margin: 0; padding: 8px 12px; color: var(--color-danger); font-size: 12px; background: var(--color-surface); }
 .terminal-settings-form fieldset { display: grid; gap: 14px; min-width: 0; padding: 0; border: 0; }
 .terminal-settings-form label { display: flex; gap: 10px; align-items: center; font-size: 13px; }
-.terminal-settings-form input:not([type="checkbox"]), .terminal-settings-form select { flex: 1; min-width: 0; padding: 6px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text-primary); }
 .application-shell.terminal-focused .shell-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .application-shell.terminal-focused .shell-sidebar, .application-shell.terminal-focused .shell-statusbar, .terminal-workspace.is-focused .workspace-heading { display: none; }
 .application-shell.terminal-focused .shell-main { grid-column: 1; grid-row: 1; }

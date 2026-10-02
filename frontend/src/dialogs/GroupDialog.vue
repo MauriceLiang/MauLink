@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BaseAlertDialog from "../components/base/BaseAlertDialog.vue";
 import { nextTick, ref, useId, watch } from "vue";
 import type { Group } from "../../../contracts/v1/Group";
 import type { Language } from "../../../contracts/v1/Language";
@@ -64,7 +65,7 @@ async function reload() {
 </script>
 
 <template>
-  <BaseDialog :open="open" :title="t('groups')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
+  <component :is="deleting ? BaseAlertDialog : BaseDialog" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :open="open" :title="t('groups')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
     <template v-if="deleting"><p>{{ deleting.name }}</p><p>{{ t('groupDeleteNote') }}</p></template>
     <template v-else>
       <ul class="server-group-manager"><li v-for="group in groups" :key="group.id"><span>{{ group.name }}</span>
@@ -77,6 +78,6 @@ async function reload() {
     </template>
     <p v-if="error" class="server-form-error" role="alert">{{ error }}</p>
     <BaseButton v-if="conflict" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>
-    <template #footer><BaseButton :disabled="busy" @click="deleting ? reset() : $emit('close')">{{ t('cancel') }}</BaseButton><BaseButton v-if="deleting" variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
-  </BaseDialog>
+    <template #footer><BaseButton data-dialog-cancel :disabled="busy" @click="deleting ? reset() : $emit('close')">{{ t('cancel') }}</BaseButton><BaseButton v-if="deleting" variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
+  </component>
 </template>

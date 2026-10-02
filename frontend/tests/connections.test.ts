@@ -1,3 +1,4 @@
+import { DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createConnectionStore } from "../src/stores/connections";
@@ -16,8 +17,9 @@ const stores: ReturnType<typeof createConnectionStore>[] = [];
 const wrappers: VueWrapper[] = [];
 function storeFor(transport = createConnectionMock(() => 'unknown').transport) { const store = createConnectionStore(createConnectionApi(createIpcClient(transport))); stores.push(store); return store; }
 const initial: ConnectionSnapshot = { connectionId: 'connection-a', serverId: server.id, mode: 'workspace', state: 'connecting', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: 1, updatedAtMs: 1 };
-function button(wrapper: VueWrapper, text: string) { return wrapper.findAll('button').find(button => button.text() === text)!; }
-function dialogs(store: ReturnType<typeof storeFor>) { const wrapper = mount(ConnectionDialogs, { attachTo: document.body, props: { store, servers: [server] }, global: { stubs: { Teleport: true } } }); wrappers.push(wrapper); return wrapper; }
+const ui = () => new DOMWrapper(document.body);
+function button(wrapper: VueWrapper, text: string) { return (wrapper.element.isConnected ? ui() : wrapper).findAll('button').find(button => button.text() === text)!; }
+function dialogs(store: ReturnType<typeof storeFor>) { const wrapper = mount(ConnectionDialogs, { attachTo: document.body, props: { store, servers: [server] } }); wrappers.push(wrapper); return wrapper; }
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); stores.splice(0).forEach(store => store.dispose()); vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('secure connection flow', () => {
@@ -39,19 +41,19 @@ describe('secure connection flow', () => {
   });
   it('never responds automatically; first host identity exposes endpoint, algorithm, fingerprint and Esc rejects', async () => {
     const mock = createConnectionMock(() => 'unknown'); const store = storeFor(mock.transport); await store.start(server); await store.refresh(server.id);
-    const wrapper = dialogs(store); await flushPromises();
+    dialogs(store); await flushPromises();
     expect(mock.calls).not.toContain('host_key_respond');
-    expect(wrapper.text()).toContain('fixture.example.test:22'); expect(wrapper.text()).toContain('ssh-ed25519'); expect(wrapper.text()).toContain('SHA256:phase5-current-fingerprint');
-    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises(); await store.refresh(server.id);
+    expect(ui().text()).toContain('fixture.example.test:22'); expect(ui().text()).toContain('ssh-ed25519'); expect(ui().text()).toContain('SHA256:phase5-current-fingerprint');
+    await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises(); await store.refresh(server.id);
     expect(mock.calls.filter(call => call === 'host_key_respond')).toHaveLength(1); expect(store.snapshots.value[server.id]?.error?.code).toBe('HOST_KEY_REJECTED');
   });
   it('changed keys default to rejection, require independent verification to update, and never offer trustOnce', async () => {
     const mock = createConnectionMock(() => 'changed'); const store = storeFor(mock.transport); await store.start(server); await store.refresh(server.id);
     const wrapper = dialogs(store); await flushPromises();
-    expect(wrapper.get('[role="alert"]').text()).toContain('未核实'); expect(wrapper.text()).toContain('SHA256:phase5-previous-fingerprint'); expect(wrapper.text()).not.toContain('仅本次信任');
+    expect(ui().get('[role="alert"]').text()).toContain('未核实'); expect(ui().text()).toContain('SHA256:phase5-previous-fingerprint'); expect(ui().text()).not.toContain('仅本次信任');
     expect(button(wrapper, '更新记录并连接')).toBeUndefined(); await button(wrapper, '高级：更新信任记录').trigger('click');
     expect(button(wrapper, '更新记录并连接').element).toHaveProperty('disabled', true);
-    await wrapper.get('input[type="checkbox"]').setValue(true); await button(wrapper, '更新记录并连接').trigger('click'); await flushPromises();
+    await ui().get('[role=checkbox]').trigger('click'); await button(wrapper, '更新记录并连接').trigger('click'); await flushPromises();
     expect(mock.calls.filter(call => call === 'host_key_respond')).toHaveLength(1);
     await store.refresh(server.id); expect(store.snapshots.value[server.id]?.state).toBe('awaitingCredentials');
   });
@@ -61,15 +63,15 @@ describe('secure connection flow', () => {
     const host = { challengeId: 'challenge-a', connectionId: initial.connectionId, host: 'host.test', port: 22, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:current', previousFingerprintSha256: null, previousRevision: null, expiresAtMs: Date.now()+120000 };
     const store = storeFor(createMockIpc({ connection_start: () => ({ ...initial, state: 'awaitingHostTrust', hostKeyChallenge: host }), host_key_respond: response }));
     await store.start(server); const wrapper = dialogs(store); await flushPromises();
-    await button(wrapper, '信任并保存').trigger('click'); await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
-    expect(response).toHaveBeenCalledOnce(); expect(wrapper.get('[role="dialog"]').attributes('aria-busy')).toBe('true');
-    resolve(); await flushPromises(); expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    await button(wrapper, '信任并保存').trigger('click'); await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' });
+    expect(response).toHaveBeenCalledOnce(); expect(ui().get('[role="dialog"], [role="alertdialog"]').attributes('aria-busy')).toBe('true');
+    resolve(); await flushPromises(); expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(false);
   });
   it('authentication uses challenge ids and transient masked input; wrong password is understandable without retry', async () => {
     const mock = createConnectionMock(() => 'password'); const store = storeFor(mock.transport); await store.start(server); await store.refresh(server.id);
-    const wrapper = dialogs(store); await flushPromises(); expect(wrapper.get('input').attributes('type')).toBe('password');
-    await wrapper.get('form').trigger('submit'); expect(wrapper.text()).toContain('请输入凭据');
-    await wrapper.get('input').setValue('wrong'); await wrapper.get('form').trigger('submit'); await flushPromises(); expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    dialogs(store); await flushPromises(); expect(ui().get('input').attributes('type')).toBe('password');
+    await ui().get('form').trigger('submit'); expect(ui().text()).toContain('请输入凭据');
+    await ui().get('input').setValue('wrong'); await ui().get('form').trigger('submit'); await flushPromises(); expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(false);
     expect(JSON.stringify(store.snapshots.value)).not.toContain('wrong'); await store.refresh(server.id);
     const panel = mount(ConnectionPanel, { props: { store, server, readOnly: false } }); wrappers.push(panel);
     expect(panel.text()).toContain('认证失败'); expect(button(panel, '重试连接')).toBeUndefined(); expect(panel.text()).not.toContain('Fixture debug');
@@ -80,15 +82,15 @@ describe('secure connection flow', () => {
     const response = vi.fn(() => new Promise<void>(done => { resolve = done; }));
     const auth = { challengeId: 'auth-a', connectionId: initial.connectionId, credentialKind: 'password' as const, expiresAtMs: Date.now()+120000 };
     const store = storeFor(createMockIpc({ connection_start: () => ({ ...initial, state: 'awaitingCredentials', authenticationChallenge: auth }), auth_respond: response }));
-    await store.start(server); const wrapper = dialogs(store); await flushPromises(); await wrapper.get('input').setValue('fixture-transient');
-    await wrapper.get('form').trigger('submit'); expect(wrapper.get('input').element).toHaveProperty('value','');
+    await store.start(server); dialogs(store); await flushPromises(); await ui().get('input').setValue('fixture-transient');
+    await ui().get('form').trigger('submit'); expect(ui().get('input').element).toHaveProperty('value','');
     expect(response).toHaveBeenCalledWith({ connectionId: initial.connectionId, challengeId: auth.challengeId, secret: 'fixture-transient' });
     expect(JSON.stringify(store.snapshots.value)).not.toContain('fixture-transient'); resolve(); await flushPromises();
   });
   it('authentication Esc invokes cancel; private key passphrase challenge uses the same Core flow', async () => {
     const mock = createConnectionMock(() => 'passphrase'); const store = storeFor(mock.transport); await store.start(server); await store.refresh(server.id);
-    const wrapper = dialogs(store); await flushPromises(); expect(wrapper.text()).toContain('输入私钥口令');
-    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
+    dialogs(store); await flushPromises(); expect(ui().text()).toContain('输入私钥口令');
+    await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
     expect(mock.calls).toContain('connection_cancel'); expect(store.snapshots.value[server.id]?.state).toBe('cancelled');
   });
   it('disconnects ready connections without implicitly stopping transfers', async () => {
@@ -118,11 +120,11 @@ describe('secure connection flow', () => {
   });
   it('restores focus to a current action when a security dialog closes and its original trigger disappeared', async () => {
     const mock = createConnectionMock(() => 'changed');
-    const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(mock.transport) }, global: { stubs: { Teleport: true } } }); wrappers.push(wrapper);
-    await flushPromises(); await wrapper.get('[aria-label="查看 Web-01"]').trigger('click');
+    const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(mock.transport) } }); wrappers.push(wrapper);
+    await flushPromises(); await ui().get('[aria-label="查看 Web-01"]').trigger('click');
     button(wrapper, '连接').element.focus(); await button(wrapper, '连接').trigger('click'); await flushPromises();
-    await vi.waitFor(() => expect(wrapper.find('[role="dialog"]').exists()).toBe(true));
-    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
+    await vi.waitFor(() => expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(true));
+    await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
     await vi.waitFor(() => expect(button(wrapper, '关闭错误')).toBeDefined());
     await flushPromises();
     expect(document.activeElement).toBe(button(wrapper, '关闭错误').element);
