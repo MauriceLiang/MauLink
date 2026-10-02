@@ -29,6 +29,24 @@ credentials.json
 UI/
 docs/
 
+# Keep the README screenshots and their active visual regression baseline.
+!docs/
+docs/*
+!docs/refactor/
+docs/refactor/*
+!docs/refactor/screenshots/
+docs/refactor/screenshots/*
+!docs/refactor/screenshots/color-v1-review/
+docs/refactor/screenshots/color-v1-review/*
+!docs/refactor/screenshots/color-v1-review/*.jpg
+!docs/refactor/screenshots/color-v1-review/capture-*.json
+!docs/refactor/screenshots/color-v1-review/summary.json
+!docs/refactor/screenshots/color-v1-review/layout-before.json
+!docs/refactor/screenshots/color-v1-review/layout-after.json
+docs/refactor/screenshots/color-v1-review/*-candidate.jpg
+docs/refactor/screenshots/color-v1-review/*-repeat.jpg
+docs/refactor/screenshots/color-v1-review/.capture-*.json
+
 # IDE state
 .idea/
 .vscode/
