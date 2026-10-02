@@ -1,4 +1,5 @@
 import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapshot";
+import type { ConnectionMode } from "../../../contracts/v1/ConnectionMode";
 import type { IpcTransport } from "../ipc/client";
 import { createMockIpc } from "../ipc/mock";
 import { createServerMock, fixtureError } from "./server-fixtures";
@@ -9,6 +10,8 @@ export function createConnectionMock(scenario: () => ConnectionScenario, delay: 
   const snapshots = new Map<string, ConnectionSnapshot>();
   const calls: string[] = [];
   const states = new Map<string, ConnectionScenario>();
+  const modes = new Map<string, ConnectionMode>();
+  const suppliedCredentials = new Set<string>();
   function get(id: string) { const snapshot = snapshots.get(id); if (!snapshot) throw fixtureError("RESOURCE_NOT_FOUND", "errors.connectionNotFound"); return snapshot; }
   function update(id: string, patch: Partial<ConnectionSnapshot>) { const next = { ...get(id), ...patch, updatedAtMs: Date.now() }; snapshots.set(id, next); return structuredClone(next); }
   function auth(id: string) {
@@ -19,6 +22,8 @@ export function createConnectionMock(scenario: () => ConnectionScenario, delay: 
     connection_start: ({ source, mode }) => {
       const id = crypto.randomUUID();
       const choice = scenario(); states.set(id, choice);
+      modes.set(id, mode);
+      if (source.kind === "draft" && source.credential) suppliedCredentials.add(id);
       const snapshot: ConnectionSnapshot = { connectionId: id, serverId: source.kind === "saved" ? source.serverId : null, mode, state: "connecting", hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: Date.now(), updatedAtMs: Date.now() };
       snapshots.set(id, snapshot); return structuredClone(snapshot);
     },
@@ -38,12 +43,13 @@ export function createConnectionMock(scenario: () => ConnectionScenario, delay: 
       const snapshot = get(id);
       if (snapshot.hostKeyChallenge?.challengeId !== challengeId) throw fixtureError("CHALLENGE_EXPIRED", "errors.challengeExpired");
       if (decision === "reject") update(id, { state: "failed", hostKeyChallenge: null, error: fixtureError(states.get(id) === "changed" ? "HOST_KEY_CHANGED" : "HOST_KEY_REJECTED", states.get(id) === "changed" ? "errors.hostKeyChanged" : "errors.hostKeyRejected") });
+      else if (modes.get(id) === "test" && suppliedCredentials.has(id)) update(id, { state: "closed", hostKeyChallenge: null });
       else auth(id);
     },
     auth_respond: async ({ connectionId: id, challengeId, secret }) => {
       await waitForResponse();
       if (get(id).authenticationChallenge?.challengeId !== challengeId) throw fixtureError("CHALLENGE_EXPIRED", "errors.challengeExpired");
-      update(id, { state: secret === "wrong" ? "failed" : "ready", authenticationChallenge: null, error: secret === "wrong" ? fixtureError("AUTH_FAILED", "errors.authFailed") : null });
+      update(id, { state: secret === "wrong" ? "failed" : modes.get(id) === "test" ? "closed" : "ready", authenticationChallenge: null, error: secret === "wrong" ? fixtureError("AUTH_FAILED", "errors.authFailed") : null });
       // Do not retain submitted credentials in the fixture or command log.
     },
     connection_cancel: ({ connectionId: id }) => update(id, { state: "cancelled", hostKeyChallenge: null, authenticationChallenge: null }),

@@ -29,6 +29,11 @@ async function enterRequired(_wrapper: VueWrapper) {
   await ui().get('input[placeholder="192.168.1.10"]').setValue("test.example.com");
   await ui().get('input[placeholder="root"]').setValue("deploy");
 }
+async function selectDialogTab(section: "basic" | "advanced") {
+  const tabs = ui().findAll('[role="tab"]');
+  await tabs[section === "basic" ? 0 : 1]!.trigger("mousedown", { button: 0, ctrlKey: false });
+  await flushPromises();
+}
 
 describe("server management contracts", () => {
   it("never starts the native occupancy probe for a remote, credentialed or proxied profile", async () => {
@@ -118,6 +123,58 @@ describe("server management contracts", () => {
     await wrapper.setProps({ open: true });
     await flushPromises();
     expect(ui().get<HTMLInputElement>('input[type="password"]').element.value).toBe("");
+  });
+
+  it("keeps basic and advanced values when switching tabs and opens on Basic for each session", async () => {
+    const wrapper = mountEditor();
+    await flushPromises();
+    wrappers.push(wrapper);
+    expect(ui().findAll('[role="tab"]')[0]?.attributes("aria-selected")).toBe("true");
+    await ui().get('input[placeholder="192.168.1.10"]').setValue("test.example.com");
+    await ui().get('input[type="password"]').setValue("transient-secret");
+    await selectDialogTab("advanced");
+    await ui().get('input[placeholder="user@bastion.example.com"]').setValue("deploy@bastion.example.com");
+    await selectDialogTab("basic");
+    expect(ui().get<HTMLInputElement>('input[placeholder="192.168.1.10"]').element.value).toBe("test.example.com");
+    expect(ui().get<HTMLInputElement>('input[type="password"]').element.value).toBe("transient-secret");
+    await selectDialogTab("advanced");
+    expect(ui().get<HTMLInputElement>('input[placeholder="user@bastion.example.com"]').element.value).toBe("deploy@bastion.example.com");
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    expect(ui().findAll('[role="tab"]')[0]?.attributes("aria-selected")).toBe("true");
+    expect(ui().get<HTMLInputElement>('input[placeholder="192.168.1.10"]').element.value).toBe("");
+  });
+
+  it("routes validation to the tab containing the invalid field, including the two port fields", async () => {
+    const wrapper = mountEditor();
+    await flushPromises();
+    wrappers.push(wrapper);
+    await enterRequired(wrapper);
+    await selectDialogTab("advanced");
+    const keepalive = ui().findAll(".base-field").find(field => field.text().includes("保活间隔"))!;
+    await keepalive.get("input").setValue("4");
+    await selectDialogTab("basic");
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(ui().findAll('[role="tab"]')[1]?.attributes("aria-selected")).toBe("true");
+    expect(ui().get('[role="alert"]').text()).toContain("5 到 300");
+
+    const jumpPort = ui().get(".server-advanced-row input[type=number]");
+    await jumpPort.setValue("0");
+    await selectDialogTab("basic");
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(ui().findAll('[role="tab"]')[1]?.attributes("aria-selected")).toBe("true");
+
+    await ui().get(".server-advanced-row input[type=number]").setValue("22");
+    await selectDialogTab("basic");
+    await ui().get(".server-form-grid input[type=number]").setValue("0");
+    await selectDialogTab("advanced");
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(ui().findAll('[role="tab"]')[0]?.attributes("aria-selected")).toBe("true");
+    expect(ui().get('[role="alert"]').text()).toContain("1 到 65535");
   });
 
   it("passes only the selected private key token and preserves an existing key without exposing its path", async () => {

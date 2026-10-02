@@ -18,7 +18,7 @@ const serverId = computed(() => entry.value?.[0] ?? '');
 const snapshot = computed(() => entry.value?.[1]);
 const host = computed(() => snapshot.value?.hostKeyChallenge);
 const auth = computed(() => snapshot.value?.authenticationChallenge);
-const server = computed(() => props.servers.find(server => server.id === serverId.value));
+const server = computed(() => props.servers.find(server => server.id === serverId.value) ?? props.store.identityForChallenge(serverId.value));
 const busy = computed(() => !!props.store.busy.value[serverId.value]);
 const changed = computed(() => !!host.value?.previousFingerprintSha256);
 const secret = ref('');

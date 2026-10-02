@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import AppShell from "../app/AppShell.vue";
-import { createIpcClient } from "../ipc/client";
+import { createIpcClient, type IpcTransport } from "../ipc/client";
 import { createServerMock } from "./server-fixtures";
+import { createConnectionMock, type ConnectionScenario } from "./connection-fixtures";
 import { startOccupancyProbe } from "./occupancy-probe";
 import { createConnectionApi } from "../ipc/connection";
 import { mapError } from "../errors/mapper";
@@ -12,8 +13,16 @@ const native = params.get("transport") === "native";
 const theme = ref(params.get("theme") === "dark" ? "dark" : "light");
 const failure = ref<"none" | "inUse" | "revision" | "unknown">("none");
 const slow = ref(false);
+const connectionScenario = ref<ConnectionScenario>("unknown");
 const mock = createServerMock({ state: params.get("state") === "empty" ? "empty" : "servers", failure: () => failure.value, delay: () => slow.value ? 10000 : 0 });
-const client = native ? createIpcClient() : createIpcClient(mock);
+const connectionMock = createConnectionMock(() => connectionScenario.value);
+const connectionCommands = new Set(["connection_start", "connection_get", "connection_cancel", "connection_disconnect", "host_key_respond", "auth_respond"]);
+const harnessTransport: IpcTransport = {
+  invoke<T>(command: string, args?: Record<string, unknown>) {
+    return connectionCommands.has(command) ? connectionMock.transport.invoke<T>(command, args) : mock.invoke<T>(command, args);
+  },
+};
+const client = native ? createIpcClient() : createIpcClient(harnessTransport);
 const connectionId = ref<string | null>(null);
 const probeBusy = ref(false);
 const probeMessage = ref("");
@@ -46,6 +55,7 @@ watch(theme, value => { document.documentElement.dataset.theme = value; }, { imm
     <label>主题<select v-model="theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
     <template v-if="!native">
       <label>模拟写入错误<select v-model="failure"><option value="none">无</option><option value="inUse">ServerInUse</option><option value="revision">RevisionConflict</option><option value="unknown">未知错误</option></select></label>
+      <label>测试连接场景<select v-model="connectionScenario"><option value="unknown">首次连接后验证成功</option><option value="password">密码验证后连接成功</option><option value="passphrase">私钥口令验证</option><option value="refused">连接拒绝</option><option value="timeout">连接超时</option><option value="proxy">代理连接失败</option><option value="jump">跳板连接失败</option><option value="changed">主机密钥变化</option></select></label>
       <label><input v-model="slow" type="checkbox" />延迟写入回应 10 秒</label>
       <p>仅操作内存 fixture。私钥选择返回演示 token，不打开真实文件。</p>
     </template>

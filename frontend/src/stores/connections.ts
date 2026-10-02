@@ -3,6 +3,7 @@ import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapsho
 import type { HostKeyDecision } from "../../../contracts/v1/HostKeyDecision";
 import type { AppError } from "../../../contracts/v1/AppError";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
+import type { ServerProfileDraft } from "../../../contracts/v1/ServerProfileDraft";
 import type { createConnectionApi } from "../ipc/connection";
 import { mapError } from "../errors/mapper";
 
@@ -13,6 +14,7 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
   const errors = shallowRef<Record<string, AppError | null>>({});
   const busy = ref<Record<string, boolean>>({});
   const answered = ref<string[]>([]);
+  const draftIdentities = shallowRef<Record<string, { username: string; host: string }>>({});
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const versions = new Map<string, number>();
   const polling = new Set<string>();
@@ -21,6 +23,10 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
   const challenge = computed(() => Object.entries(snapshots.value).find(([, snapshot]) => {
     const id = snapshot.hostKeyChallenge?.challengeId ?? snapshot.authenticationChallenge?.challengeId;
     return id && !answered.value.includes(id) && !isFinished(snapshot);
+  }));
+  const draftTestActive = computed(() => Object.keys(draftIdentities.value).some(id => {
+    const snapshot = snapshots.value[id];
+    return !!snapshot && !isFinished(snapshot);
   }));
   function setError(id: string, error: AppError | null) { errors.value = { ...errors.value, [id]: error }; }
   function stop(id: string) { clearTimeout(timers.get(id)); timers.delete(id); }
@@ -71,6 +77,14 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
       accept(server.id, next);
     });
   }
+  async function startDraftTest(profile: ServerProfileDraft, credential: string | null) {
+    if (draftTestActive.value || challenge.value) return null;
+    const snapshot = await api.start({ source: { kind: "draft", profile, credential }, mode: "test" });
+    draftIdentities.value = { ...draftIdentities.value, [snapshot.connectionId]: { username: profile.username, host: profile.host } };
+    accept(snapshot.connectionId, snapshot);
+    return snapshot;
+  }
+  function identityForChallenge(id: string) { return draftIdentities.value[id] ?? null; }
   async function cancel(id: string) {
     const snapshot = snapshots.value[id];
     if (!snapshot || isFinished(snapshot) || snapshot.state === "ready") return;
@@ -104,9 +118,10 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
     if (busy.value[id] || (snapshot && !isFinished(snapshot))) return;
     stop(id);
     const next = { ...snapshots.value }; delete next[id]; snapshots.value = next;
+    const identities = { ...draftIdentities.value }; delete identities[id]; draftIdentities.value = identities;
     setError(id, null);
   }
   function dispose() { disposed = true; timers.forEach(clearTimeout); timers.clear(); }
-  return { snapshots, errors, busy, challenge, start, cancel, disconnect, respondHostKey, respondAuthentication, refresh, dismiss, dispose };
+  return { snapshots, errors, busy, challenge, draftTestActive, start, startDraftTest, identityForChallenge, cancel, disconnect, respondHostKey, respondAuthentication, refresh, dismiss, dispose };
 }
 export type ConnectionStore = ReturnType<typeof createConnectionStore>;

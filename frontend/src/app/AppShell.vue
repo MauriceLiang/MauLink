@@ -101,6 +101,11 @@ async function onRemoved(message: string) {
   document.querySelector<HTMLButtonElement>(".shell-brand")?.focus();
 }
 
+function onConnectionTestResult(result: { kind: "success" | "error"; message: string }) {
+  if (result.kind === "success") toast.success(result.message);
+  else toast.error(result.message);
+}
+
 async function load() {
   pending.value = true;
   error.value = null;
@@ -159,10 +164,10 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" @close="editor = false" @saved="toast.success($event)" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :connection-store="connections" @close="editor = false" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
-    <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || editor || manageGroups || !!deleteTarget" />
+    <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
     <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
     <BaseToastViewport :queue="toast" />

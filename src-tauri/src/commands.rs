@@ -294,16 +294,10 @@ pub async fn connection_start(
                 )
                 .with_request_id(request_id));
             }
-            let token = profile.private_key_token.clone();
             let input = profile_input(profile, &state.local_files)
                 .map_err(|error| error.with_request_id(request_id.clone()))?;
-            let result = state.connections.start_draft_test(input, credential).await;
-            if result.is_ok()
-                && let Some(token) = token
-            {
-                state.local_files.forget(&token);
-            }
-            result
+            // Keep a selected key token reusable so the tested draft can still be saved.
+            state.connections.start_draft_test(input, credential).await
         }
     };
     attach_request_id(request_id, result)
