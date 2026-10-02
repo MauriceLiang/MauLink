@@ -65,7 +65,7 @@ async function reload() {
 </script>
 
 <template>
-  <component :is="deleting ? BaseAlertDialog : BaseDialog" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :open="open" :title="t('groups')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
+  <component :is="deleting ? BaseAlertDialog : BaseDialog" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :open="open" :title="t('groups')" :busy="busy" :close-label="t('cancel')" panel-class="server-group-dialog" @close="$emit('close')">
     <template v-if="deleting"><p>{{ deleting.name }}</p><p>{{ t('groupDeleteNote') }}</p></template>
     <template v-else>
       <ul class="server-group-manager"><li v-for="group in groups" :key="group.id"><span>{{ group.name }}</span>
