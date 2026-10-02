@@ -36,8 +36,8 @@
 .shell-server-group { margin-top: var(--space-3); }
 .shell-group-title { display: flex; gap: 6px; margin: 0; padding: 4px 8px; color: var(--color-text-secondary); font-size: 11px; font-weight: 600; }
 .shell-group-title > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.shell-server-item { display: flex; width: 100%; min-height: 42px; justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
-.shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); transform: translateX(2px); }
+.shell-server-item { display: flex; width: 100%; min-height: 42px; justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; box-shadow: none; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); box-shadow: var(--shadow-sm); transform: scale(1.02); }
 .shell-server-item:active:not(:disabled) { transform: translateX(1px); }
 .shell-server-item.is-selected { color: var(--color-text-primary); background: var(--color-primary-soft); }
 .shell-server-item.is-selected:hover:not(:disabled) { background: var(--color-primary-soft-hover); }
