@@ -16,11 +16,13 @@ use maulink_core::{
     SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
     ServerMutationResult, ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord,
     SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
-    SftpListStartPayload, SftpMkdirPayload, SftpRenamePayload, SftpStatPayload,
-    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
-    SftpTransferState, SftpUploadPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalState, TerminalWritePayload, TerminalWriteResult, Theme, WorkspaceActivityPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
+    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, TerminalAckPayload, TerminalChunk,
+    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
+    TerminalSize, TerminalSnapshot, TerminalState, TerminalWritePayload, TerminalWriteResult,
+    Theme, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -96,6 +98,10 @@ fn main() -> Result<(), ts_rs::ExportError> {
     SftpListStartPayload::export_all(&config)?;
     SftpCursorPayload::export_all(&config)?;
     SftpStatPayload::export_all(&config)?;
+    SftpReadTextPayload::export_all(&config)?;
+    SftpReadTextResult::export_all(&config)?;
+    SftpWriteTextPayload::export_all(&config)?;
+    SftpWriteTextResult::export_all(&config)?;
     SftpMkdirPayload::export_all(&config)?;
     SftpRenamePayload::export_all(&config)?;
     SftpDeletePayload::export_all(&config)?;

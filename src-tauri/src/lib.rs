@@ -11,9 +11,10 @@ use commands::{
     host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
     monitor_refresh, server_create, server_delete, server_get, server_list, server_update,
     settings_get, settings_update, sftp_delete, sftp_download, sftp_list_close, sftp_list_next,
-    sftp_list_start, sftp_mkdir, sftp_rename, sftp_stat, sftp_transfer_cancel, sftp_transfer_get,
-    sftp_transfer_list, sftp_upload, terminal_ack, terminal_close, terminal_get, terminal_open,
-    terminal_resize, terminal_write, workspace_set_activity,
+    sftp_list_start, sftp_mkdir, sftp_read_text, sftp_rename, sftp_stat, sftp_transfer_cancel,
+    sftp_transfer_get, sftp_transfer_list, sftp_upload, sftp_write_text, terminal_ack,
+    terminal_close, terminal_get, terminal_open, terminal_resize, terminal_write,
+    workspace_set_activity,
 };
 use maulink_core::{
     AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialManager, CredentialWorker,
@@ -111,6 +112,8 @@ pub fn run() {
             sftp_list_next,
             sftp_list_close,
             sftp_stat,
+            sftp_read_text,
+            sftp_write_text,
             sftp_mkdir,
             sftp_rename,
             sftp_delete,

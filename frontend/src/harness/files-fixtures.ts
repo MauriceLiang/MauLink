@@ -12,15 +12,18 @@ import { joinRemotePath, validBasename } from "../files/path";
 export type FileScenario = 'completed' | 'slow' | 'failed' | 'picker-cancel';
 export function createFilesMock(scenario: () => FileScenario = () => 'completed') {
   const directories = new Map<string, RemoteFileEntry[]>();
+  const textContents = new Map<string, string>();
   const cursors = new Map<string, { path: string; entries: RemoteFileEntry[]; offset: number }>();
   const tasks = new Map<string, SftpTransferSnapshot>(); const channels = new Map<string, Channel<SftpTransferSnapshot>>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>(); const calls: string[] = [];
   const entry = (parent: string, name: string, fileType: RemoteFileEntry['fileType'] = 'file'): RemoteFileEntry => ({ name, path: joinRemotePath(parent, name), fileType, sizeBytes: fileType === 'directory' ? null : '4096', modifiedAtMs: 1790812800000, isSymlink: fileType === 'symlink', permissions: 420 });
   function reset() {
-    directories.clear(); cursors.clear();
+    directories.clear(); cursors.clear(); textContents.clear();
     directories.set('/', [entry('/', 'fixture', 'directory')]);
     directories.set('/fixture', [entry('/fixture', 'empty', 'directory'), entry('/fixture', 'denied', 'directory'), entry('/fixture', 'nested', 'directory'), entry('/fixture', '目录链接', 'symlink'), entry('/fixture', '中文 "引号" \\ 文件.txt'), ...Array.from({ length: 445 }, (_, index) => entry('/fixture', `file-${String(index + 1).padStart(3, '0')}.txt`))]);
     directories.set('/fixture/empty', []); directories.set('/fixture/nested', [entry('/fixture/nested', 'readme.txt')]);
+    textContents.set('/fixture/中文 "引号" \\ 文件.txt', 'MauLink 远程文本文件\n双击可查看，切换编辑后可保存。\n');
+    textContents.set('/fixture/nested/readme.txt', '# Remote fixture\n\nThis is a plain text preview.');
   }
   reset();
   function directory(path: string) {
@@ -33,6 +36,7 @@ export function createFilesMock(scenario: () => FileScenario = () => 'completed'
     const value = [...directories.values()].flat().find(item => item.path === path);
     if (!value) throw fixtureError('PATH_NOT_FOUND', 'errors.pathNotFound'); return value;
   }
+  function textRevision(content: string) { return `fixture-${content.length}-${content}`; }
   function page(id: string) {
     const value = cursors.get(id); if (!value) throw fixtureError('RESOURCE_CLOSED', 'errors.sftpCursorClosed');
     const entries = value.entries.slice(value.offset, value.offset + 200); value.offset += entries.length;
@@ -61,6 +65,8 @@ export function createFilesMock(scenario: () => FileScenario = () => 'completed'
     sftp_list_start: ({ path }) => { const found = directory(path === '.' || path === '' ? '/fixture' : path); const id = crypto.randomUUID(); cursors.set(id, { path: found.path, entries: structuredClone(found.values), offset: 0 }); return page(id); },
     sftp_list_next: ({ cursorId }) => page(cursorId), sftp_list_close: ({ cursorId }) => { cursors.delete(cursorId); },
     sftp_stat: ({ path, followSymlink }) => { const value = find(path); return followSymlink && value.isSymlink ? { ...value, fileType: 'directory', isSymlink: false } : structuredClone(value); },
+    sftp_read_text: ({ path }) => { const value = find(path); if (value.fileType !== 'file' || value.isSymlink) throw fixtureError('VALIDATION_FAILED', 'errors.sftpTextFileUnsupported'); const content = textContents.get(path) ?? `Fixture text for ${value.name}\n`; textContents.set(path, content); return { content, revision: textRevision(content) }; },
+    sftp_write_text: ({ path, content, expectedRevision }) => { const value = find(path); if (value.fileType !== 'file' || value.isSymlink) throw fixtureError('VALIDATION_FAILED', 'errors.sftpTextFileUnsupported'); const previous = textContents.get(path) ?? `Fixture text for ${value.name}\n`; if (textRevision(previous) !== expectedRevision) throw fixtureError('REVISION_CONFLICT', 'errors.sftpFileChangedDuringEdit'); textContents.set(path, content); return { revision: textRevision(content) }; },
     sftp_mkdir: ({ parentPath, name }) => { if (!validBasename(name)) throw fixtureError('VALIDATION_FAILED', 'errors.sftpNameInvalid'); const { values } = directory(parentPath); if (values.some(value => value.name === name)) throw fixtureError('TARGET_EXISTS', 'errors.targetExists'); const value = entry(parentPath, name, 'directory'); values.unshift(value); directories.set(value.path, []); return value; },
     sftp_rename: ({ sourcePath, newName }) => { const value = find(sourcePath); if (!validBasename(newName)) throw fixtureError('VALIDATION_FAILED', 'errors.sftpNameInvalid'); const parent = sourcePath.slice(0, sourcePath.lastIndexOf('/')) || '/'; if (directory(parent).values.some(item => item.name === newName)) throw fixtureError('TARGET_EXISTS', 'errors.targetExists'); if (value.fileType === 'directory') throw fixtureError('PERMISSION_DENIED', 'errors.permissionDenied'); value.name = newName; value.path = joinRemotePath(parent, newName); return structuredClone(value); },
     sftp_delete: ({ path, expectedType, confirmed }) => { const value = find(path); if (!confirmed || value.fileType !== expectedType) throw fixtureError('VALIDATION_FAILED', 'errors.sftpEntryTypeChanged'); if (directories.get(path)?.length) throw fixtureError('DIRECTORY_NOT_EMPTY', 'errors.directoryNotEmpty'); const parent = path.slice(0, path.lastIndexOf('/')) || '/'; directories.set(parent, directory(parent).values.filter(item => item.path !== path)); directories.delete(path); },

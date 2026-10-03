@@ -46,6 +46,15 @@
 .files-pagination span { flex: 1; }
 .files-pagination .base-button { min-height: 24px; padding: 2px 8px; }
 .file-name-field { display: flex; align-items: center; gap: 12px; }
+.file-editor-dialog { width: min(900px, calc(100vw - 32px)); }
+.file-editor-dialog .base-dialog-content { min-height: 0; }
+.file-editor-path { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.file-editor-content, .file-editor-textarea { width: 100%; box-sizing: border-box; min-height: min(52vh, 520px); max-height: 62vh; overflow: auto; margin: 0; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); background: var(--color-bg-subtle); font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.file-editor-textarea { resize: vertical; outline-color: var(--color-primary); }
+.file-editor-loading { display: grid; min-height: 280px; place-items: center; color: var(--color-text-secondary); }
+.file-editor-discard { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 10px; border-radius: 8px; background: var(--color-bg-subtle); }
+.file-editor-discard span { flex: 1 1 100%; color: var(--color-text-secondary); font-size: 12px; }
+.file-editor-error { overflow-wrap: anywhere; }
 .transfer-panel { border-left: 1px solid var(--color-border); min-height: 0; overflow: auto; padding: 14px; }
 .transfer-panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .transfer-panel ol { list-style: none; padding: 0; margin: 14px 0; }

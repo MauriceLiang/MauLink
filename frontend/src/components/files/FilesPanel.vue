@@ -18,6 +18,7 @@ import BaseIcon from "../base/BaseIcon.vue";
 import BaseIconButton from "../base/BaseIconButton.vue";
 import BaseDialog from "../base/BaseDialog.vue";
 import FileMenu from "./FileMenu.vue";
+import RemoteTextFileDialog from "./RemoteTextFileDialog.vue";
 import TransferPanel from "./TransferPanel.vue";
 const t = messages(filesMessages);
 const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; preferences: TerminalPreferences; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean }>();
@@ -33,6 +34,7 @@ const selected = computed(() => entries.value.find(entry => entry.path === selec
 const unavailable = computed(() => !props.ready || pending.value || mutating.value || needsReload.value);
 const operation = ref<'mkdir' | 'rename' | 'delete' | null>(null);
 const target = shallowRef<RemoteFileEntry | null>(null); const name = ref(''); const notice = ref('');
+const fileToOpen = shallowRef<RemoteFileEntry | null>(null);
 const uploadRefresh = ref(false); const completedUploads = new Set<string>();
 type FolderSizeState = { status: 'loading' | 'unavailable' } | { status: 'ready'; bytes: string };
 const folderSizes = shallowRef<Record<string, FolderSizeState>>({});
@@ -56,6 +58,17 @@ watch([uploadRefresh, () => props.visible, pending, mutating], () => {
   if (uploadRefresh.value && props.visible && props.ready && !pending.value && !mutating.value) { uploadRefresh.value = false; void files.load(path.value || '.'); }
 });
 async function navigate(destination: string) { if (!props.ready || mutating.value) return; notice.value = ''; await files.load(destination); }
+function openEntry(entry: RemoteFileEntry) {
+  if (unavailable.value) return;
+  if (entry.fileType === 'directory' || entry.isSymlink || entry.fileType === 'symlink') { void files.open(entry); return; }
+  if (entry.fileType === 'file') fileToOpen.value = { ...entry };
+}
+function openEntryFromRow(entry: RemoteFileEntry, event: MouseEvent) {
+  const target = event.target;
+  if (target instanceof Element && target.closest('button') && !target.closest('.file-name, .file-open')) return;
+  openEntry(entry);
+}
+function viewable(entry: RemoteFileEntry | undefined) { return entry?.fileType === 'file' && !entry.isSymlink; }
 function edit(value: 'mkdir' | 'rename' | 'delete', entry?: RemoteFileEntry) {
   if (unavailable.value || (value !== 'mkdir' && !entry)) return;
   error.value = null; operation.value = value; target.value = entry ? { ...entry } : null; name.value = value === 'rename' ? entry!.name : '';
@@ -71,9 +84,10 @@ async function transfer(direction: 'upload' | 'download', entry?: RemoteFileEntr
   await props.transfers.start(direction, props.connectionId, direction === 'upload' ? directory : entry!.path,
     () => props.visible && !unavailable.value && path.value === directory);
 }
-async function action(value: 'download' | 'rename' | 'delete' | 'copy', entry: RemoteFileEntry) {
+async function action(value: 'download' | 'rename' | 'delete' | 'copy' | 'view', entry: RemoteFileEntry) {
   if (unavailable.value) return;
   if (value === 'download') await transfer('download', entry);
+  else if (value === 'view') openEntry(entry);
   else if (value === 'copy') {
     try { await navigator.clipboard.writeText(entry.path); notice.value = t('pathCopied'); }
     catch (reason) { error.value = mapError(reason); }
@@ -146,14 +160,14 @@ onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose()
 <template>
   <div class="files-workspace">
     <section class="files-browser" :aria-label="t('remoteFiles')">
-      <form class="files-location" @submit.prevent="navigate(location)"><BaseIconButton class="files-parent-action" :label="t('parentDirectory')" :disabled="!ready || pending || mutating || !path || path === '/'" @click="navigate(parentRemotePath(path))"><BaseIcon name="arrow-up" /></BaseIconButton><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" @keydown.enter.prevent="navigate(location)" /><BaseIconButton class="files-go" :label="t('go')" type="submit" :disabled="!ready || pending || mutating"><BaseIcon name="arrow-right" /></BaseIconButton><div class="files-toolbar" role="group" :aria-label="t('actions')"><BaseIconButton class="files-toolbar-action" :label="t('uploadFile')" :disabled="unavailable || transfers.starting.value[connectionId]" @click="transfer('upload')"><BaseIcon name="upload" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('newFolder')" :disabled="unavailable" @click="edit('mkdir')"><BaseIcon name="folder-plus" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('downloadFile')" :disabled="unavailable || !selected || !downloadable(selected) || transfers.starting.value[connectionId]" @click="selected && transfer('download', selected)"><BaseIcon name="download" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('viewEdit')" disabled :title="t('previewUnavailable')"><BaseIcon name="eye" /></BaseIconButton></div><BaseIconButton class="files-refresh" :label="t('refreshDirectory')" :disabled="!ready || pending || mutating" @click="navigate(path || '.')"><BaseIcon name="refresh" /></BaseIconButton></form>
+      <form class="files-location" @submit.prevent="navigate(location)"><BaseIconButton class="files-parent-action" :label="t('parentDirectory')" :disabled="!ready || pending || mutating || !path || path === '/'" @click="navigate(parentRemotePath(path))"><BaseIcon name="arrow-up" /></BaseIconButton><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" @keydown.enter.prevent="navigate(location)" /><BaseIconButton class="files-go" :label="t('go')" type="submit" :disabled="!ready || pending || mutating"><BaseIcon name="arrow-right" /></BaseIconButton><div class="files-toolbar" role="group" :aria-label="t('actions')"><BaseIconButton class="files-toolbar-action" :label="t('uploadFile')" :disabled="unavailable || transfers.starting.value[connectionId]" @click="transfer('upload')"><BaseIcon name="upload" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('newFolder')" :disabled="unavailable" @click="edit('mkdir')"><BaseIcon name="folder-plus" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('downloadFile')" :disabled="unavailable || !selected || !downloadable(selected) || transfers.starting.value[connectionId]" @click="selected && transfer('download', selected)"><BaseIcon name="download" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('viewEdit')" :disabled="unavailable || !viewable(selected)" @click="selected && openEntry(selected)"><BaseIcon name="eye" /></BaseIconButton></div><BaseIconButton class="files-refresh" :label="t('refreshDirectory')" :disabled="!ready || pending || mutating" @click="navigate(path || '.')"><BaseIcon name="refresh" /></BaseIconButton></form>
       <nav class="files-breadcrumb" :aria-label="t('directoryNavigation')"><button v-for="part in breadcrumbs(path)" :key="part.path" :aria-current="part.path === path ? 'location' : undefined" :disabled="!ready || pending || mutating" @click="navigate(part.path)">{{ part.name }}</button></nav>
       <BaseAlert v-if="!ready" class="files-message">{{ t('disconnected') }}</BaseAlert>
       <BaseAlert v-if="error" class="files-message">{{ presentError(error).message }}</BaseAlert>
       <BaseAlert v-if="cleanupError" class="files-message">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</BaseAlert>
       <p v-if="notice" class="files-message" role="status">{{ notice }}</p>
       <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th v-if="showSizeColumn" scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
-        <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }" @click="selectedPath = entry.path"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @dblclick="files.open(entry)" @keydown.enter.prevent="files.open(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td v-if="showSizeColumn">{{ displaySize(entry) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" @action="action($event, entry)" /></td></tr>
+        <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }" @click="selectedPath = entry.path" @dblclick="openEntryFromRow(entry, $event)"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @keydown.enter.prevent="openEntry(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td v-if="showSizeColumn">{{ displaySize(entry) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" :viewable="viewable(entry)" @action="action($event, entry)" /></td></tr>
       </tbody></table><p v-if="pending" class="files-empty" role="status">{{ t('readingDirectory') }}</p><p v-else-if="!entries.length && !error" class="files-empty">{{ t('directoryIsEmpty') }}</p></div>
       <footer class="files-pagination"><span v-if="!compactFooter">{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>
@@ -164,5 +178,6 @@ onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose()
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
       <template #footer><BaseButton data-dialog-cancel :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'primary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
     </component>
+    <RemoteTextFileDialog v-if="fileToOpen" :api="api" :connection-id="connectionId" :entry="fileToOpen" :open="true" @close="fileToOpen = null" @saved="files.load()" />
   </div>
 </template>

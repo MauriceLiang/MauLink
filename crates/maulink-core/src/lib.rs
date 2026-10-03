@@ -32,8 +32,9 @@ pub use contracts::{
     ResourceIdPayload, RevisionPayload, ServerCreatePayload, ServerDeletePayload,
     ServerProfileDraft, ServerUpdatePayload, SftpCursorPayload, SftpDeletePayload,
     SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
-    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
+    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
+    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
     TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload, TerminalResizePayload,
     TerminalWritePayload, WorkspaceActivityPayload,
 };

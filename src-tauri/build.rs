@@ -21,6 +21,8 @@ fn main() {
             "sftp_list_next",
             "sftp_list_close",
             "sftp_stat",
+            "sftp_read_text",
+            "sftp_write_text",
             "sftp_mkdir",
             "sftp_rename",
             "sftp_delete",

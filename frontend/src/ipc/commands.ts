@@ -37,12 +37,16 @@ import type { SftpDirectoryPage } from "../../../contracts/v1/SftpDirectoryPage"
 import type { SftpDownloadPayload } from "../../../contracts/v1/SftpDownloadPayload";
 import type { SftpListStartPayload } from "../../../contracts/v1/SftpListStartPayload";
 import type { SftpMkdirPayload } from "../../../contracts/v1/SftpMkdirPayload";
+import type { SftpReadTextPayload } from "../../../contracts/v1/SftpReadTextPayload";
+import type { SftpReadTextResult } from "../../../contracts/v1/SftpReadTextResult";
 import type { SftpRenamePayload } from "../../../contracts/v1/SftpRenamePayload";
 import type { SftpStatPayload } from "../../../contracts/v1/SftpStatPayload";
 import type { SftpTransferIdPayload } from "../../../contracts/v1/SftpTransferIdPayload";
 import type { SftpTransferListPayload } from "../../../contracts/v1/SftpTransferListPayload";
 import type { SftpTransferSnapshot } from "../../../contracts/v1/SftpTransferSnapshot";
 import type { SftpUploadPayload } from "../../../contracts/v1/SftpUploadPayload";
+import type { SftpWriteTextPayload } from "../../../contracts/v1/SftpWriteTextPayload";
+import type { SftpWriteTextResult } from "../../../contracts/v1/SftpWriteTextResult";
 import type { TerminalAckPayload } from "../../../contracts/v1/TerminalAckPayload";
 import type { TerminalChunk } from "../../../contracts/v1/TerminalChunk";
 import type { TerminalIdPayload } from "../../../contracts/v1/TerminalIdPayload";
@@ -82,6 +86,8 @@ export interface CommandContracts {
   sftp_list_next: { payload: SftpCursorPayload; result: SftpDirectoryPage };
   sftp_list_close: { payload: SftpCursorPayload; result: void };
   sftp_stat: { payload: SftpStatPayload; result: RemoteFileEntry };
+  sftp_read_text: { payload: SftpReadTextPayload; result: SftpReadTextResult };
+  sftp_write_text: { payload: SftpWriteTextPayload; result: SftpWriteTextResult };
   sftp_mkdir: { payload: SftpMkdirPayload; result: RemoteFileEntry };
   sftp_rename: { payload: SftpRenamePayload; result: RemoteFileEntry };
   sftp_delete: { payload: SftpDeletePayload; result: void };

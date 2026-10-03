@@ -9,10 +9,12 @@ use maulink_core::{
     ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
     ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
     SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
-    SftpTransferSnapshot, SftpUploadPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
+    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, TerminalAckPayload, TerminalChunk,
+    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
+    TerminalSize, TerminalSnapshot, TerminalWritePayload, TerminalWriteResult,
+    WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -439,6 +441,24 @@ pub async fn sftp_stat(
 ) -> Result<RemoteFileEntry, AppError> {
     let (request_id, payload) = request.validate()?;
     attach_request_id(request_id, state.sftp.stat(payload).await)
+}
+
+#[tauri::command]
+pub async fn sftp_read_text(
+    request: ApiRequest<SftpReadTextPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<SftpReadTextResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.sftp.read_text(payload).await)
+}
+
+#[tauri::command]
+pub async fn sftp_write_text(
+    request: ApiRequest<SftpWriteTextPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<SftpWriteTextResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.sftp.write_text(payload).await)
 }
 
 #[tauri::command]

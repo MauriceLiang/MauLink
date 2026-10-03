@@ -10,10 +10,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD};
 use russh_sftp::{
     client::{RawSftpSession, error::Error as SftpError},
-    protocol::{File, FileAttributes, FileType, StatusCode},
+    protocol::{File, FileAttributes, FileType, OpenFlags, StatusCode},
 };
+use sha2::{Digest, Sha256};
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     sync::Mutex,
@@ -31,6 +33,8 @@ use crate::{
 
 const MAX_DIRECTORY_ENTRIES: usize = 200;
 const MAX_DIRECTORY_PAGE_BYTES: usize = 256 * 1024;
+const MAX_EDITABLE_TEXT_FILE_BYTES: usize = 2 * 1024 * 1024;
+const TEXT_FILE_IO_CHUNK_BYTES: usize = 64 * 1024;
 pub(super) const MAX_SFTP_PACKET_BYTES: u32 = 256 * 1024;
 pub(super) const MAX_REMOTE_PATH_BYTES: usize = 16 * 1024;
 const MAX_CURSORS_PER_CONNECTION: usize = 4;
@@ -225,6 +229,76 @@ impl SftpManager {
         .map_err(|error| map_sftp_error(error, "statPath"))?
         .attrs;
         remote_entry_from_attributes(&payload.path, remote_display_name(&payload.path), attrs)
+    }
+
+    pub async fn read_text(
+        &self,
+        payload: crate::SftpReadTextPayload,
+    ) -> Result<crate::SftpReadTextResult, AppError> {
+        validate_remote_path(&payload.path)?;
+        let session = self.open_session(&payload.connection_id).await?;
+        let result = read_editable_text_file(&session, &payload.path).await;
+        let _ = session.close_session();
+        result.map(|(content, revision)| crate::SftpReadTextResult { content, revision })
+    }
+
+    pub async fn write_text(
+        &self,
+        payload: crate::SftpWriteTextPayload,
+    ) -> Result<crate::SftpWriteTextResult, AppError> {
+        validate_remote_path(&payload.path)?;
+        if payload.content.len() > MAX_EDITABLE_TEXT_FILE_BYTES {
+            return Err(text_file_too_large());
+        }
+        let session = self.open_session(&payload.connection_id).await?;
+        let result = async {
+            let (_, current_revision) = read_editable_text_file(&session, &payload.path).await?;
+            if current_revision != payload.expected_revision {
+                return Err(AppError::new(
+                    ErrorCode::RevisionConflict,
+                    "errors.sftpFileChangedDuringEdit",
+                ));
+            }
+
+            let handle = session
+                .open(
+                    payload.path.clone(),
+                    OpenFlags::WRITE | OpenFlags::TRUNCATE,
+                    FileAttributes::default(),
+                )
+                .await
+                .map_err(|error| map_sftp_error(error, "openingTextFileForWrite"))?
+                .handle;
+            let write_result = async {
+                for (index, chunk) in payload
+                    .content
+                    .as_bytes()
+                    .chunks(TEXT_FILE_IO_CHUNK_BYTES)
+                    .enumerate()
+                {
+                    session
+                        .write(
+                            handle.clone(),
+                            (index * TEXT_FILE_IO_CHUNK_BYTES) as u64,
+                            chunk.to_vec(),
+                        )
+                        .await
+                        .map_err(|error| map_sftp_error(error, "writingTextFile"))?;
+                }
+                Ok::<(), AppError>(())
+            }
+            .await;
+            let close_result = session.close(handle).await;
+            write_result?;
+            close_result.map_err(|error| map_sftp_error(error, "closingTextFile"))?;
+
+            Ok(crate::SftpWriteTextResult {
+                revision: text_revision(payload.content.as_bytes()),
+            })
+        }
+        .await;
+        let _ = session.close_session();
+        result
     }
 
     pub async fn mkdir(
@@ -532,6 +606,91 @@ impl Drop for CursorSlotReservation {
             decrement_opening(&mut registry, &self.connection_id);
         }
     }
+}
+
+async fn read_editable_text_file(
+    session: &RawSftpSession,
+    path: &str,
+) -> Result<(String, String), AppError> {
+    let attributes = session
+        .lstat(path.to_owned())
+        .await
+        .map_err(|error| map_sftp_error(error, "checkingTextFile"))?
+        .attrs;
+    if attributes.file_type() != FileType::File {
+        return Err(validation("path", "errors.sftpTextFileUnsupported"));
+    }
+    if attributes
+        .size
+        .is_some_and(|size| size > MAX_EDITABLE_TEXT_FILE_BYTES as u64)
+    {
+        return Err(text_file_too_large());
+    }
+
+    let handle = session
+        .open(path.to_owned(), OpenFlags::READ, FileAttributes::default())
+        .await
+        .map_err(|error| map_sftp_error(error, "openingTextFile"))?
+        .handle;
+    let read_result = async {
+        let mut bytes = Vec::with_capacity(
+            attributes
+                .size
+                .unwrap_or_default()
+                .min(MAX_EDITABLE_TEXT_FILE_BYTES as u64) as usize,
+        );
+        loop {
+            let remaining = MAX_EDITABLE_TEXT_FILE_BYTES + 1 - bytes.len();
+            let length = remaining.min(TEXT_FILE_IO_CHUNK_BYTES) as u32;
+            let data = match session
+                .read(handle.clone(), bytes.len() as u64, length)
+                .await
+            {
+                Ok(data) if data.data.is_empty() => break,
+                Ok(data) => data.data,
+                Err(SftpError::Status(status)) if status.status_code == StatusCode::Eof => break,
+                Err(error) => return Err(map_sftp_error(error, "readingTextFile")),
+            };
+            if bytes.len() + data.len() > MAX_EDITABLE_TEXT_FILE_BYTES {
+                return Err(text_file_too_large());
+            }
+            bytes.extend_from_slice(&data);
+        }
+        if attributes
+            .size
+            .is_some_and(|size| size != bytes.len() as u64)
+        {
+            return Err(AppError::new(
+                ErrorCode::SftpOperationFailed,
+                "errors.sftpTextFileChangedDuringRead",
+            ));
+        }
+        let content = String::from_utf8(bytes)
+            .map_err(|_| validation("path", "errors.sftpTextFileInvalidEncoding"))?;
+        let revision = text_revision(content.as_bytes());
+        Ok((content, revision))
+    }
+    .await;
+    let close_result = session.close(handle).await;
+    match read_result {
+        Ok(result) => {
+            close_result.map_err(|error| map_sftp_error(error, "closingTextFile"))?;
+            Ok(result)
+        }
+        Err(error) => {
+            let _ = close_result;
+            Err(error)
+        }
+    }
+}
+
+fn text_revision(bytes: &[u8]) -> String {
+    STANDARD_NO_PAD.encode(Sha256::digest(bytes))
+}
+
+fn text_file_too_large() -> AppError {
+    AppError::new(ErrorCode::SftpEntryTooLarge, "errors.sftpTextFileTooLarge")
+        .with_param("maxSize", "2 MiB")
 }
 
 fn decrement_opening(registry: &mut CursorRegistry, connection_id: &str) {
