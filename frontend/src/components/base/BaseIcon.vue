@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Paths from the existing Lucide icon set; see ../../../LICENSE-lucide.
-defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'eraser' | 'arrow-left' | 'power' }>();
+defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'eraser' | 'arrow-left' | 'power' | 'folder' | 'upload' | 'folder-plus' | 'download' }>();
 </script>
 <template>
   <svg class="base-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -11,6 +11,10 @@ defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' 
     <path v-else-if="name === 'plus'" d="M5 12h14M12 5v14" />
     <path v-else-if="name === 'arrow-left'" d="M19 12H5m7 7-7-7 7-7" />
     <template v-else-if="name === 'power'"><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-12.8 0" /></template>
+    <path v-else-if="name === 'folder'" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 10 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
+    <template v-else-if="name === 'upload'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></template>
+    <template v-else-if="name === 'folder-plus'"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M12 11v6m-3-3h6" /></template>
+    <template v-else-if="name === 'download'"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" /></template>
     <template v-else-if="name === 'maximize'"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></template>
     <template v-else-if="name === 'minimize'"><path d="M8 3v5H3" /><path d="M21 8h-5V3" /><path d="M3 16h5v5" /><path d="M16 21v-5h5" /></template>
     <template v-else-if="name === 'settings'"><path d="M14 17H5M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></template>

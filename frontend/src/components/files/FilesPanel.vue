@@ -13,11 +13,14 @@ import { breadcrumbs, formatSize, modifiedTime, parentRemotePath, validBasename 
 import { mapError } from "../../errors/mapper";
 import { presentError } from "../../errors/presenter";
 import BaseButton from "../base/BaseButton.vue";
+import BaseIcon from "../base/BaseIcon.vue";
+import BaseIconButton from "../base/BaseIconButton.vue";
 import BaseDialog from "../base/BaseDialog.vue";
 import FileMenu from "./FileMenu.vue";
 import TransferPanel from "./TransferPanel.vue";
 const t = messages(filesMessages);
-const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; connectionId: string; visible: boolean; ready: boolean }>();
+const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean }>();
+const emit = defineEmits<{ pagination: [value: string] }>();
 const files = createFilesStore(props.api, props.connectionId);
 const { entries, path, cursor, page, pending, mutating, needsReload, error, cleanupError } = files;
 const location = ref(''); const selectedPath = ref<string | null>(null); const pathInput = ref<HTMLInputElement>();
@@ -28,6 +31,7 @@ const target = shallowRef<RemoteFileEntry | null>(null); const name = ref(''); c
 const uploadRefresh = ref(false); const completedUploads = new Set<string>();
 watch(path, value => { location.value = value; });
 watch(entries, () => { selectedPath.value = null; });
+watch([page, entries], () => emit('pagination', t('pagination', {page: page.value, count: entries.value.length})), { immediate: true });
 watch(() => props.ready, ready => { if (!ready) files.suspend(); else if (props.visible && needsReload.value) void files.load(path.value || '.'); });
 watch(() => props.visible, visible => {
   if (visible && props.ready && (!path.value || needsReload.value)) void files.load(path.value || '.');
@@ -74,9 +78,8 @@ onBeforeUnmount(files.dispose);
   <div class="files-workspace">
     <section class="files-browser" :aria-label="t('remoteFiles')">
       <div class="files-heading"><h2>{{ t('remoteFiles') }}</h2><span>SFTP</span><BaseButton :disabled="!ready || pending || mutating" @click="navigate(path || '.')">{{ t('refreshDirectory') }}</BaseButton></div>
-      <form class="files-location" @submit.prevent="navigate(location)"><BaseTooltip :label="t('parentDirectory')"><BaseButton :disabled="!ready || pending || mutating || !path || path === '/'" :aria-label="t('parentDirectory')" @click="navigate(parentRemotePath(path))">↑</BaseButton></BaseTooltip><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" /><BaseButton type="submit" :disabled="!ready || pending || mutating">{{ t('go') }}</BaseButton></form>
+      <form class="files-location" @submit.prevent="navigate(location)"><BaseTooltip :label="t('parentDirectory')"><BaseButton :disabled="!ready || pending || mutating || !path || path === '/'" :aria-label="t('parentDirectory')" @click="navigate(parentRemotePath(path))">↑</BaseButton></BaseTooltip><input ref="pathInput" v-model="location" :aria-label="t('remotePath')" :disabled="!ready || mutating" :placeholder="t('remotePathEGHome')" /><BaseButton type="submit" :disabled="!ready || pending || mutating">{{ t('go') }}</BaseButton><div class="files-toolbar" role="group" :aria-label="t('actions')"><BaseIconButton class="files-toolbar-action" :label="t('uploadFile')" :disabled="unavailable || transfers.starting.value[connectionId]" @click="transfer('upload')"><BaseIcon name="upload" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('newFolder')" :disabled="unavailable" @click="edit('mkdir')"><BaseIcon name="folder-plus" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('downloadFile')" :disabled="unavailable || !selected || !downloadable(selected) || transfers.starting.value[connectionId]" @click="selected && transfer('download', selected)"><BaseIcon name="download" /></BaseIconButton><BaseIconButton class="files-toolbar-action" :label="t('viewEdit')" disabled :title="t('previewUnavailable')"><BaseIcon name="eye" /></BaseIconButton></div></form>
       <nav class="files-breadcrumb" :aria-label="t('directoryNavigation')"><button v-for="part in breadcrumbs(path)" :key="part.path" :aria-current="part.path === path ? 'location' : undefined" :disabled="!ready || pending || mutating" @click="navigate(part.path)">{{ part.name }}</button></nav>
-      <div class="files-toolbar"><BaseButton :disabled="unavailable || transfers.starting.value[connectionId]" @click="transfer('upload')">{{ t('uploadFile') }}</BaseButton><BaseButton :disabled="unavailable" @click="edit('mkdir')">{{ t('newFolder') }}</BaseButton><BaseButton :disabled="unavailable || !selected || !downloadable(selected) || transfers.starting.value[connectionId]" @click="selected && transfer('download', selected)">{{ t('downloadFile') }}</BaseButton><BaseButton disabled :title="t('previewUnavailable')">{{ t('viewEdit') }}</BaseButton></div>
       <BaseAlert v-if="!ready" class="files-message">{{ t('disconnected') }}</BaseAlert>
       <BaseAlert v-if="error" class="files-message">{{ presentError(error).message }}</BaseAlert>
       <BaseAlert v-if="cleanupError" class="files-message">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</BaseAlert>
@@ -84,7 +87,7 @@ onBeforeUnmount(files.dispose);
       <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
         <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @dblclick="files.open(entry)" @keydown.enter.prevent="files.open(entry)"><span aria-hidden="true">{{ entry.isSymlink ? '↗' : entry.fileType === 'directory' ? '▰' : '▤' }}</span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td :title="entry.sizeBytes ?? ''">{{ entry.fileType === 'directory' ? '—' : formatSize(entry.sizeBytes) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" @action="action($event, entry)" /></td></tr>
       </tbody></table><p v-if="pending" class="files-empty" role="status">{{ t('readingDirectory') }}</p><p v-else-if="!entries.length && !error" class="files-empty">{{ t('directoryIsEmpty') }}</p></div>
-      <footer class="files-pagination"><span>{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
+      <footer class="files-pagination"><span v-if="!compactFooter">{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>
     <TransferPanel :store="transfers" :connection-id="connectionId" />
     <component :is="operation === 'delete' ? BaseAlertDialog : BaseDialog" :open="!!operation" :title="operation === 'mkdir' ? t('newFolder') : operation === 'rename' ? t('renameFile') : t('confirmDeletion')" :busy="mutating" @close="operation = null">

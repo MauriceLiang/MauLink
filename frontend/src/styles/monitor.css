@@ -1,4 +1,11 @@
 .terminal-main { display: grid; grid-template-columns: minmax(0, 1fr) 230px; min-width: 0; min-height: 0; overflow: hidden; }
+.terminal-main.has-inline-files { grid-template-rows: minmax(120px, 1fr) minmax(180px, .8fr); }
+.terminal-main.has-inline-files .terminal-stack { grid-column: 1; grid-row: 1; }
+.terminal-main.has-inline-files .quick-monitor { grid-column: 2; grid-row: 1; }
+.terminal-main.has-inline-files .terminal-inline-files { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--color-border); }
+.terminal-main.is-full-files { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.terminal-main.is-full-files .terminal-stack, .terminal-main.is-full-files .quick-monitor { display: none; }
+.terminal-main.is-full-files .terminal-inline-files { grid-column: 1; grid-row: 1; }
 .terminal-workspace.is-focused .terminal-main { grid-template-columns: minmax(0, 1fr); }
 .terminal-workspace.is-focused .quick-monitor { display: none; }
 .terminal-workspace.is-monitor { grid-template-rows: 46px minmax(0, 1fr); }

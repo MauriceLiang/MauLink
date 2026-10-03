@@ -1,6 +1,8 @@
 export const terminalMessages = {
   terminal: ["终端", "Terminal"],
   files: ["文件", "Files"],
+  expandFiles: ["展开文件", "Expand files"],
+  collapseFiles: ["收起文件", "Collapse files"],
   monitor: ["监控", "Monitor"],
   disconnect: ["断开连接", "Disconnect"],
   newTerminal: ["新建终端", "New terminal"],

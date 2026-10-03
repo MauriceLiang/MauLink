@@ -7,17 +7,23 @@
 .workspace-heading .workspace-view-tab::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--color-primary); content: ""; opacity: 0; transform: scaleX(.5); transform-origin: center; transition: opacity var(--motion-fast) var(--ease-standard), transform var(--motion-normal) var(--ease-enter); }
 .workspace-heading .workspace-view-tab[aria-pressed="true"]::after { opacity: 1; transform: scaleX(1); }
 .files-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: 0; min-width: 0; overflow: hidden; background: var(--color-surface); }
+.terminal-inline-files { min-width: 0; min-height: 0; overflow: hidden; }
+.terminal-inline-files .files-workspace { height: 100%; }
 .files-browser { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .files-heading, .files-location, .files-toolbar, .files-pagination { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
 .files-heading h2, .transfer-panel h2 { margin: 0; font-size: 14px; font-weight: 600; }
 .files-heading span { flex: 1; color: var(--color-text-secondary); font-size: 11px; }
-.files-location { padding-top: 0; }
+.files-location { flex-wrap: wrap; padding-top: 0; border-bottom: 1px solid var(--color-border); }
 .files-location input, .file-name-field input { min-width: 0; flex: 1; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text-primary); padding: 8px; }
+.files-location input { flex: 1 1 260px; max-width: 620px; }
+.files-location .files-toolbar { flex: 0 0 auto; padding: 0; border: 0; }
 .files-breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px; }
 .files-breadcrumb button { background: transparent; color: var(--color-text-secondary); border: 0; padding: 4px; font-size: 12px; }
 .files-breadcrumb button[aria-current] { color: var(--color-text-primary); }
-.files-toolbar { flex-wrap: wrap; border-bottom: 1px solid var(--color-border); }
+.files-toolbar { flex-wrap: wrap; }
 .files-workspace .base-button { min-height: 28px; padding: 4px 9px; font-size: 12px; white-space: nowrap; }
+.files-toolbar .files-toolbar-action { width: 32px; min-width: 32px; min-height: 32px; padding: 0; border-color: transparent; background: transparent; }
+.files-toolbar .files-toolbar-action:hover:not(:disabled) { border-color: transparent; background: transparent; }
 .files-table-scroll { overflow: auto; flex: 1; min-height: 0; }
 .files-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
 .files-table th { position: sticky; top: 0; z-index: var(--z-sticky); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-weight: 500; }
@@ -35,8 +41,9 @@
 .files-message { margin: 0; padding: 8px 14px; font-size: 12px; overflow-wrap: anywhere; }
 .files-message[role="status"] { animation: feedback-in var(--motion-normal) var(--ease-enter); }
 .files-message[role="alert"], .transfer-panel [role="alert"] { color: var(--color-danger); }
-.files-pagination { border-top: 1px solid var(--color-border); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
+.files-pagination { min-height: 28px; padding: 2px 10px; border-top: 1px solid var(--color-border); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
 .files-pagination span { flex: 1; }
+.files-pagination .base-button { min-height: 24px; padding: 2px 8px; }
 .file-name-field { display: flex; align-items: center; gap: 12px; }
 .transfer-panel { border-left: 1px solid var(--color-border); min-height: 0; overflow: auto; padding: 14px; }
 .transfer-panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }

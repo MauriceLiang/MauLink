@@ -23,7 +23,8 @@
 .terminal-mount { width: 100%; height: 100%; }
 .terminal-mount .xterm { height: 100%; }
 .terminal-empty { padding: 20px; color: var(--color-terminal-text); font-size: 13px; }
-.terminal-footer { display: flex; gap: 16px; padding: 5px 12px; background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
+.terminal-footer { display: flex; gap: 12px; align-items: center; min-height: 24px; padding: 0 8px 0 12px; background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
+.terminal-footer .terminal-files-toggle { width: 24px; min-width: 24px; min-height: 22px; padding: 0; }
 .terminal-warning { margin: 0; padding: 8px 12px; color: var(--color-danger); font-size: 12px; background: var(--color-surface); }
 .terminal-settings-form fieldset { display: grid; gap: 14px; min-width: 0; padding: 0; border: 0; }
 .terminal-settings-form label { display: flex; gap: 10px; align-items: center; font-size: 13px; }
