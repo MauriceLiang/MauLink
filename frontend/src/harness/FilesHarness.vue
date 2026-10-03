@@ -7,11 +7,14 @@ import AppShell from "../app/AppShell.vue";
 import FilesPanel from "../components/files/FilesPanel.vue";
 import { createIpcClient } from "../ipc/client";
 import { createSftpApi } from "../ipc/sftp";
+import { createSettingsApi } from "../ipc/settings";
 import { createTransferStore } from "../stores/transfers";
+import { createTerminalPreferences } from "../terminal/preferences";
 import { createFilesMock, createFilesWorkspaceMock, type FileScenario } from "./files-fixtures";
 const scenario = ref<FileScenario>('completed'); const theme = ref('light'); const generation = ref(0);
 const workspace = new URLSearchParams(location.search).get('workspace') === '1';
 const mock = createFilesMock(() => scenario.value); const client = createIpcClient(mock.transport); const api = createSftpApi(client);
+const preferences = createTerminalPreferences(createSettingsApi(client), () => {});
 const transferChannelFactory = () => ({ onmessage: (_value: SftpTransferSnapshot) => undefined }) as Channel<SftpTransferSnapshot>;
 const terminalChannelFactory = () => ({ onmessage: (_value: TerminalChunk) => undefined }) as Channel<TerminalChunk>;
 const workspaceClient = workspace ? createIpcClient(createFilesWorkspaceMock(mock)) : null;
@@ -22,7 +25,7 @@ onBeforeUnmount(() => { transfers.dispose(); mock.dispose(); });
 </script>
 <template>
   <AppShell v-if="workspaceClient" :client="workspaceClient" :terminal-channel-factory="terminalChannelFactory" :transfer-channel-factory="transferChannelFactory" />
-  <div class="files-harness" :class="{ 'workspace-harness': workspace }"><header><strong>Phase 7 · Browser Harness</strong><span>DEV 内存 SFTP：450 项分页；不访问真实文件，不传输文件字节。</span><label>主题<select v-model="theme"><option value="light">Light</option><option value="dark">Dark</option></select></label><label>传输场景<select v-model="scenario"><option value="completed">完成</option><option value="slow">慢速 / 取消</option><option value="failed">失败 / 清理提示</option><option value="picker-cancel">取消文件选择</option></select></label><button v-if="!workspace" @click="reset">重置目录</button><button @click="mock.expire()">游标过期</button></header><FilesPanel v-if="!workspace" :key="generation" :api="api" :transfers="transfers" connection-id="files-fixture" :ready="true" :visible="true" /></div>
+  <div class="files-harness" :class="{ 'workspace-harness': workspace }"><header><strong>Phase 7 · Browser Harness</strong><span>DEV 内存 SFTP：450 项分页；不访问真实文件，不传输文件字节。</span><label>主题<select v-model="theme"><option value="light">Light</option><option value="dark">Dark</option></select></label><label>传输场景<select v-model="scenario"><option value="completed">完成</option><option value="slow">慢速 / 取消</option><option value="failed">失败 / 清理提示</option><option value="picker-cancel">取消文件选择</option></select></label><button v-if="!workspace" @click="reset">重置目录</button><button @click="mock.expire()">游标过期</button></header><FilesPanel v-if="!workspace" :key="generation" :api="api" :transfers="transfers" :preferences="preferences" connection-id="files-fixture" :ready="true" :visible="true" /></div>
 </template>
 <style scoped>
 .files-harness { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--color-surface); color: var(--color-text-primary); }

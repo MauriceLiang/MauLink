@@ -4,4 +4,4 @@ import type { CursorStyle } from "./CursorStyle";
 import type { Language } from "./Language";
 import type { Theme } from "./Theme";
 
-export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, };
+export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };

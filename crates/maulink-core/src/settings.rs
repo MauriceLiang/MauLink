@@ -7,6 +7,10 @@ use crate::{AppError, Database, ErrorCode, storage};
 
 const SETTINGS_KEY: &str = "app_settings";
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Theme {
@@ -54,6 +58,12 @@ pub struct AppSettings {
     pub terminal_scrollback_lines: u32,
     pub download_directory_token: Option<String>,
     pub confirm_before_disconnect: bool,
+    #[serde(default = "default_true")]
+    pub show_size_column: bool,
+    #[serde(default = "default_true")]
+    pub show_file_sizes: bool,
+    #[serde(default)]
+    pub show_folder_sizes: bool,
 }
 
 impl Default for AppSettings {
@@ -68,6 +78,9 @@ impl Default for AppSettings {
             terminal_scrollback_lines: 10_000,
             download_directory_token: None,
             confirm_before_disconnect: true,
+            show_size_column: true,
+            show_file_sizes: true,
+            show_folder_sizes: false,
         }
     }
 }

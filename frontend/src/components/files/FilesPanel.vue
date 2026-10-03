@@ -8,6 +8,8 @@ import type { RemoteFileEntry } from "../../../../contracts/v1/RemoteFileEntry";
 import type { createSftpApi } from "../../ipc/sftp";
 import type { TransferStore } from "../../stores/transfers";
 import { createFilesStore } from "../../stores/files";
+import type { TerminalPreferences } from "../../terminal/preferences";
+import { defaultSettings } from "../../terminal/preferences";
 import { breadcrumbs, formatSize, modifiedTime, parentRemotePath, validBasename } from "../../files/path";
 import { mapError } from "../../errors/mapper";
 import { presentError } from "../../errors/presenter";
@@ -18,16 +20,23 @@ import BaseDialog from "../base/BaseDialog.vue";
 import FileMenu from "./FileMenu.vue";
 import TransferPanel from "./TransferPanel.vue";
 const t = messages(filesMessages);
-const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean }>();
+const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; preferences: TerminalPreferences; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean }>();
 const emit = defineEmits<{ pagination: [value: string] }>();
 const files = createFilesStore(props.api, props.connectionId);
 const { entries, path, cursor, page, pending, mutating, needsReload, error, cleanupError } = files;
 const location = ref(''); const selectedPath = ref<string | null>(null); const pathInput = ref<HTMLInputElement>();
+const appSettings = computed(() => props.preferences.record.value?.value ?? defaultSettings);
+const showSizeColumn = computed(() => appSettings.value.showSizeColumn);
+const showFileSizes = computed(() => appSettings.value.showFileSizes);
+const showFolderSizes = computed(() => showSizeColumn.value && appSettings.value.showFolderSizes);
 const selected = computed(() => entries.value.find(entry => entry.path === selectedPath.value));
 const unavailable = computed(() => !props.ready || pending.value || mutating.value || needsReload.value);
 const operation = ref<'mkdir' | 'rename' | 'delete' | null>(null);
 const target = shallowRef<RemoteFileEntry | null>(null); const name = ref(''); const notice = ref('');
 const uploadRefresh = ref(false); const completedUploads = new Set<string>();
+type FolderSizeState = { status: 'loading' | 'unavailable' } | { status: 'ready'; bytes: string };
+const folderSizes = shallowRef<Record<string, FolderSizeState>>({});
+let folderSizeGeneration = 0; let disposed = false;
 watch(path, value => { location.value = value; });
 watch(entries, () => { selectedPath.value = null; });
 watch([page, entries], () => emit('pagination', t('pagination', {page: page.value, count: entries.value.length})), { immediate: true });
@@ -71,7 +80,68 @@ async function action(value: 'download' | 'rename' | 'delete' | 'copy', entry: R
   } else edit(value, entry);
 }
 const downloadable = (entry: RemoteFileEntry) => entry.fileType === 'file' || entry.isSymlink || entry.fileType === 'symlink';
-onBeforeUnmount(files.dispose);
+function setFolderSize(path: string, state: FolderSizeState, generation: number) {
+  if (generation === folderSizeGeneration && !disposed) folderSizes.value = { ...folderSizes.value, [path]: state };
+}
+async function calculateFolderSize(path: string, generation: number, cache: Map<string, Promise<bigint | null>>): Promise<bigint | null> {
+  const cached = cache.get(path); if (cached) return cached;
+  const result = (async () => {
+    if (generation !== folderSizeGeneration || disposed) return null;
+    setFolderSize(path, { status: 'loading' }, generation);
+    const subdirectories: string[] = []; let total = BigInt(0); let complete = true; let cursorId: string | null = null;
+    const collect = (values: RemoteFileEntry[]) => {
+      for (const entry of values) {
+        if (entry.fileType === 'file') {
+          if (entry.sizeBytes === null) complete = false;
+          else total += BigInt(entry.sizeBytes);
+        } else if (entry.fileType === 'directory' && !entry.isSymlink) subdirectories.push(entry.path);
+      }
+    };
+    try {
+      let result = await props.api.listStart({ connectionId: props.connectionId, path });
+      cursorId = result.cursorId; collect(result.entries);
+      while (cursorId && generation === folderSizeGeneration && !disposed) {
+        result = await props.api.listNext({ cursorId });
+        cursorId = result.cursorId; collect(result.entries);
+      }
+      if (generation !== folderSizeGeneration || disposed) return null;
+      if (!complete) { setFolderSize(path, { status: 'unavailable' }, generation); return null; }
+    } catch {
+      setFolderSize(path, { status: 'unavailable' }, generation); return null;
+    } finally {
+      if (cursorId) {
+        try { await props.api.listClose({ cursorId }); }
+        catch (reason) { if (generation === folderSizeGeneration && !disposed && !cleanupError.value) cleanupError.value = mapError(reason); }
+      }
+    }
+    for (const childPath of subdirectories) {
+      const childSize = await calculateFolderSize(childPath, generation, cache);
+      if (childSize === null) { setFolderSize(path, { status: 'unavailable' }, generation); return null; }
+      total += childSize;
+    }
+    if (generation !== folderSizeGeneration || disposed) return null;
+    setFolderSize(path, { status: 'ready', bytes: total.toString() }, generation);
+    return total;
+  })();
+  cache.set(path, result); return result;
+}
+function displaySize(entry: RemoteFileEntry) {
+  if (entry.fileType === 'file') return showFileSizes.value ? formatSize(entry.sizeBytes) : '';
+  if (entry.fileType !== 'directory' || !showFolderSizes.value) return '';
+  const state = folderSizes.value[entry.path];
+  if (state?.status === 'ready') return formatSize(state.bytes);
+  if (state?.status === 'unavailable') return '—';
+  return t('calculatingDirectorySize');
+}
+watch([entries, showFolderSizes, () => props.visible, () => props.ready, pending], ([currentEntries, enabled, visible, ready, loading]) => {
+  const generation = ++folderSizeGeneration; folderSizes.value = {};
+  const directories = currentEntries.filter(entry => entry.fileType === 'directory' && !entry.isSymlink);
+  if (!enabled || !visible || !ready || loading || !directories.length) return;
+  folderSizes.value = Object.fromEntries(directories.map(entry => [entry.path, { status: 'loading' as const }]));
+  const cache = new Map<string, Promise<bigint | null>>();
+  void (async () => { for (const entry of directories) { if (generation !== folderSizeGeneration) return; await calculateFolderSize(entry.path, generation, cache); } })();
+}, { immediate: true });
+onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose(); });
 </script>
 <template>
   <div class="files-workspace">
@@ -82,8 +152,8 @@ onBeforeUnmount(files.dispose);
       <BaseAlert v-if="error" class="files-message">{{ presentError(error).message }}</BaseAlert>
       <BaseAlert v-if="cleanupError" class="files-message">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</BaseAlert>
       <p v-if="notice" class="files-message" role="status">{{ notice }}</p>
-      <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
-        <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @dblclick="files.open(entry)" @keydown.enter.prevent="files.open(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td :title="entry.sizeBytes ?? ''">{{ entry.fileType === 'directory' ? '—' : formatSize(entry.sizeBytes) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" @action="action($event, entry)" /></td></tr>
+      <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th v-if="showSizeColumn" scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
+        <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }" @click="selectedPath = entry.path"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @dblclick="files.open(entry)" @keydown.enter.prevent="files.open(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td v-if="showSizeColumn">{{ displaySize(entry) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" @action="action($event, entry)" /></td></tr>
       </tbody></table><p v-if="pending" class="files-empty" role="status">{{ t('readingDirectory') }}</p><p v-else-if="!entries.length && !error" class="files-empty">{{ t('directoryIsEmpty') }}</p></div>
       <footer class="files-pagination"><span v-if="!compactFooter">{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>

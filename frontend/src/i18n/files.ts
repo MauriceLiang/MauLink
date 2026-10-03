@@ -13,6 +13,7 @@ export const filesMessages = {
   actions: ["操作", "Actions"],
   open: ["打开", "Open"],
   readingDirectory: ["正在读取目录…", "Reading directory…"],
+  calculatingDirectorySize: ["计算中…", "Calculating…"],
   directoryIsEmpty: ["目录为空", "Directory is empty"],
   firstPage: ["回到第一页", "First page"],
   nextPage: ["下一页", "Next page"],
