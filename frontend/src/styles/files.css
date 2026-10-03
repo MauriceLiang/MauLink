@@ -55,6 +55,30 @@
 .file-editor-discard { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 10px; border-radius: 8px; background: var(--color-bg-subtle); }
 .file-editor-discard span { flex: 1 1 100%; color: var(--color-text-secondary); font-size: 12px; }
 .file-editor-error { overflow-wrap: anywhere; }
+.file-markdown-switcher { display: flex; gap: 16px; margin: 0 0 10px; border-bottom: 1px solid var(--color-border); }
+.file-markdown-switcher button { position: relative; padding: 7px 2px; border: 0; border-radius: 0; color: var(--color-text-secondary); background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
+.file-markdown-switcher button[aria-pressed="true"] { color: var(--color-primary); }
+.file-markdown-switcher button[aria-pressed="true"]::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: var(--color-primary); content: ""; }
+.file-editor-markdown { width: 100%; box-sizing: border-box; min-height: min(52vh, 520px); max-height: 62vh; overflow: auto; margin: 0; padding: 14px 18px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); background: var(--color-bg-subtle); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.file-editor-markdown > :first-child { margin-top: 0; }
+.file-editor-markdown > :last-child { margin-bottom: 0; }
+.file-editor-markdown h1, .file-editor-markdown h2, .file-editor-markdown h3, .file-editor-markdown h4, .file-editor-markdown h5, .file-editor-markdown h6 { margin: 1.25em 0 .5em; line-height: 1.35; }
+.file-editor-markdown h1, .file-editor-markdown h2 { padding-bottom: .3em; border-bottom: 1px solid var(--color-border); }
+.file-editor-markdown a { color: var(--color-primary); overflow-wrap: anywhere; }
+.file-editor-markdown blockquote { margin-inline: 0; padding: 2px 12px; border-left: 3px solid var(--color-border); color: var(--color-text-secondary); }
+.file-editor-markdown pre { overflow: auto; padding: 12px; border-radius: 6px; background: var(--color-surface); font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.file-editor-markdown :not(pre) > code { padding: 2px 4px; border-radius: 4px; background: var(--color-surface); font: .92em ui-monospace, SFMono-Regular, Menlo, monospace; }
+.file-editor-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; }
+.file-editor-markdown th, .file-editor-markdown td { padding: 5px 9px; border: 1px solid var(--color-border); text-align: left; }
+.file-editor-markdown th { background: var(--color-surface); }
+.file-editor-markdown hr { border: 0; border-top: 1px solid var(--color-border); }
+.markdown-image-placeholder { color: var(--color-text-secondary); font-size: 12px; }
+.markdown-task-checkbox { display: inline-flex; width: 1.2em; height: 1.2em; align-items: center; justify-content: center; margin-right: 5px; color: var(--color-primary); }
+.file-editor-elevation { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--color-bg-subtle); }
+.file-editor-elevation strong { display: block; margin-bottom: 5px; }
+.file-editor-elevation p, .file-editor-sudo-dialog .base-dialog-content > p { margin: 5px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.file-editor-sudo-dialog { width: min(460px, calc(100vw - 32px)); }
+.file-editor-sudo-hint { color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; }
 .transfer-panel { border-left: 1px solid var(--color-border); min-height: 0; overflow: auto; padding: 14px; }
 .transfer-panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .transfer-panel ol { list-style: none; padding: 0; margin: 14px 0; }

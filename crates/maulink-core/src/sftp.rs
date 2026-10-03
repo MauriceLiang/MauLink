@@ -301,6 +301,51 @@ impl SftpManager {
         result
     }
 
+    pub async fn write_text_with_sudo(
+        &self,
+        payload: crate::SftpWriteTextWithSudoPayload,
+    ) -> Result<crate::SftpWriteTextResult, AppError> {
+        validate_remote_path(&payload.path)?;
+        if payload.content.len() > MAX_EDITABLE_TEXT_FILE_BYTES {
+            return Err(text_file_too_large());
+        }
+        let session = self.open_session(&payload.connection_id).await?;
+        let result = async {
+            let (_, current_revision) = read_editable_text_file(&session, &payload.path).await?;
+            if current_revision != payload.expected_revision {
+                return Err(AppError::new(
+                    ErrorCode::RevisionConflict,
+                    "errors.sftpFileChangedDuringEdit",
+                ));
+            }
+
+            let (command, prompt_marker, ready_marker) = sudo_text_write_command(&payload.path);
+            self.connections
+                .run_sudo_write(
+                    &payload.connection_id,
+                    &command,
+                    &prompt_marker,
+                    &ready_marker,
+                    payload.password,
+                    &payload.content,
+                )
+                .await?;
+
+            let (saved_content, revision) =
+                read_editable_text_file(&session, &payload.path).await?;
+            if saved_content != payload.content {
+                return Err(AppError::new(
+                    ErrorCode::SftpOperationFailed,
+                    "errors.sftpWriteVerificationFailed",
+                ));
+            }
+            Ok(crate::SftpWriteTextResult { revision })
+        }
+        .await;
+        let _ = session.close_session();
+        result
+    }
+
     pub async fn mkdir(
         &self,
         payload: crate::SftpMkdirPayload,
@@ -686,6 +731,21 @@ async fn read_editable_text_file(
 
 fn text_revision(bytes: &[u8]) -> String {
     STANDARD_NO_PAD.encode(Sha256::digest(bytes))
+}
+
+fn sudo_text_write_command(path: &str) -> (String, String, String) {
+    let token = Uuid::new_v4().simple().to_string();
+    let prompt_marker = format!("__MAULINK_{token}_SUDO_PROMPT__");
+    let ready_marker = format!("__MAULINK_{token}_SUDO_READY__");
+    let command = format!(
+        "sudo -k -S -p '{prompt_marker}' -- sh -c 'printf \"{ready_marker}\"; cat > \"$1\"' maulink {}",
+        shell_quote(path)
+    );
+    (command, prompt_marker, ready_marker)
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 fn text_file_too_large() -> AppError {

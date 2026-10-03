@@ -41,6 +41,8 @@ const TERMINAL_CHANNEL_BUFFER_MESSAGES: usize = 4;
 const TERMINAL_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 const SFTP_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 const MONITOR_EXEC_OUTPUT_LIMIT: usize = 256 * 1024;
+const SUDO_WRITE_TIMEOUT: Duration = Duration::from_secs(90);
+const SUDO_EXEC_OUTPUT_LIMIT: usize = 16 * 1024;
 
 #[derive(Clone)]
 pub struct SshConnector {
@@ -912,6 +914,66 @@ impl SshConnectionManager {
         }
     }
 
+    pub(crate) async fn run_sudo_write(
+        &self,
+        connection_id: &str,
+        command: &str,
+        prompt_marker: &str,
+        ready_marker: &str,
+        password: Secret,
+        content: &str,
+    ) -> Result<(), AppError> {
+        let cancellation = self.connections.cancellation_token(connection_id)?;
+        let deadline = tokio::time::Instant::now() + SUDO_WRITE_TIMEOUT;
+        let mut password = Some(password);
+        loop {
+            let snapshot = self.connections.get(connection_id)?;
+            if snapshot.state != ConnectionState::Ready {
+                return Err(AppError::new(
+                    ErrorCode::ValidationFailed,
+                    "errors.connectionNotReady",
+                )
+                .with_param("connectionId", connection_id));
+            }
+            let changed = self.sessions_changed.notified();
+            let sessions = self.sessions.lock().await;
+            if let Some(session) = sessions.get(connection_id) {
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining.is_zero() {
+                    return Err(sudo_write_timeout());
+                }
+                return tokio::select! {
+                    _ = cancellation.cancelled() => Err(cancelled()),
+                    result = tokio::time::timeout(
+                        remaining,
+                        session.execute_sudo_write(
+                            command,
+                            prompt_marker,
+                            ready_marker,
+                            password.take().ok_or_else(sudo_authorization_failed)?,
+                            content,
+                            remaining,
+                            &cancellation,
+                        ),
+                    ) => result.unwrap_or_else(|_| Err(sudo_write_timeout())),
+                };
+            }
+            drop(sessions);
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                return Err(sudo_write_timeout());
+            }
+            tokio::select! {
+                _ = cancellation.cancelled() => return Err(cancelled()),
+                result = tokio::time::timeout(remaining, changed) => {
+                    if result.is_err() {
+                        return Err(sudo_write_timeout());
+                    }
+                },
+            }
+        }
+    }
+
     pub async fn lock_profile_operations(&self) -> tokio::sync::OwnedMutexGuard<()> {
         self.operations_lock.clone().lock_owned().await
     }
@@ -1532,6 +1594,125 @@ impl SshSession {
         result
     }
 
+    async fn execute_sudo_write(
+        &self,
+        command: &str,
+        prompt_marker: &str,
+        ready_marker: &str,
+        password: Secret,
+        content: &str,
+        timeout: Duration,
+        cancellation: &CancellationToken,
+    ) -> Result<(), AppError> {
+        let password = password.into_utf8_string()?;
+        if password.is_empty()
+            || password
+                .chars()
+                .any(|character| matches!(character, '\n' | '\r' | '\0'))
+        {
+            return Err(validation("password", "errors.sudoPasswordInvalid"));
+        }
+        tokio::select! {
+            _ = cancellation.cancelled() => Err(cancelled()),
+            result = tokio::time::timeout(
+                timeout,
+                self.execute_sudo_write_inner(
+                    command,
+                    prompt_marker.as_bytes(),
+                    ready_marker.as_bytes(),
+                    password,
+                    content,
+                ),
+            ) => result.unwrap_or_else(|_| Err(sudo_write_timeout())),
+        }
+    }
+
+    async fn execute_sudo_write_inner(
+        &self,
+        command: &str,
+        prompt_marker: &[u8],
+        ready_marker: &[u8],
+        password: Zeroizing<String>,
+        content: &str,
+    ) -> Result<(), AppError> {
+        let mut channel = self
+            .handle
+            .channel_open_session()
+            .await
+            .map_err(sudo_exec_error)?;
+        channel
+            .exec(true, command.to_owned())
+            .await
+            .map_err(|error| map_ssh_error(error, "openingSudoWrite"))?;
+        wait_for_sudo_exec_success(&mut channel).await?;
+
+        let mut password_line = Zeroizing::new(password.as_bytes().to_vec());
+        password_line.push(b'\n');
+        let mut password_sent = false;
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        loop {
+            let prompt_received = match channel.wait().await {
+                Some(russh::ChannelMsg::Data { data }) => {
+                    append_sudo_output(&mut stdout, &data)?;
+                    contains_bytes(&stdout, prompt_marker)
+                }
+                Some(russh::ChannelMsg::ExtendedData { data, .. }) => {
+                    append_sudo_output(&mut stderr, &data)?;
+                    contains_bytes(&stderr, prompt_marker)
+                }
+                Some(russh::ChannelMsg::ExitStatus { .. })
+                | Some(russh::ChannelMsg::Close)
+                | None => return Err(sudo_authorization_failed()),
+                _ => false,
+            };
+            if prompt_received {
+                if password_sent {
+                    let _ = channel.close().await;
+                    return Err(sudo_authorization_failed());
+                }
+                let mut password_input = password_line.as_slice();
+                channel
+                    .data(&mut password_input)
+                    .await
+                    .map_err(|error| map_ssh_error(error, "sendingSudoPassword"))?;
+                password_sent = true;
+            }
+            if contains_bytes(&stdout, ready_marker) {
+                break;
+            }
+        }
+
+        let mut content_input = content.as_bytes();
+        channel
+            .data(&mut content_input)
+            .await
+            .map_err(|error| map_ssh_error(error, "sendingSudoFileContent"))?;
+        channel
+            .eof()
+            .await
+            .map_err(|error| map_ssh_error(error, "closingSudoFileInput"))?;
+
+        loop {
+            match channel.wait().await {
+                Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
+                    let _ = channel.close().await;
+                    return if exit_status == 0 {
+                        Ok(())
+                    } else {
+                        Err(sudo_write_failed())
+                    };
+                }
+                Some(russh::ChannelMsg::Data { data }) => append_sudo_output(&mut stdout, &data)?,
+                Some(russh::ChannelMsg::ExtendedData { data, .. }) => {
+                    append_sudo_output(&mut stderr, &data)?;
+                }
+                Some(russh::ChannelMsg::Close) | None => return Err(sudo_write_failed()),
+                _ => {}
+            }
+        }
+    }
+
     async fn abort_transport(&self) {
         let _ = self
             .handle
@@ -2055,6 +2236,34 @@ async fn wait_for_exec_channel_success(
     }
 }
 
+async fn wait_for_sudo_exec_success(
+    channel: &mut russh::Channel<client::Msg>,
+) -> Result<(), AppError> {
+    loop {
+        match channel.wait().await {
+            Some(russh::ChannelMsg::Success) => return Ok(()),
+            Some(russh::ChannelMsg::Failure) | Some(russh::ChannelMsg::Close) | None => {
+                return Err(sudo_exec_rejected());
+            }
+            _ => {}
+        }
+    }
+}
+
+fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
+}
+
+fn append_sudo_output(output: &mut Vec<u8>, bytes: &[u8]) -> Result<(), AppError> {
+    if output.len().saturating_add(bytes.len()) > SUDO_EXEC_OUTPUT_LIMIT {
+        return Err(sudo_write_failed());
+    }
+    output.extend_from_slice(bytes);
+    Ok(())
+}
+
 fn monitor_channel_error(error: russh::Error) -> AppError {
     match error {
         russh::Error::ChannelOpenFailure(_) => AppError::new(
@@ -2078,6 +2287,37 @@ fn monitor_output_too_large() -> AppError {
         "errors.monitorOutputTooLarge",
     )
     .with_stage("readingMonitorOutput")
+}
+
+fn sudo_exec_error(error: russh::Error) -> AppError {
+    match error {
+        russh::Error::ChannelOpenFailure(_) => sudo_exec_rejected(),
+        error => map_ssh_error(error, "openingSudoWrite"),
+    }
+}
+
+fn sudo_exec_rejected() -> AppError {
+    AppError::new(ErrorCode::ChannelOpenFailed, "errors.sudoExecUnavailable")
+        .with_stage("openingSudoWrite")
+}
+
+fn sudo_authorization_failed() -> AppError {
+    AppError::new(
+        ErrorCode::PermissionDenied,
+        "errors.sudoAuthorizationFailed",
+    )
+    .with_stage("authorizingSudoWrite")
+}
+
+fn sudo_write_failed() -> AppError {
+    AppError::new(ErrorCode::SftpOperationFailed, "errors.sudoWriteFailed")
+        .with_stage("writingTextFileWithSudo")
+}
+
+fn sudo_write_timeout() -> AppError {
+    AppError::new(ErrorCode::ConnectionTimeout, "errors.sudoWriteTimeout")
+        .with_retry()
+        .with_stage("writingTextFileWithSudo")
 }
 
 fn map_terminal_open_error(_error: russh::Error) -> AppError {

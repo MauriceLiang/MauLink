@@ -35,8 +35,8 @@ pub use contracts::{
     SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
     SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
     SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload, TerminalResizePayload,
-    TerminalWritePayload, WorkspaceActivityPayload,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload,
+    TerminalResizePayload, TerminalWritePayload, WorkspaceActivityPayload,
 };
 pub use credentials::{
     CredentialDeleteResult, CredentialKind, CredentialManager, CredentialReplaceResult,

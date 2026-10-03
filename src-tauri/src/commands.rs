@@ -11,10 +11,10 @@ use maulink_core::{
     SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
     SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
     SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, TerminalAckPayload, TerminalChunk,
-    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
-    TerminalSize, TerminalSnapshot, TerminalWritePayload, TerminalWriteResult,
-    WorkspaceActivityPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
+    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
+    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalWritePayload,
+    TerminalWriteResult, WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -459,6 +459,15 @@ pub async fn sftp_write_text(
 ) -> Result<SftpWriteTextResult, AppError> {
     let (request_id, payload) = request.validate()?;
     attach_request_id(request_id, state.sftp.write_text(payload).await)
+}
+
+#[tauri::command]
+pub async fn sftp_write_text_with_sudo(
+    request: ApiRequest<SftpWriteTextWithSudoPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<SftpWriteTextResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.sftp.write_text_with_sudo(payload).await)
 }
 
 #[tauri::command]

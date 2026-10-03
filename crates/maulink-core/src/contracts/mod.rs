@@ -198,6 +198,16 @@ pub struct SftpWriteTextResult {
     pub revision: String,
 }
 
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SftpWriteTextWithSudoPayload {
+    pub connection_id: String,
+    pub path: String,
+    pub content: String,
+    pub expected_revision: String,
+    pub password: crate::Secret,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SftpMkdirPayload {

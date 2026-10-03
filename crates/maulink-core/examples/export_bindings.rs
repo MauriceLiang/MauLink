@@ -19,10 +19,10 @@ use maulink_core::{
     SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
     SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
     SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, TerminalAckPayload, TerminalChunk,
-    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
-    TerminalSize, TerminalSnapshot, TerminalState, TerminalWritePayload, TerminalWriteResult,
-    Theme, WorkspaceActivityPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
+    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
+    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState, TerminalWritePayload,
+    TerminalWriteResult, Theme, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -102,6 +102,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     SftpReadTextResult::export_all(&config)?;
     SftpWriteTextPayload::export_all(&config)?;
     SftpWriteTextResult::export_all(&config)?;
+    SftpWriteTextWithSudoPayload::export_all(&config)?;
     SftpMkdirPayload::export_all(&config)?;
     SftpRenamePayload::export_all(&config)?;
     SftpDeletePayload::export_all(&config)?;

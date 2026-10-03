@@ -9,6 +9,7 @@ export function createSftpApi(client: IpcClient) {
     stat: (payload: Payload<"sftp_stat">) => client.call("sftp_stat", payload),
     readText: (payload: Payload<"sftp_read_text">) => client.call("sftp_read_text", payload),
     writeText: (payload: Payload<"sftp_write_text">) => client.call("sftp_write_text", payload),
+    writeTextWithSudo: (payload: Payload<"sftp_write_text_with_sudo">) => client.call("sftp_write_text_with_sudo", payload),
     mkdir: (payload: Payload<"sftp_mkdir">) => client.call("sftp_mkdir", payload),
     rename: (payload: Payload<"sftp_rename">) => client.call("sftp_rename", payload),
     remove: (payload: Payload<"sftp_delete">) => client.call("sftp_delete", payload),

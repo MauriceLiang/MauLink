@@ -23,6 +23,7 @@ fn main() {
             "sftp_stat",
             "sftp_read_text",
             "sftp_write_text",
+            "sftp_write_text_with_sudo",
             "sftp_mkdir",
             "sftp_rename",
             "sftp_delete",

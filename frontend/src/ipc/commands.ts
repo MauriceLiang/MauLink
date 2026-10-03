@@ -47,6 +47,7 @@ import type { SftpTransferSnapshot } from "../../../contracts/v1/SftpTransferSna
 import type { SftpUploadPayload } from "../../../contracts/v1/SftpUploadPayload";
 import type { SftpWriteTextPayload } from "../../../contracts/v1/SftpWriteTextPayload";
 import type { SftpWriteTextResult } from "../../../contracts/v1/SftpWriteTextResult";
+import type { SftpWriteTextWithSudoPayload } from "../../../contracts/v1/SftpWriteTextWithSudoPayload";
 import type { TerminalAckPayload } from "../../../contracts/v1/TerminalAckPayload";
 import type { TerminalChunk } from "../../../contracts/v1/TerminalChunk";
 import type { TerminalIdPayload } from "../../../contracts/v1/TerminalIdPayload";
@@ -88,6 +89,7 @@ export interface CommandContracts {
   sftp_stat: { payload: SftpStatPayload; result: RemoteFileEntry };
   sftp_read_text: { payload: SftpReadTextPayload; result: SftpReadTextResult };
   sftp_write_text: { payload: SftpWriteTextPayload; result: SftpWriteTextResult };
+  sftp_write_text_with_sudo: { payload: SftpWriteTextWithSudoPayload; result: SftpWriteTextResult };
   sftp_mkdir: { payload: SftpMkdirPayload; result: RemoteFileEntry };
   sftp_rename: { payload: SftpRenamePayload; result: RemoteFileEntry };
   sftp_delete: { payload: SftpDeletePayload; result: void };
