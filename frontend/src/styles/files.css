@@ -10,13 +10,13 @@
 .terminal-inline-files { min-width: 0; min-height: 0; overflow: hidden; }
 .terminal-inline-files .files-workspace { height: 100%; }
 .files-browser { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.files-heading, .files-location, .files-toolbar, .files-pagination { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
-.files-heading h2, .transfer-panel h2 { margin: 0; font-size: 14px; font-weight: 600; }
-.files-heading span { flex: 1; color: var(--color-text-secondary); font-size: 11px; }
-.files-location { flex-wrap: wrap; padding-top: 0; border-bottom: 1px solid var(--color-border); }
+.files-location, .files-toolbar, .files-pagination { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
+.transfer-panel h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.files-location { min-width: 0; flex-wrap: nowrap; border: 0; border-bottom: 1px solid var(--color-border); }
 .files-location input, .file-name-field input { min-width: 0; flex: 1; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text-primary); padding: 8px; }
-.files-location input { flex: 1 1 260px; max-width: 620px; }
+.files-location input { flex: 1 1 120px; max-width: none; }
 .files-location .files-toolbar { flex: 0 0 auto; padding: 0; border: 0; }
+.files-location .files-parent-action, .files-location .files-go, .files-location .files-refresh { width: 32px; min-width: 32px; min-height: 28px; padding: 0; }
 .files-breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px; }
 .files-breadcrumb button { background: transparent; color: var(--color-text-secondary); border: 0; padding: 4px; font-size: 12px; }
 .files-breadcrumb button[aria-current] { color: var(--color-text-primary); }
@@ -35,7 +35,8 @@
 .file-name, .file-open, .files-breadcrumb button { transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
 .file-name:hover:not(:disabled), .file-open:hover:not(:disabled), .files-breadcrumb button:hover:not(:disabled) { color: var(--color-primary); }
 .file-name { background: transparent; border: 0; padding: 4px 0; color: var(--color-text-primary); text-align: left; font-size: 12px; }
-.file-name span { color: var(--color-text-secondary); margin-right: 8px; }
+.file-name .file-entry-icon { display: inline-flex; align-items: center; margin-right: 8px; color: var(--color-text-secondary); line-height: 1; vertical-align: middle; }
+.file-entry-icon .base-icon { display: block; width: 14px; height: 14px; }
 .file-open { background: transparent; border: 0; color: var(--color-primary); margin-left: 8px; font-size: 11px; }
 .files-empty { padding: 22px 14px; color: var(--color-text-secondary); font-size: 12px; }
 .files-message { margin: 0; padding: 8px 14px; font-size: 12px; overflow-wrap: anywhere; }
