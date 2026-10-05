@@ -20,7 +20,7 @@ export function createFilesMock(scenario: () => FileScenario = () => 'completed'
   function reset() {
     directories.clear(); cursors.clear(); textContents.clear();
     directories.set('/', [entry('/', 'fixture', 'directory')]);
-    directories.set('/fixture', [entry('/fixture', 'empty', 'directory'), entry('/fixture', 'denied', 'directory'), entry('/fixture', 'nested', 'directory'), entry('/fixture', '目录链接', 'symlink'), entry('/fixture', '中文 "引号" \\ 文件.txt'), entry('/fixture', 'root-owned.txt'), ...Array.from({ length: 445 }, (_, index) => entry('/fixture', `file-${String(index + 1).padStart(3, '0')}.txt`))]);
+    directories.set('/fixture', [entry('/fixture', 'empty', 'directory'), entry('/fixture', 'denied', 'directory'), entry('/fixture', 'nested', 'directory'), entry('/fixture', '目录链接', 'symlink'), entry('/fixture', '中文 "引号" \\ 文件.txt'), entry('/fixture', 'root-owned.txt'), ...Array.from({ length: 444 }, (_, index) => entry('/fixture', `file-${String(index + 1).padStart(3, '0')}.txt`))]);
     directories.set('/fixture/empty', []); directories.set('/fixture/nested', [entry('/fixture/nested', 'readme.md')]);
     textContents.set('/fixture/中文 "引号" \\ 文件.txt', 'MauLink 远程文本文件\n双击可查看，切换编辑后可保存。\n');
     textContents.set('/fixture/root-owned.txt', 'This fixture rejects normal saves.\nUse the sudo flow to continue editing.\n');
