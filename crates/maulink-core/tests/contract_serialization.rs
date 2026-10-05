@@ -1,6 +1,6 @@
 use maulink_core::{
-    API_VERSION, AppError, AppInfo, AuthType, ErrorCode, ProxyType, ServerProfile,
-    ServerProfileDraft,
+    API_VERSION, AppError, AppInfo, AuthType, ConnectionPreflightError, ConnectionPreflightPayload,
+    ConnectionPreflightResult, ErrorCode, ProxyType, ServerProfile, ServerProfileDraft,
 };
 use ts_rs::TS;
 
@@ -89,4 +89,31 @@ fn server_profile_draft_accepts_legacy_and_advanced_proxy_contracts() {
     assert_eq!(advanced.proxy_type, Some(ProxyType::HttpConnect));
     let serialized = serde_json::to_value(advanced).expect("serialize advanced draft");
     assert_eq!(serialized["proxyType"], "httpConnect");
+}
+
+#[test]
+fn connection_preflight_contract_uses_camel_case_and_nullable_fields() {
+    let payload = ConnectionPreflightPayload {
+        host: "example.test".to_owned(),
+        port: 2222,
+        timeout_ms: 10_000,
+    };
+    let payload = serde_json::to_value(payload).expect("serialize preflight payload");
+    assert_eq!(payload["timeoutMs"], 10_000);
+
+    let result = ConnectionPreflightResult {
+        resolved_addresses: vec!["192.0.2.10".to_owned()],
+        selected_address: None,
+        dns_duration_ms: 12,
+        tcp_reachable: Some(false),
+        tcp_connect_duration_ms: Some(34),
+        error: Some(ConnectionPreflightError::ConnectionRefused),
+        checked_at_ms: 1_795_000_000_000,
+    };
+    let result = serde_json::to_value(result).expect("serialize preflight result");
+    assert_eq!(result["resolvedAddresses"][0], "192.0.2.10");
+    assert_eq!(result["selectedAddress"], serde_json::Value::Null);
+    assert_eq!(result["tcpReachable"], false);
+    assert_eq!(result["error"], "connectionRefused");
+    assert!(result["checkedAtMs"].is_number());
 }

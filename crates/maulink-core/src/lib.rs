@@ -9,6 +9,7 @@ pub mod host_keys;
 pub mod local_files;
 pub mod monitor;
 pub mod network;
+pub mod preflight;
 pub mod profiles;
 pub mod settings;
 pub mod sftp;
@@ -23,7 +24,8 @@ pub use connections::{
 };
 pub use contracts::{
     API_VERSION, ApiRequest, AppCapabilities, AppInfo, AuthenticationRespondPayload,
-    ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionStartPayload,
+    ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionPreflightError,
+    ConnectionPreflightPayload, ConnectionPreflightResult, ConnectionStartPayload,
     ConnectionStartSource, DecimalU64, EmptyPayload, GroupUpdatePayload, HostKeyGetPayload,
     HostKeyRespondPayload, LocalFileSelectPayload, MonitorCpuSnapshot, MonitorDiskSnapshot,
     MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,

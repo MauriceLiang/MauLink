@@ -3,6 +3,8 @@ import type { AppInfo } from "../../../contracts/v1/AppInfo";
 import type { AuthenticationRespondPayload } from "../../../contracts/v1/AuthenticationRespondPayload";
 import type { ConnectionDisconnectPayload } from "../../../contracts/v1/ConnectionDisconnectPayload";
 import type { ConnectionIdPayload } from "../../../contracts/v1/ConnectionIdPayload";
+import type { ConnectionPreflightPayload } from "../../../contracts/v1/ConnectionPreflightPayload";
+import type { ConnectionPreflightResult } from "../../../contracts/v1/ConnectionPreflightResult";
 import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapshot";
 import type { ConnectionStartPayload } from "../../../contracts/v1/ConnectionStartPayload";
 import type { CredentialDeleteResult } from "../../../contracts/v1/CredentialDeleteResult";
@@ -82,6 +84,7 @@ export interface CommandContracts {
   credential_delete_retained: { payload: ResourceIdPayload; result: CredentialDeleteResult };
   credential_cleanup_retry: { payload: ResourceIdPayload; result: CredentialDeleteResult };
   connection_start: { payload: ConnectionStartPayload; result: ConnectionSnapshot };
+  connection_preflight: { payload: ConnectionPreflightPayload; result: ConnectionPreflightResult };
   connection_get: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
   connection_cancel: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
   host_key_respond: { payload: HostKeyRespondPayload; result: void };

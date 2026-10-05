@@ -583,6 +583,38 @@ pub struct NetworkInspectPayload {
     pub detailed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ConnectionPreflightError {
+    DnsFailed,
+    Timeout,
+    ConnectionRefused,
+    ConnectionFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionPreflightResult {
+    pub resolved_addresses: Vec<String>,
+    pub selected_address: Option<String>,
+    #[ts(type = "number")]
+    pub dns_duration_ms: u64,
+    pub tcp_reachable: Option<bool>,
+    #[ts(type = "number | null")]
+    pub tcp_connect_duration_ms: Option<u64>,
+    pub error: Option<ConnectionPreflightError>,
+    #[ts(type = "number")]
+    pub checked_at_ms: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionPreflightPayload {
+    pub host: String,
+    pub port: u16,
+    pub timeout_ms: u32,
+}
+
 #[derive(Debug, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationRespondPayload {

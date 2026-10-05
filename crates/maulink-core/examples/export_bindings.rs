@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use maulink_core::{
     ApiRequest, AppError, AppInfo, AppSettings, AuthType, AuthenticationChallenge,
     AuthenticationRespondPayload, ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionMode,
+    ConnectionPreflightError, ConnectionPreflightPayload, ConnectionPreflightResult,
     ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource, ConnectionState,
     CredentialDeleteResult, CredentialKind, CredentialReplaceResult, CredentialUpdate, CursorStyle,
     DecimalU64, EmptyPayload, Group, GroupCreate, GroupUpdate, GroupUpdatePayload,
@@ -66,6 +67,9 @@ fn main() -> Result<(), ts_rs::ExportError> {
     NetworkGeo::export_all(&config)?;
     NetworkInspection::export_all(&config)?;
     NetworkInspectPayload::export_all(&config)?;
+    ConnectionPreflightError::export_all(&config)?;
+    ConnectionPreflightResult::export_all(&config)?;
+    ConnectionPreflightPayload::export_all(&config)?;
     HostKeyChallenge::export_all(&config)?;
     AuthenticationChallenge::export_all(&config)?;
     ConnectionStartPayload::export_all(&config)?;

@@ -3,12 +3,14 @@ import { DOMWrapper, flushPromises, mount, type VueWrapper } from "@vue/test-uti
 import type { ServerProfile } from "../../contracts/v1/ServerProfile";
 import type { HostKeyRecord } from "../../contracts/v1/HostKeyRecord";
 import type { NetworkInspection } from "../../contracts/v1/NetworkInspection";
+import type { ConnectionPreflightResult } from "../../contracts/v1/ConnectionPreflightResult";
 import { locale } from "../src/i18n/locale";
 import { createIpcClient } from "../src/ipc/client";
 import { createMockIpc } from "../src/ipc/mock";
 import { createConnectionApi } from "../src/ipc/connection";
 import { createHostKeysApi } from "../src/ipc/host-keys";
 import { createNetworkApi } from "../src/ipc/network";
+import { createPreflightApi } from "../src/ipc/preflight";
 import { createConnectionStore } from "../src/stores/connections";
 import ConnectionInfoCard from "../src/components/server-overview/ConnectionInfoCard.vue";
 import ConnectionRouteCard from "../src/components/server-overview/ConnectionRouteCard.vue";
@@ -32,6 +34,15 @@ function hostKeyApi(get: (payload: { host: string; port: number }) => HostKeyRec
 }
 function networkApi(inspect: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>) {
   return createNetworkApi(createIpcClient(createMockIpc({ network_inspect: inspect })));
+}
+function preflightResult(error: ConnectionPreflightResult["error"] = null): ConnectionPreflightResult {
+  return {
+    resolvedAddresses: ["198.51.100.10"], selectedAddress: error ? null : "198.51.100.10",
+    dnsDurationMs: 4, tcpReachable: error ? false : true, tcpConnectDurationMs: 7, error, checkedAtMs: 1_800_000_000_000,
+  };
+}
+function preflightApi(check: (payload: { host: string; port: number; timeoutMs: number }) => ConnectionPreflightResult | Promise<ConnectionPreflightResult> = () => preflightResult()) {
+  return createPreflightApi(createIpcClient(createMockIpc({ connection_preflight: check })));
 }
 const savedHostKey = { normalizedHost: "192.168.1.20", port: 22, algorithm: "ssh-ed25519", fingerprintSha256: "SHA256:fixture-fingerprint", revision: 1, trustedAtMs: 1_790_812_800_000 };
 function networkResult(host: string, detailed: boolean): NetworkInspection {
@@ -184,7 +195,7 @@ describe("server overview", () => {
   it("disables SSH-command copy when a proxy cannot be represented", async () => {
     const wrapper = mount(ServerOverview, { props: {
       server: profile({ proxyType: "socks5", proxyHost: "proxy.example.com", proxyPort: 1080 }),
-      store: connectionStore(), hostKeyApi: hostKeyApi(() => null), networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), readOnly: false,
+      store: connectionStore(), hostKeyApi: hostKeyApi(() => null), networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), readOnly: false,
     }, attachTo: document.body });
     wrappers.push(wrapper);
     await wrapper.get("[aria-label^='更多服务器操作']").trigger("click");
@@ -198,7 +209,7 @@ describe("server overview", () => {
   it("keeps the overview available when the saved host-key lookup fails", async () => {
     const wrapper = mount(ServerOverview, { props: {
       server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => { throw new Error("private storage path"); }),
-      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), readOnly: false,
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), readOnly: false,
     } });
     wrappers.push(wrapper);
     await flushPromises();
@@ -207,6 +218,40 @@ describe("server overview", () => {
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("无法读取本地信任记录");
     expect(wrapper.find('[aria-label="网络信息"]').exists()).toBe(true);
     expect(wrapper.text()).not.toContain("private storage path");
+  });
+
+  it("runs a lightweight preflight only after the user clicks and reports TCP reachability without SSH login", async () => {
+    const check = vi.fn(() => preflightResult());
+    const wrapper = mount(ServerOverview, { props: {
+      server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(check), readOnly: false,
+    } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(check).not.toHaveBeenCalled();
+    expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
+
+    await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
+    await flushPromises();
+
+    expect(check).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", port: 22, timeoutMs: 10000 });
+    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("TCP 22 端口");
+    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("端口可达");
+    expect(wrapper.text()).toContain("直连 TCP 端口（不经过代理或跳板机）");
+    expect(wrapper.text()).toContain("不代表 SSH 握手或登录成功");
+  });
+
+  it("shows a refused port from a completed preflight", async () => {
+    const wrapper = mount(ServerOverview, { props: {
+      server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)),
+      preflightApi: preflightApi(() => preflightResult("connectionRefused")), readOnly: false,
+    } });
+    wrappers.push(wrapper);
+    await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("目标端口拒绝了 TCP 连接");
+    expect(wrapper.findAll('[aria-label="连接检测结果"] [role="alert"]')).toHaveLength(1);
   });
 
   it("classifies an IP locally and performs detailed lookup only after explicit action", async () => {

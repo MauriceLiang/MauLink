@@ -1,4 +1,5 @@
 import type { NetworkInspection } from "../../../contracts/v1/NetworkInspection";
+import type { ConnectionPreflightResult } from "../../../contracts/v1/ConnectionPreflightResult";
 
 export function networkFixture(host: string, detailed: boolean): NetworkInspection {
   const isIpv6 = host.includes(":");
@@ -19,5 +20,14 @@ export function networkFixture(host: string, detailed: boolean): NetworkInspecti
     organization: null,
     source: detailed ? "systemResolver" : "localAnalysis",
     databaseUpdatedAtMs: null,
+  };
+}
+
+export function preflightFixture(host: string): ConnectionPreflightResult {
+  const isIp = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || host.includes(":");
+  const address = isIp ? host : "198.51.100.10";
+  return {
+    resolvedAddresses: [address], selectedAddress: address, dnsDurationMs: isIp ? 0 : 12,
+    tcpReachable: true, tcpConnectDurationMs: 23, error: null, checkedAtMs: Date.UTC(2026, 8, 30),
   };
 }

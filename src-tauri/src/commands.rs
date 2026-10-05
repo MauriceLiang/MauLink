@@ -1,21 +1,21 @@
 use maulink_core::{
     ApiRequest, AppError, AppInfo, AuthenticationRespondPayload, ConnectionDisconnectPayload,
-    ConnectionIdPayload, ConnectionSnapshot, ConnectionStartPayload, CredentialDeleteResult,
-    CredentialUpdate, EmptyPayload, ErrorCode, Group, GroupCreate, GroupUpdatePayload,
-    HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload, LocalFilePurpose,
-    LocalFileSelectPayload, MonitorGetHistoryPayload, MonitorGetSnapshotPayload,
-    MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot, NetworkInspectPayload,
-    NetworkInspection, RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload,
-    SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
-    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
-    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
-    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
-    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalWritePayload,
-    TerminalWriteResult, WorkspaceActivityPayload,
+    ConnectionIdPayload, ConnectionPreflightPayload, ConnectionPreflightResult, ConnectionSnapshot,
+    ConnectionStartPayload, CredentialDeleteResult, CredentialUpdate, EmptyPayload, ErrorCode,
+    Group, GroupCreate, GroupUpdatePayload, HostKeyGetPayload, HostKeyRecord,
+    HostKeyRespondPayload, LocalFilePurpose, LocalFileSelectPayload, MonitorGetHistoryPayload,
+    MonitorGetSnapshotPayload, MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot,
+    NetworkInspectPayload, NetworkInspection, RemoteFileEntry, ResourceIdPayload,
+    RetainedCredential, RevisionPayload, SelectedLocalFile, ServerCreatePayload,
+    ServerDeletePayload, ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile,
+    ServerProfileDraft, ServerProfileInput, ServerUpdatePayload, SettingsRecord, SettingsUpdate,
+    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
+    SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -389,6 +389,14 @@ pub async fn network_inspect(
         request_id,
         state.network.inspect(&payload.host, payload.detailed).await,
     )
+}
+
+#[tauri::command]
+pub async fn connection_preflight(
+    request: ApiRequest<ConnectionPreflightPayload>,
+) -> Result<ConnectionPreflightResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, maulink_core::preflight::check(payload).await)
 }
 
 #[tauri::command]

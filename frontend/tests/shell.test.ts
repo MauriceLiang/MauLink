@@ -70,6 +70,10 @@ describe("application shell", () => {
         reverseDns: null, geo: { countryCode: null, countryName: null, region: null, city: null }, asn: null, organization: null,
         source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null,
       }),
+      connection_preflight: ({ host }) => ({
+        resolvedAddresses: [host], selectedAddress: host, dnsDurationMs: 0, tcpReachable: true,
+        tcpConnectDurationMs: 1, error: null, checkedAtMs: 1_800_000_000_000,
+      }),
       server_list: payload => payload.cursor === null
         ? { items: [shellServers[0]!], nextCursor: "page-2" }
         : { items: [shellServers[1]!, shellServers[2]!], nextCursor: null },

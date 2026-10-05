@@ -6,7 +6,7 @@ use std::fs;
 
 use commands::{
     app_get_info, auth_respond, connection_cancel, connection_disconnect, connection_get,
-    connection_start, credential_cleanup_retry, credential_delete_retained,
+    connection_preflight, connection_start, credential_cleanup_retry, credential_delete_retained,
     credential_list_retained, group_create, group_delete, group_list, group_update, host_key_get,
     host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
     monitor_refresh, network_inspect, server_create, server_delete, server_get, server_list,
@@ -103,6 +103,7 @@ pub fn run() {
             connection_start,
             connection_get,
             connection_cancel,
+            connection_preflight,
             host_key_respond,
             host_key_get,
             network_inspect,
