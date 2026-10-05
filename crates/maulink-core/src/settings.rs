@@ -11,6 +11,19 @@ fn default_true() -> bool {
     true
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum AccentColor {
+    #[default]
+    Blue,
+    Indigo,
+    Purple,
+    Green,
+    Orange,
+    Red,
+    Custom,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum Theme {
@@ -51,6 +64,10 @@ pub struct AppSettings {
     pub theme: Theme,
     #[serde(default)]
     pub app_icon_style: AppIconStyle,
+    #[serde(default)]
+    pub accent_color: AccentColor,
+    #[serde(default)]
+    pub custom_accent_color: Option<String>,
     pub language: Language,
     pub terminal_font_family: String,
     pub terminal_font_size: f32,
@@ -71,6 +88,8 @@ impl Default for AppSettings {
         Self {
             theme: Theme::System,
             app_icon_style: AppIconStyle::Light,
+            accent_color: AccentColor::Blue,
+            custom_accent_color: None,
             language: Language::ZhCn,
             terminal_font_family: "monospace".to_owned(),
             terminal_font_size: 14.0,
@@ -206,6 +225,17 @@ async fn load_settings(database: &Database) -> Result<SettingsRecord, AppError> 
 }
 
 fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
+    if settings
+        .custom_accent_color
+        .as_deref()
+        .is_some_and(|color| !is_valid_accent_hex(color))
+        || (settings.accent_color == AccentColor::Custom && settings.custom_accent_color.is_none())
+    {
+        return Err(validation(
+            "customAccentColor",
+            "errors.customAccentColorInvalid",
+        ));
+    }
     let font_length = settings.terminal_font_family.trim().chars().count();
     if !(1..=128).contains(&font_length)
         || settings.terminal_font_family.chars().any(char::is_control)
@@ -242,6 +272,12 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
         ));
     }
     Ok(())
+}
+
+fn is_valid_accent_hex(value: &str) -> bool {
+    value
+        .strip_prefix('#')
+        .is_some_and(|hex| hex.len() == 6 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 fn revision_conflict(expected: u32, actual: u32) -> AppError {
@@ -285,6 +321,8 @@ mod tests {
         let value = AppSettings {
             theme: Theme::Dark,
             app_icon_style: AppIconStyle::Dark,
+            accent_color: AccentColor::Custom,
+            custom_accent_color: Some("#12AbEf".to_owned()),
             ..AppSettings::default()
         };
         let stored = service
@@ -319,14 +357,57 @@ mod tests {
     #[test]
     fn old_settings_default_to_light_icon_and_invalid_styles_fail() {
         let mut value = serde_json::to_value(AppSettings::default()).expect("settings JSON");
-        value
-            .as_object_mut()
-            .expect("object")
-            .remove("appIconStyle");
+        let object = value.as_object_mut().expect("object");
+        object.remove("appIconStyle");
+        object.remove("accentColor");
+        object.remove("customAccentColor");
         let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
         assert_eq!(old.app_icon_style, AppIconStyle::Light);
+        assert_eq!(old.accent_color, AccentColor::Blue);
+        assert_eq!(old.custom_accent_color, None);
         value["appIconStyle"] = serde_json::json!("system");
         assert!(serde_json::from_value::<AppSettings>(value).is_err());
+    }
+
+    #[test]
+    fn custom_accent_accepts_only_six_digit_hex_colors() {
+        let valid = AppSettings {
+            accent_color: AccentColor::Custom,
+            custom_accent_color: Some("#aBcD09".to_owned()),
+            ..AppSettings::default()
+        };
+        assert!(validate_settings(&valid).is_ok());
+
+        for color in [
+            "#123",
+            "123456",
+            "#12345678",
+            "#12GG56",
+            "var(--color-primary)",
+        ] {
+            let invalid = AppSettings {
+                accent_color: AccentColor::Custom,
+                custom_accent_color: Some(color.to_owned()),
+                ..AppSettings::default()
+            };
+            assert_eq!(
+                validate_settings(&invalid)
+                    .expect_err("unsupported CSS color must be rejected")
+                    .message_key,
+                "errors.customAccentColorInvalid"
+            );
+        }
+
+        let missing = AppSettings {
+            accent_color: AccentColor::Custom,
+            ..AppSettings::default()
+        };
+        assert_eq!(
+            validate_settings(&missing)
+                .expect_err("custom accent requires a color")
+                .code,
+            ErrorCode::ValidationFailed
+        );
     }
 
     #[test]

@@ -4,17 +4,12 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-primary: #60A5FA;
-  --color-primary-hover: #3B82F6;
-  --color-primary-active: #2563EB;
-  --color-primary-soft: rgba(59, 130, 246, 0.12);
-  --color-primary-soft-hover: rgba(59, 130, 246, 0.18);
-  --color-primary-border: rgba(96, 165, 250, 0.35);
+  --color-primary: color-mix(in hsl, var(--color-accent-base) 80%, white);
   --color-bg-app: #111318;
   --color-bg-sidebar: #15181E;
   --color-bg-subtle: #191C23;
   --color-bg-hover: #20242D;
-  --color-bg-active: rgba(59, 130, 246, 0.12);
+  --color-bg-active: var(--color-primary-soft);
   --color-surface: #181B21;
   --color-surface-elevated: #1D2129;
   --color-text-primary: #EAECF0;
@@ -24,13 +19,13 @@
   --color-text-on-primary: #FFFFFF;
   --color-border: #292E38;
   --color-border-hover: #363C48;
-  --color-border-active: #3B82F6;
+  --color-border-active: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
   --color-divider: #252A33;
   --color-success: #3CCB7F;
   --color-warning: #F5B942;
   --color-danger: #F97066;
-  --color-info: #60A5FA;
-  --color-focus-ring: rgba(96, 165, 250, 0.22);
+  --color-info: var(--color-primary);
+  --color-focus-ring: color-mix(in srgb, var(--color-primary) 22%, transparent);
   --color-overlay: rgba(0, 0, 0, 0.6);
   --color-shadow: rgba(0, 0, 0, 0.24);
   --color-text-on-danger: var(--color-bg-app);
@@ -39,17 +34,12 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
     color-scheme: dark;
-    --color-primary: #60A5FA;
-    --color-primary-hover: #3B82F6;
-    --color-primary-active: #2563EB;
-    --color-primary-soft: rgba(59, 130, 246, 0.12);
-    --color-primary-soft-hover: rgba(59, 130, 246, 0.18);
-    --color-primary-border: rgba(96, 165, 250, 0.35);
+    --color-primary: color-mix(in hsl, var(--color-accent-base) 80%, white);
     --color-bg-app: #111318;
     --color-bg-sidebar: #15181E;
     --color-bg-subtle: #191C23;
     --color-bg-hover: #20242D;
-    --color-bg-active: rgba(59, 130, 246, 0.12);
+    --color-bg-active: var(--color-primary-soft);
     --color-surface: #181B21;
     --color-surface-elevated: #1D2129;
     --color-text-primary: #EAECF0;
@@ -59,13 +49,13 @@
     --color-text-on-primary: #FFFFFF;
     --color-border: #292E38;
     --color-border-hover: #363C48;
-    --color-border-active: #3B82F6;
+    --color-border-active: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
     --color-divider: #252A33;
     --color-success: #3CCB7F;
     --color-warning: #F5B942;
     --color-danger: #F97066;
-    --color-info: #60A5FA;
-    --color-focus-ring: rgba(96, 165, 250, 0.22);
+    --color-info: var(--color-primary);
+    --color-focus-ring: color-mix(in srgb, var(--color-primary) 22%, transparent);
     --color-overlay: rgba(0, 0, 0, 0.6);
     --color-shadow: rgba(0, 0, 0, 0.24);
     --color-text-on-danger: var(--color-bg-app);

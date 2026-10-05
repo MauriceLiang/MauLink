@@ -58,7 +58,7 @@ pub use profiles::{
     ServerListPage, ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,
 };
 pub use settings::{
-    AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
+    AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
     SettingsUpdate, Theme,
 };
 pub use sftp::{SftpManager, SftpTransferManager};

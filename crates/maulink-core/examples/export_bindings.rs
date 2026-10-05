@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use maulink_core::{
-    ApiRequest, AppError, AppInfo, AppSettings, AuthType, AuthenticationChallenge,
+    AccentColor, ApiRequest, AppError, AppInfo, AppSettings, AuthType, AuthenticationChallenge,
     AuthenticationRespondPayload, ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionMode,
     ConnectionPreflightError, ConnectionPreflightPayload, ConnectionPreflightResult,
     ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource, ConnectionState,
@@ -44,6 +44,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerListPage::export_all(&config)?;
     AuthType::export_all(&config)?;
     AppSettings::export_all(&config)?;
+    AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
     SettingsUpdate::export_all(&config)?;
     Theme::export_all(&config)?;

@@ -18,6 +18,7 @@ import SettingsDialog from '../src/dialogs/SettingsDialog.vue';
 import CommandPalette from '../src/components/base/CommandPalette.vue';
 import BaseDropdownMenu from '../src/components/base/BaseDropdownMenu.vue';
 import SettingsHarness from '../src/harness/SettingsHarness.vue';
+import { applyAccentColor, isValidAccentHex, resolveAccentColor } from '../src/theme/accent';
 const wrappers: VueWrapper[] = [];
 beforeEach(() => { const values = new Map<string, string>(); vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key,value), clear: () => values.clear(), key: (index: number) => [...values.keys()][index] ?? null, get length() { return values.size; } }); });
 function mounted(component: Parameters<typeof mount>[0], props: Record<string, unknown> = {}): VueWrapper { const wrapper = mount(component, { props, attachTo: document.body }); wrappers.push(wrapper); return wrapper; }
@@ -53,6 +54,19 @@ describe('shared SettingsService preferences', () => {
     const fixture=createSettingsMock(); const apply=vi.fn(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),apply); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     button('外观').click(); await flushPromises(); await changeSelect(0, '深色'); expect(fixture.current().value.theme).toBe('system');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value.theme).toBe('dark'); expect(wrapper.emitted('saved')).toHaveLength(1);
+  });
+  it('persists the selected accent and custom hex color only after saving', async () => {
+    const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
+    button('外观').click(); await flushPromises();
+    const indigo=document.querySelector<HTMLInputElement>('input[name="accentColor"][value="indigo"]')!; indigo.click(); await flushPromises();
+    expect(fixture.current().value.accentColor).toBe('blue');
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value.accentColor).toBe('indigo');
+    await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises(); button('外观').click(); await flushPromises();
+    document.querySelector<HTMLInputElement>('input[name="accentColor"][value="custom"]')!.click(); await flushPromises();
+    const picker=document.querySelector<HTMLInputElement>('input[type="color"]')!; picker.value='#12abef'; picker.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises();
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value).toMatchObject({accentColor:'custom',customAccentColor:'#12abef'});
   });
   it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
@@ -90,6 +104,11 @@ describe('shared SettingsService preferences', () => {
   });
 });
 describe('catalogs and command palette', () => {
+  it('accepts only six-digit hex accent colors and falls back safely for invalid values', () => {
+    expect(isValidAccentHex('#12aBeF')).toBe(true); expect(isValidAccentHex('rgb(1,2,3)')).toBe(false); expect(isValidAccentHex('#12345678')).toBe(false);
+    expect(resolveAccentColor('custom','#12aBeF')).toBe('#12aBeF'); expect(resolveAccentColor('custom','var(--color-primary)')).toBe('#3B82F6');
+    const root=document.createElement('div'); applyAccentColor('purple',null,root); expect(root.style.getPropertyValue('--color-accent-base')).toBe('#A855F7');
+  });
   it('has complete bilingual entries and matching interpolation parameters by module', () => {
     for (const catalog of [shellMessages,filesMessages,monitorMessages,terminalMessages,connectionMessages,settingsMessages,paletteMessages]) for (const [zh,en] of Object.values(catalog)) { expect(zh.length).toBeGreaterThan(0); expect(en.length).toBeGreaterThan(0); expect([...zh.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()).toEqual([...en.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()); }
     locale.value='en'; expect(messages(filesMessages)('deleteNote',{name:'服务器.txt'})).toContain('服务器.txt'); expect(messages(shellMessages)('oneTerminal')).toBe('1 terminal');

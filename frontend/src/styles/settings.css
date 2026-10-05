@@ -17,6 +17,17 @@
 .settings-file-size-options .base-toggle-field { gap: 10px; }
 .settings-file-size-options .base-toggle-field > label { font-size: 13px; }
 .settings-file-size-options p { margin: 6px 0 0 44px; font-size: 12px; }
+.settings-accent-field { min-width: 0; margin: 18px 0; padding: 0; border: 0; }
+.settings-accent-field legend { margin-bottom: 10px; color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
+.settings-accent-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-accent-option { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 18px; color: var(--color-text-secondary); font-size: 12px; cursor: pointer; }
+.settings-accent-option:has(input:checked) { border-color: var(--color-primary); color: var(--color-text-primary); background: var(--color-primary-soft); }
+.settings-accent-option input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+.settings-accent-option:has(input:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.settings-accent-swatch { width: 12px; height: 12px; border-radius: 50%; background: var(--accent-option-color); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
+.settings-custom-accent { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--color-text-secondary); font-size: 12px; }
+.settings-custom-accent input { width: 40px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); cursor: pointer; }
+.settings-custom-accent code { color: var(--color-text-primary); font-family: ui-monospace, monospace; }
 @keyframes settings-section-in { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
 .settings-dialog h3 { margin-top: 0; }.settings-dialog p { color: var(--color-text-secondary); line-height: 1.6; }
 .command-palette { width: min(600px, calc(100vw - 32px)); }
