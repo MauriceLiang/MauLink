@@ -8,6 +8,7 @@ import { presentError } from "../../errors/presenter";
 import { messages } from "../../i18n/locale";
 import { filesMessages } from "../../i18n/files";
 import { renderMarkdownPreview } from "../../files/markdown";
+import { resolveMarkdownFileLink } from "../../files/path";
 import BaseAlert from "../base/BaseAlert.vue";
 import BaseButton from "../base/BaseButton.vue";
 import BaseDialog from "../base/BaseDialog.vue";
@@ -19,7 +20,7 @@ const props = defineProps<{
   entry: RemoteFileEntry;
   open: boolean;
 }>();
-const emit = defineEmits<{ close: []; saved: [] }>();
+const emit = defineEmits<{ close: []; saved: []; openLinkedFile: [entry: RemoteFileEntry] }>();
 const t = messages(filesMessages);
 const loading = ref(false);
 const loaded = ref(false);
@@ -30,6 +31,10 @@ const content = ref('');
 const draft = ref('');
 const revision = ref('');
 const error = shallowRef<AppError | null>(null);
+const linkNotice = ref('');
+const pendingLinkPath = ref<string | null>(null);
+const linkConfirmationOpen = ref(false);
+const openingLinkedFile = ref(false);
 const elevationRequired = ref(false);
 const sudoDialog = ref(false);
 const sudoPassword = ref('');
@@ -48,7 +53,7 @@ let generation = 0;
 
 async function load() {
   const token = ++generation;
-  loading.value = true; loaded.value = false; error.value = null; content.value = ''; draft.value = ''; revision.value = ''; mode.value = 'view'; markdownPanel.value = 'preview'; elevationRequired.value = false; sudoDialog.value = false; sudoPassword.value = ''; sudoError.value = null; exitAfterDiscard.value = null;
+  loading.value = true; loaded.value = false; error.value = null; linkNotice.value = ''; content.value = ''; draft.value = ''; revision.value = ''; mode.value = 'view'; markdownPanel.value = 'preview'; elevationRequired.value = false; sudoDialog.value = false; sudoPassword.value = ''; sudoError.value = null; exitAfterDiscard.value = null;
   try {
     const result = await props.api.readText({ connectionId: props.connectionId, path: props.entry.path });
     if (token !== generation) return;
@@ -87,6 +92,54 @@ function cancelSaveAndRestore() {
 
 function continueWithSudo() {
   sudoPassword.value = ''; sudoError.value = null; sudoDialog.value = true;
+}
+
+function handleMarkdownLinkClick(event: MouseEvent) {
+  const target = event.target;
+  const anchor = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href]') : null;
+  if (!anchor) return;
+  event.preventDefault();
+
+  const href = anchor.getAttribute('href') ?? '';
+  if (href.trim().startsWith('#')) return;
+  if (mode.value !== 'view') { linkNotice.value = t('markdownLinkEditMode'); return; }
+
+  const path = resolveMarkdownFileLink(props.entry.path, href);
+  if (!path) { linkNotice.value = t('markdownLinkUnsupported'); return; }
+  linkNotice.value = '';
+  pendingLinkPath.value = path;
+  linkConfirmationOpen.value = true;
+}
+
+function cancelLinkedFilePreview() {
+  if (openingLinkedFile.value) return;
+  linkConfirmationOpen.value = false;
+  pendingLinkPath.value = null;
+}
+
+async function previewLinkedFile() {
+  const path = pendingLinkPath.value;
+  if (!path || openingLinkedFile.value) return;
+  linkConfirmationOpen.value = false;
+  openingLinkedFile.value = true;
+  linkNotice.value = '';
+  try {
+    const entry = await props.api.stat({ connectionId: props.connectionId, path, followSymlink: false });
+    if (entry.fileType !== 'file' || entry.isSymlink) {
+      linkNotice.value = t('markdownLinkNotPreviewable', { path });
+      return;
+    }
+    pendingLinkPath.value = null;
+    emit('openLinkedFile', entry);
+  } catch (reason) {
+    const mapped = mapError(reason);
+    linkNotice.value = mapped.code === 'PATH_NOT_FOUND'
+      ? t('markdownLinkNotFound', { path })
+      : presentError(mapped).message;
+  } finally {
+    pendingLinkPath.value = null;
+    openingLinkedFile.value = false;
+  }
 }
 
 function closeSudoDialog() {
@@ -138,16 +191,17 @@ async function saveWithSudo() {
 </script>
 
 <template>
-  <BaseDialog :open="open" :title="entry.name" :busy="saving" panel-class="file-editor-dialog" initial-focus=".file-editor-mode" @close="requestClose">
+  <BaseDialog :open="open" :title="entry.name" :busy="saving || openingLinkedFile" panel-class="file-editor-dialog" initial-focus=".file-editor-mode" @close="requestClose">
     <p class="file-editor-path"><code>{{ entry.path }}</code></p>
     <BaseAlert v-if="error && !elevationRequired" class="file-editor-error">{{ presentError(error).message }}</BaseAlert>
+    <BaseAlert v-if="linkNotice" class="file-editor-error">{{ linkNotice }}</BaseAlert>
     <div v-if="loading" class="file-editor-loading" role="status">{{ t('readingTextFile') }}</div>
     <template v-else-if="loaded">
       <div v-if="isMarkdown" class="file-markdown-switcher" role="group" :aria-label="t('markdownPreview')">
         <button type="button" :aria-pressed="markdownPanel === 'preview'" @click="markdownPanel = 'preview'">{{ t('markdownPreview') }}</button>
         <button type="button" :aria-pressed="markdownPanel === 'source'" @click="markdownPanel = 'source'">{{ t('markdownSource') }}</button>
       </div>
-      <div v-if="isMarkdown && markdownPanel === 'preview'" class="file-editor-markdown" v-html="markdownPreview" />
+      <div v-if="isMarkdown && markdownPanel === 'preview'" class="file-editor-markdown" v-html="markdownPreview" @click="handleMarkdownLinkClick" />
       <pre v-else-if="mode === 'view'" class="file-editor-content">{{ content }}</pre>
       <textarea v-else v-model="draft" class="file-editor-textarea" :aria-label="t('fileContent')" :disabled="saving" spellcheck="false" />
       <div v-if="elevationRequired" class="file-editor-elevation" role="alert">
@@ -175,6 +229,13 @@ async function saveWithSudo() {
         <BaseButton data-dialog-cancel :disabled="saving" @click="requestView">{{ t('viewMode') }}</BaseButton>
         <BaseButton variant="primary" :disabled="saving || !dirty" @click="save">{{ saving ? t('saving') : t('save') }}</BaseButton>
       </template>
+    </template>
+  </BaseDialog>
+  <BaseDialog :open="linkConfirmationOpen" :title="t('markdownLinkConfirmTitle')" :busy="openingLinkedFile" panel-class="file-editor-link-dialog" initial-focus=".markdown-link-cancel" @close="cancelLinkedFilePreview">
+    <p>{{ t('markdownLinkConfirmBody', { path: pendingLinkPath ?? '' }) }}</p>
+    <template #footer>
+      <BaseButton class="markdown-link-cancel" :disabled="openingLinkedFile" @click="cancelLinkedFilePreview">{{ t('cancel') }}</BaseButton>
+      <BaseButton variant="primary" :disabled="openingLinkedFile || !pendingLinkPath" :loading="openingLinkedFile" @click="previewLinkedFile">{{ t('markdownLinkPreview') }}</BaseButton>
     </template>
   </BaseDialog>
   <BaseDialog :open="sudoDialog" :title="t('sudoSaveTitle')" :busy="saving" panel-class="file-editor-sudo-dialog" initial-focus=".file-editor-sudo-password" @close="closeSudoDialog">

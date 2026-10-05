@@ -8,6 +8,27 @@ export function joinRemotePath(parent: string, name: string) {
   const base = parent || '.';
   return base === '/' ? `/${name}` : `${base.replace(/\/+$/, '')}/${name}`;
 }
+export function resolveMarkdownFileLink(documentPath: string, href: string): string | null {
+  const value = href.trim();
+  if (!value || value.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(value)) return null;
+  const encodedPath = value.split(/[?#]/, 1)[0]!;
+  if (!encodedPath) return null;
+
+  let linkedPath: string;
+  try { linkedPath = decodeURIComponent(encodedPath); }
+  catch { return null; }
+  if (linkedPath.includes('\0')) return null;
+
+  const segments = linkedPath.startsWith('/')
+    ? []
+    : parentRemotePath(documentPath).split('/').filter(Boolean);
+  for (const segment of linkedPath.split('/')) {
+    if (!segment || segment === '.') continue;
+    if (segment === '..') segments.pop();
+    else segments.push(segment);
+  }
+  return `/${segments.join('/')}`;
+}
 export function validBasename(name: string) { return !!name && name !== '.' && name !== '..' && !/[\/\0]/.test(name); }
 export function breadcrumbs(path: string) {
   let current = path.startsWith('/') ? '/' : '.';

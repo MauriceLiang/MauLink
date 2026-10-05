@@ -178,6 +178,6 @@ onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose()
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
       <template #footer><BaseButton data-dialog-cancel :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'primary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
     </component>
-    <RemoteTextFileDialog v-if="fileToOpen" :api="api" :connection-id="connectionId" :entry="fileToOpen" :open="true" @close="fileToOpen = null" @saved="files.load()" />
+    <RemoteTextFileDialog v-if="fileToOpen" :api="api" :connection-id="connectionId" :entry="fileToOpen" :open="true" @close="fileToOpen = null" @saved="files.load()" @open-linked-file="fileToOpen = $event" />
   </div>
 </template>
