@@ -196,6 +196,7 @@ mod tests {
 
     fn payload(host: &str, port: u16) -> ConnectionPreflightPayload {
         ConnectionPreflightPayload {
+            server_id: "00000000-0000-4000-8000-000000000001".to_owned(),
             host: host.to_owned(),
             port,
             timeout_ms: MIN_TIMEOUT_MS,

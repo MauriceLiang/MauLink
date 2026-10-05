@@ -19,6 +19,7 @@ import { createTerminalApi } from "../ipc/terminal";
 import { createSettingsApi } from "../ipc/settings";
 import { createBackgroundImagesApi } from "../ipc/background-images";
 import { createServerAppearanceApi } from "../ipc/server-appearance";
+import { createServerRuntimeStatsApi } from "../ipc/server-runtime-stats";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
 import { createTerminalPreferences } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
@@ -56,6 +57,7 @@ const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; 
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
 const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));
+const runtimeStats = createServerRuntimeStatsApi(props.client);
 const { servers, groups, pending, error, query, filtered } = store;
 const connections = createConnectionStore(createConnectionApi(props.client));
 const hostKeys = createHostKeysApi(props.client);
@@ -242,7 +244,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
           <BaseButton @click="load">{{ t('retry') }}</BaseButton>
         </BaseEmptyState>
-        <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
+        <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
         <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />

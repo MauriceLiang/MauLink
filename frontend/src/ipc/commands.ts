@@ -38,6 +38,8 @@ import type { ServerListPage } from "../../../contracts/v1/ServerListPage";
 import type { ServerListQuery } from "../../../contracts/v1/ServerListQuery";
 import type { ServerMutationResult } from "../../../contracts/v1/ServerMutationResult";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
+import type { ServerRuntimeStats } from "../../../contracts/v1/ServerRuntimeStats";
+import type { ServerRuntimeStatsPayload } from "../../../contracts/v1/ServerRuntimeStatsPayload";
 import type { ServerAppearance } from "../../../contracts/v1/ServerAppearance";
 import type { ServerAppearancePayload } from "../../../contracts/v1/ServerAppearancePayload";
 import type { ServerAppearanceUpdate } from "../../../contracts/v1/ServerAppearanceUpdate";
@@ -90,6 +92,7 @@ export interface CommandContracts {
   server_appearance_list: { payload: EmptyPayload; result: ServerAppearance[] };
   server_appearance_get: { payload: ServerAppearancePayload; result: ServerAppearance };
   server_appearance_update: { payload: ServerAppearanceUpdate; result: ServerAppearance };
+  server_runtime_stats_get: { payload: ServerRuntimeStatsPayload; result: ServerRuntimeStats };
   credential_list_retained: { payload: EmptyPayload; result: RetainedCredential[] };
   credential_delete_retained: { payload: ResourceIdPayload; result: CredentialDeleteResult };
   credential_cleanup_retry: { payload: ResourceIdPayload; result: CredentialDeleteResult };

@@ -19,17 +19,17 @@ use maulink_core::{
     RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
     ServerAppearance, ServerAppearancePayload, ServerAppearanceUpdate, ServerCreatePayload,
     ServerDeletePayload, ServerEnvironment, ServerListPage, ServerListQuery, ServerMutationResult,
-    ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord, SettingsUpdate,
-    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
-    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
-    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
-    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, SidebarWidth,
-    TerminalAckPayload, TerminalAppearanceSettings, TerminalBackgroundFit,
-    TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
-    TerminalChunk, TerminalCustomColors, TerminalIdPayload, TerminalOpenPayload,
-    TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState,
-    TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme, UiDensity,
+    ServerProfile, ServerProfileDraft, ServerRuntimeStats, ServerRuntimeStatsPayload,
+    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
+    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
+    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
+    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, SidebarWidth, TerminalAckPayload, TerminalAppearanceSettings,
+    TerminalBackgroundFit, TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind,
+    TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalState, TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme, UiDensity,
     WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
@@ -111,6 +111,8 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerAppearance::export_all(&config)?;
     ServerAppearanceUpdate::export_all(&config)?;
     ServerEnvironment::export_all(&config)?;
+    ServerRuntimeStats::export_all(&config)?;
+    ServerRuntimeStatsPayload::export_all(&config)?;
     TerminalAppearanceSettings::export_all(&config)?;
     GroupUpdatePayload::export_all(&config)?;
     LocalFileSelectPayload::export_all(&config)?;

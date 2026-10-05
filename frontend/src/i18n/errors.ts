@@ -2,6 +2,7 @@ export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
   "errors.appIconApplyFailed": { "zh-CN": "设置已保存，但应用图标更新失败。请重新加载设置后重试，或重启应用。", en: "Settings saved, but the app icon could not be updated. Reload settings and retry, or restart the app." },
   "errors.settingsDataInvalid": { "zh-CN": "设置数据无效，请重新加载或检查本地存储。", en: "Settings data is invalid. Reload or check local storage." },
   "errors.settingsSerializeFailed": { "zh-CN": "设置未能保存，请重试。", en: "Settings could not be saved. Try again." },
+  "errors.runtimeActivityInvalid": { "zh-CN": "连接活动数据无效。", en: "Connection activity data is invalid." },
   "errors.customAccentColorInvalid": { "zh-CN": "自定义主题色无效，请选择 6 位十六进制颜色。", en: "The custom accent color is invalid. Choose a six-digit hexadecimal color." },
   "errors.terminalCustomColorInvalid": { "zh-CN": "终端自定义颜色无效，请选择 6 位十六进制颜色。", en: "A custom terminal color is invalid. Choose a six-digit hexadecimal color." },
   "errors.terminalLineHeightOutOfRange": { "zh-CN": "终端行高需在 1 到 2 之间。", en: "Terminal line height must be between 1 and 2." },

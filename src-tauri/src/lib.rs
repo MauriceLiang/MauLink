@@ -13,17 +13,17 @@ use commands::{
     credential_list_retained, group_create, group_delete, group_list, group_update, host_key_get,
     host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
     monitor_refresh, network_inspect, server_create, server_delete, server_get, server_list,
-    server_update, settings_get, settings_update, sftp_delete, sftp_download, sftp_list_close,
-    sftp_list_next, sftp_list_start, sftp_mkdir, sftp_read_text, sftp_rename, sftp_stat,
-    sftp_transfer_cancel, sftp_transfer_get, sftp_transfer_list, sftp_upload, sftp_write_text,
-    sftp_write_text_with_sudo, terminal_ack, terminal_close, terminal_get, terminal_open,
-    terminal_resize, terminal_write, workspace_set_activity,
+    server_runtime_stats_get, server_update, settings_get, settings_update, sftp_delete,
+    sftp_download, sftp_list_close, sftp_list_next, sftp_list_start, sftp_mkdir, sftp_read_text,
+    sftp_rename, sftp_stat, sftp_transfer_cancel, sftp_transfer_get, sftp_transfer_list,
+    sftp_upload, sftp_write_text, sftp_write_text_with_sudo, terminal_ack, terminal_close,
+    terminal_get, terminal_open, terminal_resize, terminal_write, workspace_set_activity,
 };
 use maulink_core::{
     AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialManager, CredentialWorker,
     Database, HostKeyStore, HostKeyVerifier, LocalFileRegistry, MonitorManager, NetworkInspector,
-    ProfileStore, ServerAppearanceStore, SettingsService, SftpManager, SftpTransferManager,
-    SshConnectionManager, SshConnector, TerminalManager,
+    ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore, SettingsService, SftpManager,
+    SftpTransferManager, SshConnectionManager, SshConnector, TerminalManager,
 };
 use server_appearance::{server_appearance_get, server_appearance_list, server_appearance_update};
 use state::DesktopState;
@@ -58,17 +58,19 @@ pub fn run() {
             }
             let profiles = ProfileStore::new(database.clone());
             let server_appearance = ServerAppearanceStore::new(database.clone());
+            let runtime_stats = ServerRuntimeStatsStore::new(database.clone());
             let connection_registry = ConnectionRegistry::default();
             let host_keys = HostKeyStore::new(database);
             let network = NetworkInspector::default();
             let host_key_verifier =
                 HostKeyVerifier::new(host_keys.clone(), connection_registry.clone());
             let ssh_connector = SshConnector::new(connection_registry.clone(), host_key_verifier);
-            let connections = SshConnectionManager::new(
+            let connections = SshConnectionManager::new_with_runtime_stats(
                 profiles.clone(),
                 credentials.clone(),
                 connection_registry,
                 ssh_connector,
+                runtime_stats.clone(),
             );
             let sftp = SftpManager::new(connections.clone());
             let local_files = LocalFileRegistry::default();
@@ -82,6 +84,7 @@ pub fn run() {
                 core,
                 profiles,
                 server_appearance,
+                runtime_stats,
                 settings,
                 local_files,
                 credentials,
@@ -111,6 +114,7 @@ pub fn run() {
             server_appearance_list,
             server_appearance_get,
             server_appearance_update,
+            server_runtime_stats_get,
             credential_list_retained,
             credential_delete_retained,
             credential_cleanup_retry,

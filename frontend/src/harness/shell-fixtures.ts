@@ -29,6 +29,7 @@ export function createShellMock(state: "empty" | "servers" = "empty") {
     group_list: () => state === "servers" ? shellGroups : [],
     server_list: () => ({ items: state === "servers" ? shellServers : [], nextCursor: null }),
     host_key_get: () => null,
+    server_runtime_stats_get: ({ serverId }) => ({ serverId, lastSuccessAtMs: null, lastFailureAtMs: null, lastPreflightAtMs: null, lastPreflightLatencyMs: null, lastFailureCode: null, updatedAtMs: 0 }),
     network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
     connection_preflight: ({ host }) => preflightFixture(host),
   });

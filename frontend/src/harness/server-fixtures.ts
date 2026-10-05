@@ -35,6 +35,7 @@ export function createServerMock(options: { state?: "empty" | "servers"; failure
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_appearance_list: () => [],
     server_get: ({ id }) => structuredClone(find(id)),
+    server_runtime_stats_get: ({ serverId }) => ({ serverId, lastSuccessAtMs: null, lastFailureAtMs: null, lastPreflightAtMs: null, lastPreflightLatencyMs: null, lastFailureCode: null, updatedAtMs: 0 }),
     host_key_get: () => null,
     network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
     connection_preflight: ({ host }) => preflightFixture(host),

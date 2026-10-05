@@ -4,6 +4,7 @@ import type { ServerProfile } from "../../contracts/v1/ServerProfile";
 import type { HostKeyRecord } from "../../contracts/v1/HostKeyRecord";
 import type { NetworkInspection } from "../../contracts/v1/NetworkInspection";
 import type { ConnectionPreflightResult } from "../../contracts/v1/ConnectionPreflightResult";
+import type { ServerRuntimeStats } from "../../contracts/v1/ServerRuntimeStats";
 import { locale } from "../src/i18n/locale";
 import { createIpcClient } from "../src/ipc/client";
 import { createMockIpc } from "../src/ipc/mock";
@@ -11,11 +12,13 @@ import { createConnectionApi } from "../src/ipc/connection";
 import { createHostKeysApi } from "../src/ipc/host-keys";
 import { createNetworkApi } from "../src/ipc/network";
 import { createPreflightApi } from "../src/ipc/preflight";
+import { createServerRuntimeStatsApi } from "../src/ipc/server-runtime-stats";
 import { createConnectionStore } from "../src/stores/connections";
 import ConnectionInfoCard from "../src/components/server-overview/ConnectionInfoCard.vue";
 import ConnectionRouteCard from "../src/components/server-overview/ConnectionRouteCard.vue";
 import HostIdentityCard from "../src/components/server-overview/HostIdentityCard.vue";
 import NetworkInfoCard from "../src/components/server-overview/NetworkInfoCard.vue";
+import RecentActivityCard from "../src/components/server-overview/RecentActivityCard.vue";
 import ServerOverview from "../src/components/server-overview/ServerOverview.vue";
 import { shellServers } from "../src/harness/shell-fixtures";
 import { buildSshCommand, connectionRoute } from "../src/components/server-overview/server-details";
@@ -41,8 +44,14 @@ function preflightResult(error: ConnectionPreflightResult["error"] = null): Conn
     dnsDurationMs: 4, tcpReachable: error ? false : true, tcpConnectDurationMs: 7, error, checkedAtMs: 1_800_000_000_000,
   };
 }
-function preflightApi(check: (payload: { host: string; port: number; timeoutMs: number }) => ConnectionPreflightResult | Promise<ConnectionPreflightResult> = () => preflightResult()) {
+function preflightApi(check: (payload: { serverId: string; host: string; port: number; timeoutMs: number }) => ConnectionPreflightResult | Promise<ConnectionPreflightResult> = () => preflightResult()) {
   return createPreflightApi(createIpcClient(createMockIpc({ connection_preflight: check })));
+}
+function runtimeStats(serverId = base.id): ServerRuntimeStats {
+  return { serverId, lastSuccessAtMs: null, lastFailureAtMs: null, lastPreflightAtMs: null, lastPreflightLatencyMs: null, lastFailureCode: null, updatedAtMs: 0 };
+}
+function runtimeStatsApi(get: (payload: { serverId: string }) => ServerRuntimeStats | Promise<ServerRuntimeStats> = ({ serverId }) => runtimeStats(serverId)) {
+  return createServerRuntimeStatsApi(createIpcClient(createMockIpc({ server_runtime_stats_get: get })));
 }
 const savedHostKey = { normalizedHost: "192.168.1.20", port: 22, algorithm: "ssh-ed25519", fingerprintSha256: "SHA256:fixture-fingerprint", revision: 1, trustedAtMs: 1_790_812_800_000 };
 function networkResult(host: string, detailed: boolean): NetworkInspection {
@@ -103,6 +112,21 @@ describe("server overview", () => {
     }), { local: "Local", proxy: "Proxy", jumpHost: "Jump", server: "Server", socks5: "SOCKS5", httpConnect: "HTTP CONNECT" });
     expect(steps.map(step => step.label)).toEqual(["Local", "Proxy", "Jump", "Server"]);
     expect(steps[1]?.detail).toBe("SOCKS5 · proxy.example.com:1080");
+  });
+
+  it("shows safe recent connection and preflight summary fields", () => {
+    const wrapper = mount(RecentActivityCard, { props: {
+      stats: { ...runtimeStats(), lastSuccessAtMs: 1_800_000_000_000, lastFailureAtMs: 1_800_000_060_000, lastFailureCode: "AUTH_FAILED", lastPreflightAtMs: 1_800_000_120_000, lastPreflightLatencyMs: 47 },
+      state: "ready",
+    } });
+    wrappers.push(wrapper);
+    expect(wrapper.text()).toContain("最近活动");
+    expect(wrapper.text()).toContain("上次成功连接");
+    expect(wrapper.text()).toContain("上次连接失败");
+    expect(wrapper.text()).toContain("AUTH_FAILED");
+    expect(wrapper.text()).toContain("47 毫秒");
+    expect(wrapper.text()).not.toContain("password");
+    expect(wrapper.text()).not.toContain("privateKey");
   });
 
   it("shows only the saved host key details and clarifies that they are not a live verification", async () => {
@@ -195,7 +219,7 @@ describe("server overview", () => {
   it("disables SSH-command copy when a proxy cannot be represented", async () => {
     const wrapper = mount(ServerOverview, { props: {
       server: profile({ proxyType: "socks5", proxyHost: "proxy.example.com", proxyPort: 1080 }),
-      store: connectionStore(), hostKeyApi: hostKeyApi(() => null), networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), readOnly: false,
+      store: connectionStore(), hostKeyApi: hostKeyApi(() => null), networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), runtimeStatsApi: runtimeStatsApi(), readOnly: false,
     }, attachTo: document.body });
     wrappers.push(wrapper);
     await wrapper.get("[aria-label^='更多服务器操作']").trigger("click");
@@ -209,7 +233,7 @@ describe("server overview", () => {
   it("keeps the overview available when the saved host-key lookup fails", async () => {
     const wrapper = mount(ServerOverview, { props: {
       server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => { throw new Error("private storage path"); }),
-      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), readOnly: false,
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), runtimeStatsApi: runtimeStatsApi(), readOnly: false,
     } });
     wrappers.push(wrapper);
     await flushPromises();
@@ -222,9 +246,10 @@ describe("server overview", () => {
 
   it("runs a lightweight preflight only after the user clicks and reports TCP reachability without SSH login", async () => {
     const check = vi.fn(() => preflightResult());
+    const getStats = vi.fn(({ serverId }: { serverId: string }) => runtimeStats(serverId));
     const wrapper = mount(ServerOverview, { props: {
       server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
-      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(check), readOnly: false,
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(check), runtimeStatsApi: runtimeStatsApi(getStats), readOnly: false,
     } });
     wrappers.push(wrapper);
     await flushPromises();
@@ -234,7 +259,8 @@ describe("server overview", () => {
     await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
     await flushPromises();
 
-    expect(check).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", port: 22, timeoutMs: 10000 });
+    expect(check).toHaveBeenCalledExactlyOnceWith({ serverId: base.id, host: "192.168.1.20", port: 22, timeoutMs: 10000 });
+    expect(getStats).toHaveBeenCalledWith({ serverId: base.id });
     expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("TCP 22 端口");
     expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("端口可达");
     expect(wrapper.text()).toContain("直连 TCP 端口（不经过代理或跳板机）");
@@ -245,7 +271,7 @@ describe("server overview", () => {
     const wrapper = mount(ServerOverview, { props: {
       server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
       networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)),
-      preflightApi: preflightApi(() => preflightResult("connectionRefused")), readOnly: false,
+      preflightApi: preflightApi(() => preflightResult("connectionRefused")), runtimeStatsApi: runtimeStatsApi(), readOnly: false,
     } });
     wrappers.push(wrapper);
     await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");

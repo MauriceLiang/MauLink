@@ -94,11 +94,13 @@ fn server_profile_draft_accepts_legacy_and_advanced_proxy_contracts() {
 #[test]
 fn connection_preflight_contract_uses_camel_case_and_nullable_fields() {
     let payload = ConnectionPreflightPayload {
+        server_id: "b83cba9d-aede-46fb-a1e4-689dc6e9d218".to_owned(),
         host: "example.test".to_owned(),
         port: 2222,
         timeout_ms: 10_000,
     };
     let payload = serde_json::to_value(payload).expect("serialize preflight payload");
+    assert_eq!(payload["serverId"], "b83cba9d-aede-46fb-a1e4-689dc6e9d218");
     assert_eq!(payload["timeoutMs"], 10_000);
 
     let result = ConnectionPreflightResult {

@@ -26,7 +26,7 @@ use crate::{
     AppError, AuthType, ConnectionMode, ConnectionRegistry, ConnectionSnapshot, ConnectionState,
     CredentialKind, CredentialManager, ErrorCode, HostKeyCandidate, HostKeyDecision,
     HostKeyVerifier, NegotiatedAlgorithms, ProfileStore, ProxyType, Secret,
-    host_keys::normalize_host,
+    ServerRuntimeStatsStore, host_keys::normalize_host,
 };
 
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -69,6 +69,7 @@ pub struct SshConnectionManager {
     credentials: CredentialManager,
     connections: ConnectionRegistry,
     connector: SshConnector,
+    runtime_stats: Option<ServerRuntimeStatsStore>,
     sessions: Arc<Mutex<HashMap<String, SshSession>>>,
     sessions_changed: Arc<Notify>,
     operations_lock: Arc<Mutex<()>>,
@@ -562,10 +563,23 @@ impl SshConnectionManager {
             credentials,
             connections,
             connector,
+            runtime_stats: None,
             sessions: Arc::new(Mutex::new(HashMap::new())),
             sessions_changed: Arc::new(Notify::new()),
             operations_lock: Arc::new(Mutex::new(())),
         }
+    }
+
+    pub fn new_with_runtime_stats(
+        profiles: ProfileStore,
+        credentials: CredentialManager,
+        connections: ConnectionRegistry,
+        connector: SshConnector,
+        runtime_stats: ServerRuntimeStatsStore,
+    ) -> Self {
+        let mut manager = Self::new(profiles, credentials, connections, connector);
+        manager.runtime_stats = Some(runtime_stats);
+        manager
     }
 
     pub async fn start(
@@ -1094,6 +1108,7 @@ impl SshConnectionManager {
         let session = match result {
             Ok(session) => session,
             Err(error) => {
+                self.record_failed_attempt(&connection_id, &error).await;
                 let _ = self.connections.fail(&connection_id, error);
                 return;
             }
@@ -1101,6 +1116,9 @@ impl SshConnectionManager {
         if mode == ConnectionMode::Test {
             let _ = session.disconnect().await;
             return;
+        }
+        if let Ok(snapshot) = self.connections.get(&connection_id) {
+            self.record_successful_attempt(&snapshot).await;
         }
         let mut sessions = self.sessions.lock().await;
         if self
@@ -1113,6 +1131,61 @@ impl SshConnectionManager {
         } else {
             drop(sessions);
             let _ = session.disconnect().await;
+        }
+    }
+
+    async fn record_successful_attempt(&self, snapshot: &ConnectionSnapshot) {
+        let (Some(runtime_stats), Some(server_id)) =
+            (&self.runtime_stats, snapshot.server_id.as_ref())
+        else {
+            return;
+        };
+        if snapshot.mode != ConnectionMode::Workspace || snapshot.state != ConnectionState::Ready {
+            return;
+        }
+        if let Err(error) = runtime_stats
+            .record_success(server_id.clone(), snapshot.updated_at_ms)
+            .await
+        {
+            eprintln!(
+                "MauLink runtime activity update failed: {}",
+                error.code.as_str()
+            );
+        }
+    }
+
+    async fn record_failed_attempt(&self, connection_id: &str, error: &AppError) {
+        let (Some(runtime_stats), Ok(snapshot)) =
+            (&self.runtime_stats, self.connections.get(connection_id))
+        else {
+            return;
+        };
+        let Some(server_id) = snapshot.server_id else {
+            return;
+        };
+        if snapshot.mode != ConnectionMode::Workspace
+            || snapshot.state == ConnectionState::Cancelled
+            || error.code == ErrorCode::Cancelled
+        {
+            return;
+        }
+        let failure_code = snapshot.error.as_ref().map_or_else(
+            || error.code.as_str().to_owned(),
+            |failure| failure.code.as_str().to_owned(),
+        );
+        let at_ms = if snapshot.state == ConnectionState::Failed {
+            snapshot.updated_at_ms
+        } else {
+            crate::storage::now_ms().unwrap_or(snapshot.updated_at_ms)
+        };
+        if let Err(storage_error) = runtime_stats
+            .record_failure(server_id, at_ms, failure_code)
+            .await
+        {
+            eprintln!(
+                "MauLink runtime activity update failed: {}",
+                storage_error.code.as_str()
+            );
         }
     }
 

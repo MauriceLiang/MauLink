@@ -10,14 +10,14 @@ use maulink_core::{
     NetworkInspection, RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload,
     SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
     ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
-    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
-    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
-    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalWritePayload,
-    TerminalWriteResult, WorkspaceActivityPayload,
+    ServerRuntimeStats, ServerRuntimeStatsPayload, ServerUpdatePayload, SettingsRecord,
+    SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
+    SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -434,9 +434,46 @@ pub async fn network_inspect(
 #[tauri::command]
 pub async fn connection_preflight(
     request: ApiRequest<ConnectionPreflightPayload>,
+    state: tauri::State<'_, DesktopState>,
 ) -> Result<ConnectionPreflightResult, AppError> {
     let (request_id, payload) = request.validate()?;
-    attach_request_id(request_id, maulink_core::preflight::check(payload).await)
+    let profile = match state.profiles.get_server(payload.server_id.clone()).await {
+        Ok(profile) => profile,
+        Err(error) => return attach_request_id(request_id, Err(error)),
+    };
+    let server_id = profile.id.clone();
+    let result = maulink_core::preflight::check(ConnectionPreflightPayload {
+        server_id: server_id.clone(),
+        host: profile.host,
+        port: profile.port,
+        timeout_ms: profile.connect_timeout_ms,
+    })
+    .await;
+    match result {
+        Ok(result) => {
+            if let Err(error) = state
+                .runtime_stats
+                .record_preflight(server_id, result.clone())
+                .await
+            {
+                eprintln!(
+                    "MauLink runtime activity update failed: {}",
+                    error.code.as_str()
+                );
+            }
+            attach_request_id(request_id, Ok(result))
+        }
+        Err(error) => attach_request_id(request_id, Err(error)),
+    }
+}
+
+#[tauri::command]
+pub async fn server_runtime_stats_get(
+    request: ApiRequest<ServerRuntimeStatsPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<ServerRuntimeStats, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.runtime_stats.get(payload.server_id).await)
 }
 
 #[tauri::command]

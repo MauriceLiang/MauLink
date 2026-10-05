@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { ConnectionPreflightError } from "../../../../contracts/v1/ConnectionPreflightError";
 import type { ConnectionPreflightResult } from "../../../../contracts/v1/ConnectionPreflightResult";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
+import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeStats";
 import { messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { ConnectionStore } from "../../stores/connections";
@@ -18,11 +19,15 @@ import { buildSshCommand, formatServerEndpoint } from "./server-details";
 import type { createHostKeysApi } from "../../ipc/host-keys";
 import type { createNetworkApi } from "../../ipc/network";
 import type { createPreflightApi } from "../../ipc/preflight";
+import type { createServerRuntimeStatsApi } from "../../ipc/server-runtime-stats";
+import RecentActivityCard from "./RecentActivityCard.vue";
 
-const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; readOnly: boolean }>();
+const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean }>();
 const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string] }>();
 const t = messages(serverOverviewMessages);
 const snapshot = computed(() => props.store.snapshots.value[props.server.id]);
+const runtimeStats = ref<ServerRuntimeStats | null>(null);
+const runtimeStatsState = ref<"loading" | "ready" | "error">("loading");
 const sshCommand = computed(() => buildSshCommand(props.server));
 type PreflightState = { status: "idle" | "loading" | "requestError" } | { status: "ready"; result: ConnectionPreflightResult };
 const preflightState = ref<PreflightState>({ status: "idle" });
@@ -33,6 +38,7 @@ const preflightErrorKeys = {
   connectionFailed: "preflightConnectionFailed",
 } as const satisfies Record<ConnectionPreflightError, keyof typeof serverOverviewMessages>;
 let preflightRequestVersion = 0;
+let runtimeStatsRequestVersion = 0;
 const menuItems = computed<MenuItem[]>(() => [
   { id: "edit", label: t("editServer"), disabled: props.readOnly },
   { id: "copy-address", label: t("copyAddress") },
@@ -52,13 +58,34 @@ async function runPreflight() {
   preflightState.value = { status: "loading" };
   try {
     const result = await props.preflightApi.check({
+      serverId: props.server.id,
       host: props.server.host,
       port: props.server.port,
       timeoutMs: props.server.connectTimeoutMs,
     });
-    if (requestVersion === preflightRequestVersion) preflightState.value = { status: "ready", result };
+    if (requestVersion === preflightRequestVersion) {
+      preflightState.value = { status: "ready", result };
+      await loadRuntimeStats();
+    }
   } catch {
     if (requestVersion === preflightRequestVersion) preflightState.value = { status: "requestError" };
+  }
+}
+
+async function loadRuntimeStats() {
+  const requestVersion = ++runtimeStatsRequestVersion;
+  runtimeStatsState.value = "loading";
+  try {
+    const stats = await props.runtimeStatsApi.get({ serverId: props.server.id });
+    if (requestVersion === runtimeStatsRequestVersion) {
+      runtimeStats.value = stats;
+      runtimeStatsState.value = "ready";
+    }
+  } catch {
+    if (requestVersion === runtimeStatsRequestVersion) {
+      runtimeStats.value = null;
+      runtimeStatsState.value = "error";
+    }
   }
 }
 
@@ -66,7 +93,11 @@ watch(() => [props.server.id, props.server.host, props.server.port, props.server
   preflightRequestVersion += 1;
   preflightState.value = { status: "idle" };
 });
-onBeforeUnmount(() => { preflightRequestVersion += 1; });
+watch(() => props.server.id, () => { runtimeStats.value = null; void loadRuntimeStats(); }, { immediate: true });
+watch(() => snapshot.value?.state, state => {
+  if (state === "ready" || state === "failed") void loadRuntimeStats();
+});
+onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion += 1; });
 </script>
 
 <template>
@@ -96,6 +127,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; });
       <NetworkInfoCard :server="server" :api="networkApi" />
       <HostIdentityCard :server="server" :api="hostKeyApi" />
       <ConnectionRouteCard :server="server" />
+      <RecentActivityCard :stats="runtimeStats" :snapshot="snapshot" :state="runtimeStatsState" />
     </div>
   </section>
 </template>

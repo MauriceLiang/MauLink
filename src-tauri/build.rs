@@ -14,6 +14,7 @@ fn main() {
             "server_appearance_list",
             "server_appearance_get",
             "server_appearance_update",
+            "server_runtime_stats_get",
             "credential_list_retained",
             "credential_delete_retained",
             "credential_cleanup_retry",

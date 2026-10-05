@@ -10,6 +10,7 @@ import { createSettingsApi } from "../src/ipc/settings";
 import { createHostKeysApi } from "../src/ipc/host-keys";
 import { createNetworkApi } from "../src/ipc/network";
 import { createPreflightApi } from "../src/ipc/preflight";
+import { createServerRuntimeStatsApi } from "../src/ipc/server-runtime-stats";
 import { createBackgroundImagesApi } from "../src/ipc/background-images";
 import { emptyServers, timeoutError } from "../src/harness/fixtures";
 
@@ -37,9 +38,10 @@ describe("typed IPC contract", () => {
     await createSettingsApi(client).get();
     await createHostKeysApi(client).get({ host: "example.com", port: 22 });
     await createNetworkApi(client).inspect({ host: "example.com", detailed: true });
-    await createPreflightApi(client).check({ host: "example.com", port: 22, timeoutMs: 10000 });
+    await createPreflightApi(client).check({ serverId: "server", host: "example.com", port: 22, timeoutMs: 10000 });
+    await createServerRuntimeStatsApi(client).get({ serverId: "server" });
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([
-      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get", "network_inspect", "connection_preflight",
+      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get", "network_inspect", "connection_preflight", "server_runtime_stats_get",
     ]);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ request: { apiVersion: 1, requestId: expect.any(String), payload: query } });
   });

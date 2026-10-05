@@ -610,6 +610,7 @@ pub struct ConnectionPreflightResult {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionPreflightPayload {
+    pub server_id: String,
     pub host: String,
     pub port: u16,
     pub timeout_ms: u32,

@@ -12,6 +12,7 @@ pub mod network;
 pub mod preflight;
 pub mod profiles;
 pub mod server_appearance;
+pub mod server_runtime_stats;
 pub mod settings;
 pub mod sftp;
 pub mod ssh;
@@ -65,6 +66,9 @@ pub use profiles::{
 pub use server_appearance::{
     ServerAppearance, ServerAppearanceStore, ServerAppearanceUpdate, ServerEnvironment,
     TerminalAppearanceSettings,
+};
+pub use server_runtime_stats::{
+    ServerRuntimeStats, ServerRuntimeStatsPayload, ServerRuntimeStatsStore,
 };
 pub use settings::{
     AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,

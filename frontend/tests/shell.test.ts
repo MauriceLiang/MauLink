@@ -109,7 +109,7 @@ describe("application shell", () => {
     expect(wrapper.get(".server-overview-title-line .base-status-badge").text()).toBe("尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
-    expect(commands).toHaveLength(9);
+    expect(commands).toHaveLength(10);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
     expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);
