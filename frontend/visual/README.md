@@ -2,9 +2,9 @@
 
 ## 当前配色参考
 
-2026-10-01 的 MauLink Blue 配色已由用户在 app 中确认。当前界面参考位于 `docs/refactor/screenshots/color-v1-review/`：中文 Light / Dark 1440×920 各 23 个场景，英文 Light / Dark 860×640 各 6 个场景，共 58 个组合。使用下面的 `captureCases` 时将 `outputDir` 指向该目录，并选择已有的视口 / 语言 / 页面组合；默认模式仍要求截图与已确认参考一致。
+2026-10-01 的 MauLink Blue 配色已由用户在 app 中确认。当前界面参考位于 `docs/refactor/screenshots/color-v1-review/`：中文 Light / Dark 1440×920 各 29 个场景，英文 Light / Dark 860×640 各 12 个场景，共 82 个组合。新增服务器概览、浅色/深色/自定义色/图片终端主题及终端图片设置场景。使用下面的 `captureCases` 时将 `outputDir` 指向该目录，并选择已有的视口 / 语言 / 页面组合；默认模式仍要求截图与已确认参考一致。
 
-旧配色的 Phase 10 / 11 / 12 截图归档已从当前仓库清理，阶段报告保留当时的验收结论。当前 58 张已确认基线供视觉回归使用，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
+旧配色的 Phase 10 / 11 / 12 截图归档已从当前仓库清理，阶段报告保留当时的验收结论。当前 82 张已确认基线供视觉回归使用，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
 
 入口：`http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`。
 
@@ -51,7 +51,7 @@ node --test frontend/visual/capture.test.mjs
 node frontend/visual/verify.mjs
 ```
 
-校验当前目录中的 capture manifest、58 张基线数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，并拒绝未审阅 candidate/repeat。历史 Phase 10 双列画廊已随旧截图归档清理。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。
+校验当前目录中的 capture manifest、82 张基线数量、JPEG 真实像素尺寸、SHA256 和独立重复 hash，并拒绝未审阅 candidate/repeat。历史 Phase 10 双列画廊已随旧截图归档清理。实际 QA/差异见根目录 `design-qa.md`；Browser visual 与真实 Desktop integration 分开记录。
 
 ## 后续品牌更新
 

@@ -53,7 +53,7 @@ import { serverOverviewMessages } from "../i18n/server-overview";
 import type { ServerNavigationRequest } from "./server-navigation";
 const t = messages(shellMessages);
 
-const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory }>(), { readOnly: false });
+const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
 const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));
@@ -72,7 +72,7 @@ const terminalPreferences = createTerminalPreferences(createSettingsApi(props.cl
   document.documentElement.lang = settings.language;
   locale.value = settings.language;
 });
-const backgroundImages = createBackgroundImagesApi(props.client);
+const backgroundImages = createBackgroundImagesApi(props.client, props.backgroundImageAssetUrl);
 terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
 const sftp = createSftpApi(props.client);
 const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory);

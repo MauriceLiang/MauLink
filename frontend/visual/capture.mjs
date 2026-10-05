@@ -65,11 +65,24 @@ async function prepare(tab, item, locale) {
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
     'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
     'settings-language':['中文','English'], palette:['combobox','combobox'],
+    'terminal-light':['Shell 就绪','Shell ready'], 'terminal-dark':['Shell 就绪','Shell ready'],
+    'terminal-custom':['Shell 就绪','Shell ready'], 'terminal-image':['Shell 就绪','Shell ready'],
+    'settings-terminal-image':['背景图片','Background image'],
     'server-overview':['连接信息','Connection information'],
     transfer:['config.yml','config.yml'], monitor:['24.5%','24.5%'], 'monitor-unavailable':['不支持','Unsupported'],
     toast:['设置已保存。','Settings saved.'],
   }[item.page];
   if (expected && !dom.includes(expected[index])) throw new Error(`${item.page}: expected screen marker ${expected[index]} missing`);
+  if (item.page === 'terminal-image' || item.page === 'settings-terminal-image') {
+    const selector = item.page === 'terminal-image' ? '.terminal-background-layer' : '.terminal-background-preview-image';
+    const imageLayer = tab.playwright.locator(selector);
+    await imageLayer.waitFor({state:'visible'});
+    if (!(await imageLayer.getAttribute('style'))?.includes('app-icon-dark.png')) throw new Error(`${item.page}: visual image fixture did not resolve`);
+    if (item.page === 'terminal-image') {
+      const viewportBackground = await tab.playwright.locator('.xterm-viewport').evaluate(element => getComputedStyle(element).backgroundColor);
+      if (viewportBackground !== 'rgba(0, 0, 0, 0)') throw new Error(`terminal-image: expected transparent xterm viewport, got ${viewportBackground}`);
+    }
+  }
   return dom;
 }
 export async function captureCases({ tab, viewport, outputDir, width, height, theme, locale, pages, update = false, baseUrl = 'http://127.0.0.1:1420/' }) {

@@ -37,7 +37,7 @@ describe('terminal theme resolver', () => {
       terminalCustomColors: { background: '#102030', foreground: '#E0E0E0', cursor: '#33AAFF', selection: '#7755CC' },
     }, 'light', false);
     expect(appearance.mode).toBe('image');
-    expect(appearance.theme).toEqual({ background: 'transparent', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.28)' });
+    expect(appearance.theme).toEqual({ background: '#00000000', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.28)' });
     expect(appearance.transparent).toBe(true);
   });
 });

@@ -127,7 +127,7 @@ describe('terminal byte flow', () => {
     const nextId=controller.create('connection-a', 'server-a'); const host=document.createElement('div'); document.body.append(host); await controller.attach(nextId,host);
     const next=renderers.instances.at(-1)!;
     expect(next.options.allowTransparency).toBe(true);
-    expect(next.options.theme).toMatchObject({background:'transparent'});
+    expect(next.options.theme).toMatchObject({background:'#00000000'});
     expect(controller.requiresReopen.value).toBe(true);
     expect(open).toHaveBeenCalledTimes(2); expect(close).not.toHaveBeenCalled();
     controller.applySettings({...defaultSettings,terminalThemeMode:'dark'});

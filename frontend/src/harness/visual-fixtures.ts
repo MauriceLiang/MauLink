@@ -1,10 +1,12 @@
 import type { Channel } from '@tauri-apps/api/core';
 import type { ConnectionSnapshot } from '../../../contracts/v1/ConnectionSnapshot';
+import type { BackgroundImageAsset } from '../../../contracts/v1/BackgroundImageAsset';
 import type { RemoteFileEntry } from '../../../contracts/v1/RemoteFileEntry';
 import type { SettingsRecord } from '../../../contracts/v1/SettingsRecord';
 import type { SftpTransferSnapshot } from '../../../contracts/v1/SftpTransferSnapshot';
 import type { TerminalChunk } from '../../../contracts/v1/TerminalChunk';
 import type { TerminalSnapshot } from '../../../contracts/v1/TerminalSnapshot';
+import type { TerminalThemeMode } from '../../../contracts/v1/TerminalThemeMode';
 import type { IpcTransport } from '../ipc/client';
 import { createMockIpc } from '../ipc/mock';
 import { defaultSettings } from '../terminal/preferences';
@@ -17,6 +19,12 @@ import cases from '../../visual/cases.json';
 import fileData from '../../visual/files.json';
 
 export const visualEpoch = 1790812800000;
+export const visualBackgroundImageId = '00000000-0000-4000-8000-000000000003';
+const visualBackgroundImageUrl = new URL('../assets/app-icon-dark.png', import.meta.url).href;
+const visualBackgroundImage: BackgroundImageAsset = { id: visualBackgroundImageId, fileName: 'visual-terminal-background.png', mediaType: 'image/png', width: 256, height: 256, byteLength: 51669, createdAtMs: visualEpoch };
+const terminalThemeModes: Record<string, TerminalThemeMode> = {
+  'terminal-light': 'light', 'terminal-dark': 'dark', 'terminal-custom': 'customColor', 'terminal-image': 'image', 'settings-terminal-image': 'image',
+};
 export interface VisualConfig { page: string; theme: 'light' | 'dark'; locale: 'zh-CN' | 'en'; }
 export function visualConfig(params: URLSearchParams): VisualConfig {
   const page = params.get('page') ?? 'servers';
@@ -50,7 +58,10 @@ export function createVisualMock(config: VisualConfig) {
     servers[0].createdAtMs = visualEpoch - 30 * 24 * 60 * 60 * 1000;
     servers[0].updatedAtMs = visualEpoch - 24 * 60 * 60 * 1000;
   }
-  let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale }, revision: 1, updatedAtMs: visualEpoch };
+  const terminalThemeMode = terminalThemeModes[config.page] ?? defaultSettings.terminalThemeMode;
+  const terminalCustomColors = config.page === 'terminal-custom' ? { background: '#241A36', foreground: '#F4ECFF', cursor: '#C084FC', selection: '#8B5CF6' } : defaultSettings.terminalCustomColors;
+  const terminalBackgroundImage = { ...defaultSettings.terminalBackgroundImage, imageId: terminalThemeMode === 'image' ? visualBackgroundImageId : null };
+  let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale, terminalThemeMode, terminalCustomColors, terminalBackgroundImage }, revision: 1, updatedAtMs: visualEpoch };
   let connection: ConnectionSnapshot = { connectionId: 'visual-connection', serverId: 'web-01', mode: 'workspace', state: config.page === 'server-overview' ? 'closed' : 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
   const terminals = new Map<string, TerminalSnapshot>(); let terminalNumber = 0; let output: Channel<TerminalChunk> | undefined;
   const files = structuredClone(visualFiles); const tasks = config.page === 'transfer' ? visualTransfers(connection.connectionId) : [];
@@ -62,6 +73,10 @@ export function createVisualMock(config: VisualConfig) {
     server_appearance_list: () => [],
     server_get: ({ id }) => { const server = servers.find(value => value.id === id); if (!server) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.serverNotFound'); return structuredClone(server); },
     server_runtime_stats_get: ({ serverId }) => ({ serverId, lastSuccessAtMs: config.page === 'server-overview' ? visualEpoch - 60 * 60 * 1000 : null, lastFailureAtMs: null, lastPreflightAtMs: config.page === 'server-overview' ? visualEpoch - 2 * 60 * 60 * 1000 : null, lastPreflightLatencyMs: config.page === 'server-overview' ? 47 : null, lastFailureCode: null, updatedAtMs: visualEpoch }),
+    background_image_get: ({ imageId }) => {
+      if (imageId !== visualBackgroundImageId) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.terminalBackgroundImageNotFound');
+      return { asset: structuredClone(visualBackgroundImage), localPath: visualBackgroundImageUrl };
+    },
     host_key_get: ({ host, port }) => config.page === 'server-overview' ? ({ normalizedHost: host.toLowerCase(), port, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-saved-host-fingerprint', revision: 1, trustedAtMs: visualEpoch - 7 * 24 * 60 * 60 * 1000 }) : null,
     network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
     connection_preflight: ({ host }) => preflightFixture(host),

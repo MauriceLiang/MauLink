@@ -31,7 +31,7 @@ export function resolveTerminalTheme(
     const selection = safeHex(colors.selection, accent);
     return {
       mode,
-      theme: { background: "transparent", foreground, cursor, selectionBackground: withAlpha(selection, 0.28) },
+      theme: { background: "#00000000", foreground, cursor, selectionBackground: withAlpha(selection, 0.28) },
       transparent: true,
     };
   }

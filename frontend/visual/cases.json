@@ -80,6 +80,38 @@
     "reference": "view=workspace&select=web-01&term=inline"
   },
   {
+    "page": "terminal-light",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": null
+  },
+  {
+    "page": "terminal-dark",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": null
+  },
+  {
+    "page": "terminal-custom",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": null
+  },
+  {
+    "page": "terminal-image",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": null
+  },
+  {
     "page": "focus",
     "steps": [
       "select",
@@ -159,6 +191,15 @@
       "terminal-settings"
     ],
     "reference": "view=settings&sec=termSec"
+  },
+  {
+    "page": "settings-terminal-image",
+    "steps": [
+      "settings",
+      "terminal-section",
+      "terminal-settings"
+    ],
+    "reference": null
   },
   {
     "page": "settings-language",

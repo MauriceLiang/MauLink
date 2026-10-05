@@ -19,13 +19,13 @@ function dimensions(bytes) {
 const root = resolve(process.argv[2] ?? 'docs/refactor/screenshots/color-v1-review');
 const names = await readdir(root);
 const manifests = names.filter(name => /^capture-(light|dark)-(zh-CN|en)-\d+x\d+.*\.json$/.test(name));
-if (manifests.length !== 5) throw new Error(`Expected 5 condition manifests, got ${manifests.length}`);
+if (manifests.length !== 9) throw new Error(`Expected 9 condition manifests, got ${manifests.length}`);
 
 const expectedConditions = new Map([
-  ['dark-en-860x640', 6],
-  ['dark-zh-CN-1440x920', 23],
-  ['light-en-860x640', 6],
-  ['light-zh-CN-1440x920', 23],
+  ['dark-en-860x640', 12],
+  ['dark-zh-CN-1440x920', 29],
+  ['light-en-860x640', 12],
+  ['light-zh-CN-1440x920', 29],
 ]);
 const files = new Set();
 const pagesByCondition = new Map();
@@ -57,7 +57,7 @@ for (const [condition, expectedCount] of expectedConditions) {
   const actualCount = pagesByCondition.get(condition)?.size ?? 0;
   if (actualCount !== expectedCount) throw new Error(`${condition}: expected ${expectedCount} pages, got ${actualCount}`);
 }
-if (files.size !== 58) throw new Error(`Expected 58 unique baselines, got ${files.size}`);
+if (files.size !== 82) throw new Error(`Expected 82 unique baselines, got ${files.size}`);
 const extras = names.filter(name => name.endsWith('.jpg') && !files.has(name));
 if (extras.length) throw new Error(`Unmanifested or unreviewed screenshots: ${extras.join(', ')}`);
 

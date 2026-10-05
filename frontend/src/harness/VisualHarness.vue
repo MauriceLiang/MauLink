@@ -6,6 +6,7 @@ import AppShell from '../app/AppShell.vue';
 import { createIpcClient } from '../ipc/client';
 import { visualConfig, createVisualMock, createVisualStorage } from './visual-fixtures';
 const config = visualConfig(new URLSearchParams(location.search));
+const visualAssetUrl = (path: string) => path;
 // Shadow storage only in this DEV document; reload restores the browser's native storage object.
 Object.defineProperty(window, 'localStorage', {value:createVisualStorage(), configurable:true});
 const client = createIpcClient(createVisualMock(config));
@@ -14,7 +15,7 @@ const transferChannelFactory = () => ({ onmessage: (_value: SftpTransferSnapshot
 document.title = 'MauLink · DEV deterministic Mock IPC';
 document.documentElement.dataset.visualFixture = config.page;
 </script>
-<template><AppShell :client="client" :terminal-channel-factory="terminalChannelFactory" :transfer-channel-factory="transferChannelFactory" /></template>
+<template><AppShell :client="client" :terminal-channel-factory="terminalChannelFactory" :transfer-channel-factory="transferChannelFactory" :background-image-asset-url="visualAssetUrl" /></template>
 <style>
 /* Only imported by the DEV visual route. Keep focus rings; suppress time-dependent raster changes. */
 html[data-visual-fixture] *, html[data-visual-fixture] *::before, html[data-visual-fixture] *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }

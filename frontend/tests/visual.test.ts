@@ -12,6 +12,10 @@ describe('deterministic visual fixtures', () => {
     expect(visualConfig(new URLSearchParams('page=host-key&theme=dark&locale=en'))).toEqual(config('host-key'));
     expect(visualConfig(new URLSearchParams('page=https://example.test/&theme=unknown&locale=unknown'))).toEqual({page:'servers',theme:'light',locale:'zh-CN'});
   });
+  it('includes the Server Overview and terminal personalization acceptance scenes', () => {
+    const pages = new Set(cases.map(item=>item.page));
+    for (const page of ['server-overview','terminal-light','terminal-dark','terminal-custom','terminal-image','settings-terminal-image']) expect(pages.has(page)).toBe(true);
+  });
   it('returns equal visible state under different wall clocks and independent mounts', async () => {
     async function capture() {
       const client=createIpcClient(createVisualMock(config('transfer')));
