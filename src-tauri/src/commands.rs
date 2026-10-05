@@ -2,19 +2,19 @@ use maulink_core::{
     ApiRequest, AppError, AppInfo, AuthenticationRespondPayload, ConnectionDisconnectPayload,
     ConnectionIdPayload, ConnectionSnapshot, ConnectionStartPayload, CredentialDeleteResult,
     CredentialUpdate, EmptyPayload, ErrorCode, Group, GroupCreate, GroupUpdatePayload,
-    HostKeyRespondPayload, LocalFilePurpose, LocalFileSelectPayload, MonitorGetHistoryPayload,
-    MonitorGetSnapshotPayload, MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot,
-    RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
-    ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
-    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
-    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
-    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
-    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalWritePayload,
-    TerminalWriteResult, WorkspaceActivityPayload,
+    HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload, LocalFilePurpose,
+    LocalFileSelectPayload, MonitorGetHistoryPayload, MonitorGetSnapshotPayload,
+    MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot, RemoteFileEntry, ResourceIdPayload,
+    RetainedCredential, RevisionPayload, SelectedLocalFile, ServerCreatePayload,
+    ServerDeletePayload, ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile,
+    ServerProfileDraft, ServerProfileInput, ServerUpdatePayload, SettingsRecord, SettingsUpdate,
+    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
+    SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -363,6 +363,18 @@ pub fn host_key_respond(
             &payload.challenge_id,
             payload.decision,
         ),
+    )
+}
+
+#[tauri::command]
+pub async fn host_key_get(
+    request: ApiRequest<HostKeyGetPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<Option<HostKeyRecord>, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state.host_keys.get(&payload.host, payload.port).await,
     )
 }
 

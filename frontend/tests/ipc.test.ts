@@ -7,6 +7,7 @@ import { createTerminalApi } from "../src/ipc/terminal";
 import { createSftpApi } from "../src/ipc/sftp";
 import { createMonitorApi } from "../src/ipc/monitor";
 import { createSettingsApi } from "../src/ipc/settings";
+import { createHostKeysApi } from "../src/ipc/host-keys";
 import { emptyServers, timeoutError } from "../src/harness/fixtures";
 
 describe("typed IPC contract", () => {
@@ -20,7 +21,7 @@ describe("typed IPC contract", () => {
     }
   });
 
-  it("routes all six domain facades through their real command names and envelopes", async () => {
+  it("routes domain facades through their real command names and envelopes", async () => {
     const transport = createMockIpc({});
     const invoke = vi.spyOn(transport, "invoke").mockResolvedValue(undefined);
     const client = createIpcClient(transport);
@@ -31,8 +32,9 @@ describe("typed IPC contract", () => {
     await createSftpApi(client).listStart({ connectionId: "connection", path: "/" });
     await createMonitorApi(client).getSnapshot({ connectionId: "connection" });
     await createSettingsApi(client).get();
+    await createHostKeysApi(client).get({ host: "example.com", port: 22 });
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([
-      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get",
+      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get",
     ]);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ request: { apiVersion: 1, requestId: expect.any(String), payload: query } });
   });

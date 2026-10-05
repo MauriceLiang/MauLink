@@ -6,8 +6,8 @@ use maulink_core::{
     ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource, ConnectionState,
     CredentialDeleteResult, CredentialKind, CredentialReplaceResult, CredentialUpdate, CursorStyle,
     DecimalU64, EmptyPayload, Group, GroupCreate, GroupUpdate, GroupUpdatePayload,
-    HostKeyChallenge, HostKeyDecision, HostKeyRecord, HostKeyRespondPayload, Language,
-    LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot, MonitorDiskSnapshot,
+    HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload,
+    Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot, MonitorDiskSnapshot,
     MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,
     MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot, MonitorMetricQuality,
     MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus, MonitorRefreshPayload,
@@ -57,6 +57,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     RetainedCredential::export_all(&config)?;
     ServerMutationResult::export_all(&config)?;
     HostKeyRecord::export_all(&config)?;
+    HostKeyGetPayload::export_all(&config)?;
     HostKeyChallenge::export_all(&config)?;
     AuthenticationChallenge::export_all(&config)?;
     ConnectionStartPayload::export_all(&config)?;

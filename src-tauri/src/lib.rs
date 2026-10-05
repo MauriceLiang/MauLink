@@ -8,7 +8,7 @@ use commands::{
     app_get_info, auth_respond, connection_cancel, connection_disconnect, connection_get,
     connection_start, credential_cleanup_retry, credential_delete_retained,
     credential_list_retained, group_create, group_delete, group_list, group_update,
-    host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
+    host_key_get, host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
     monitor_refresh, server_create, server_delete, server_get, server_list, server_update,
     settings_get, settings_update, sftp_delete, sftp_download, sftp_list_close, sftp_list_next,
     sftp_list_start, sftp_mkdir, sftp_read_text, sftp_rename, sftp_stat, sftp_transfer_cancel,
@@ -51,8 +51,9 @@ pub fn run() {
             }
             let profiles = ProfileStore::new(database.clone());
             let connection_registry = ConnectionRegistry::default();
+            let host_keys = HostKeyStore::new(database);
             let host_key_verifier =
-                HostKeyVerifier::new(HostKeyStore::new(database), connection_registry.clone());
+                HostKeyVerifier::new(host_keys.clone(), connection_registry.clone());
             let ssh_connector = SshConnector::new(connection_registry.clone(), host_key_verifier);
             let connections = SshConnectionManager::new(
                 profiles.clone(),
@@ -74,6 +75,7 @@ pub fn run() {
                 settings,
                 local_files,
                 credentials,
+                host_keys,
                 connections,
                 sftp,
                 sftp_transfers,
@@ -100,6 +102,7 @@ pub fn run() {
             connection_get,
             connection_cancel,
             host_key_respond,
+            host_key_get,
             auth_respond,
             connection_disconnect,
             terminal_open,

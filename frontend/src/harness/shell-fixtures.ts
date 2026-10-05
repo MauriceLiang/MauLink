@@ -27,5 +27,6 @@ export function createShellMock(state: "empty" | "servers" = "empty") {
     app_get_info: () => shellAppInfo,
     group_list: () => state === "servers" ? shellGroups : [],
     server_list: () => ({ items: state === "servers" ? shellServers : [], nextCursor: null }),
+    host_key_get: () => null,
   });
 }

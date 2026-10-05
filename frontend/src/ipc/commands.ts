@@ -11,6 +11,8 @@ import type { Group } from "../../../contracts/v1/Group";
 import type { GroupCreate } from "../../../contracts/v1/GroupCreate";
 import type { GroupUpdatePayload } from "../../../contracts/v1/GroupUpdatePayload";
 import type { HostKeyRespondPayload } from "../../../contracts/v1/HostKeyRespondPayload";
+import type { HostKeyGetPayload } from "../../../contracts/v1/HostKeyGetPayload";
+import type { HostKeyRecord } from "../../../contracts/v1/HostKeyRecord";
 import type { LocalFileSelectPayload } from "../../../contracts/v1/LocalFileSelectPayload";
 import type { MonitorGetHistoryPayload } from "../../../contracts/v1/MonitorGetHistoryPayload";
 import type { MonitorGetSnapshotPayload } from "../../../contracts/v1/MonitorGetSnapshotPayload";
@@ -81,6 +83,7 @@ export interface CommandContracts {
   connection_get: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
   connection_cancel: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
   host_key_respond: { payload: HostKeyRespondPayload; result: void };
+  host_key_get: { payload: HostKeyGetPayload; result: HostKeyRecord | null };
   auth_respond: { payload: AuthenticationRespondPayload; result: void };
   connection_disconnect: { payload: ConnectionDisconnectPayload; result: ConnectionSnapshot };
   sftp_list_start: { payload: SftpListStartPayload; result: SftpDirectoryPage };

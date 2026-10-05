@@ -9,10 +9,12 @@ import BaseButton from "../base/BaseButton.vue";
 import ConnectionPanel from "../connection/ConnectionPanel.vue";
 import ConnectionInfoCard from "./ConnectionInfoCard.vue";
 import ConnectionRouteCard from "./ConnectionRouteCard.vue";
+import HostIdentityCard from "./HostIdentityCard.vue";
 import ServerOverviewHeader from "./ServerOverviewHeader.vue";
 import { buildSshCommand, formatServerEndpoint } from "./server-details";
+import type { createHostKeysApi } from "../../ipc/host-keys";
 
-const props = defineProps<{ server: ServerProfile; store: ConnectionStore; readOnly: boolean }>();
+const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; readOnly: boolean }>();
 const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string] }>();
 const t = messages(serverOverviewMessages);
 const snapshot = computed(() => props.store.snapshots.value[props.server.id]);
@@ -43,6 +45,7 @@ function menuAction(id: string) {
     </ServerOverviewHeader>
     <div class="server-overview-grid">
       <ConnectionInfoCard :server="server" />
+      <HostIdentityCard :server="server" :api="hostKeyApi" />
       <ConnectionRouteCard :server="server" />
     </div>
   </section>

@@ -33,6 +33,7 @@ export function createServerMock(options: { state?: "empty" | "servers"; failure
     group_list: () => structuredClone(groups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_get: ({ id }) => structuredClone(find(id)),
+    host_key_get: () => null,
     local_file_select: () => {
       const token = crypto.randomUUID();
       keys.add(token);

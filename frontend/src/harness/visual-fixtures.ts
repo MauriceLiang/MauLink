@@ -59,6 +59,7 @@ export function createVisualMock(config: VisualConfig) {
     group_list: () => config.page === 'empty' ? [] : structuredClone(shellGroups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_get: ({ id }) => { const server = servers.find(value => value.id === id); if (!server) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.serverNotFound'); return structuredClone(server); },
+    host_key_get: ({ host, port }) => config.page === 'server-overview' ? ({ normalizedHost: host.toLowerCase(), port, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-saved-host-fingerprint', revision: 1, trustedAtMs: visualEpoch - 7 * 24 * 60 * 60 * 1000 }) : null,
     settings_get: () => structuredClone(settings),
     settings_update: ({ expectedRevision, value }) => { if (expectedRevision !== settings.revision) throw fixtureError('REVISION_CONFLICT', 'errors.revisionConflict'); settings = { value: structuredClone(value), revision: settings.revision + 1, updatedAtMs: visualEpoch }; return structuredClone(settings); },
     connection_start: () => {

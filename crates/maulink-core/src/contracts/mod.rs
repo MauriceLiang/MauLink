@@ -509,6 +509,13 @@ pub struct HostKeyRespondPayload {
     pub decision: crate::HostKeyDecision,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct HostKeyGetPayload {
+    pub host: String,
+    pub port: u16,
+}
+
 #[derive(Debug, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationRespondPayload {

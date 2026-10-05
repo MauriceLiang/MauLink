@@ -146,6 +146,49 @@ impl HostKeyStore {
         Self { database }
     }
 
+    pub async fn get(&self, host: &str, port: u16) -> Result<Option<HostKeyRecord>, AppError> {
+        let normalized_host = normalize_host(host)?;
+        if port == 0 {
+            return Err(validation("port", "errors.portOutOfRange"));
+        }
+        self.database
+            .execute(move |connection| {
+                let stored = connection
+                    .query_row(
+                        "SELECT key_algorithm, public_key_blob, fingerprint_sha256, revision,
+                                trusted_at_ms
+                         FROM known_hosts WHERE normalized_host = ?1 AND port = ?2",
+                        params![normalized_host, port],
+                        |row| {
+                            Ok((
+                                row.get::<_, String>(0)?,
+                                row.get::<_, Vec<u8>>(1)?,
+                                row.get::<_, String>(2)?,
+                                row.get::<_, u32>(3)?,
+                                row.get::<_, i64>(4)?,
+                            ))
+                        },
+                    )
+                    .optional()
+                    .map_err(storage::map_sqlite_error)?;
+                let Some(stored) = stored else {
+                    return Ok(None);
+                };
+                if stored.2 != fingerprint(&stored.1) {
+                    return Err(storage_corrupt());
+                }
+                Ok(Some(HostKeyRecord {
+                    normalized_host,
+                    port,
+                    algorithm: stored.0,
+                    fingerprint_sha256: stored.2,
+                    revision: stored.3,
+                    trusted_at_ms: stored.4,
+                }))
+            })
+            .await
+    }
+
     pub async fn check(&self, candidate: HostKeyCandidate) -> Result<HostKeyCheck, AppError> {
         self.database
             .execute(move |connection| {
@@ -388,6 +431,41 @@ mod tests {
             store.check(second).await.expect("check updated"),
             HostKeyCheck::Trusted(record) if record.revision == 2
         ));
+    }
+
+    #[tokio::test]
+    async fn get_returns_safe_record_for_normalized_host_and_exact_port() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = Database::open(directory.path().join("test.sqlite3")).expect("database");
+        let store = HostKeyStore::new(database);
+        let saved = store
+            .trust(candidate("Example.COM", b"saved-key"), None)
+            .await
+            .expect("trust key");
+
+        assert_eq!(
+            store.get("EXAMPLE.com.", 22).await.expect("lookup"),
+            Some(saved)
+        );
+        assert_eq!(
+            store.get("example.com", 2222).await.expect("other port"),
+            None
+        );
+        assert_eq!(
+            store
+                .get("missing.example", 22)
+                .await
+                .expect("unknown host"),
+            None
+        );
+        assert_eq!(
+            store.get("bad/host", 22).await.unwrap_err().code,
+            ErrorCode::ValidationFailed
+        );
+        assert_eq!(
+            store.get("example.com", 0).await.unwrap_err().code,
+            ErrorCode::ValidationFailed
+        );
     }
 
     #[tokio::test]
