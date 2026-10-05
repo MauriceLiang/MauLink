@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem } from 'reka-ui';
+import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from 'reka-ui';
 import { ref, useId } from 'vue';
 import type { MenuItem } from './menu';
 import BaseIcon from './BaseIcon.vue';
@@ -21,7 +21,10 @@ function closeAutoFocus(event: Event) {
   <DropdownMenuRoot>
     <DropdownMenuTrigger as-child><BaseIconButton :data-menu-trigger="triggerId" class="base-menu-trigger" :label="label" :disabled="disabled"><BaseIcon name="more" /></BaseIconButton></DropdownMenuTrigger>
     <DropdownMenuPortal><DropdownMenuContent class="base-menu-content" align="end" :side-offset="5" :collision-padding="8" loop @close-auto-focus="closeAutoFocus">
-      <DropdownMenuItem v-for="item in items" :key="item.id" class="base-menu-item" :class="{'base-menu-item--danger':item.danger}" :data-action="item.id" :disabled="item.disabled" :title="item.title" :aria-label="item.ariaLabel" @select="select(item.id)">{{ item.label }}</DropdownMenuItem>
+      <template v-for="item in items" :key="item.id">
+        <DropdownMenuSeparator v-if="item.separatorBefore" class="base-menu-separator" />
+        <DropdownMenuItem class="base-menu-item" :class="{'base-menu-item--danger':item.danger}" :data-action="item.id" :disabled="item.disabled" :title="item.title" :aria-label="item.ariaLabel" @select="select(item.id)">{{ item.label }}</DropdownMenuItem>
+      </template>
     </DropdownMenuContent></DropdownMenuPortal>
   </DropdownMenuRoot>
 </template>

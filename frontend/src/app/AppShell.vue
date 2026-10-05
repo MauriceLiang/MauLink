@@ -22,7 +22,6 @@ import { createTerminalPreferences } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createConnectionStore, isFinished } from "../stores/connections";
-import ConnectionPanel from "../components/connection/ConnectionPanel.vue";
 import ConnectionDialogs from "../dialogs/ConnectionDialogs.vue";
 import { createServerApi } from "../ipc/server";
 import { createServerStore } from "../stores/servers";
@@ -41,6 +40,8 @@ import TopBar from "./TopBar.vue";
 import Sidebar from "./Sidebar.vue";
 import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
+import ServerOverview from "../components/server-overview/ServerOverview.vue";
+import { serverOverviewMessages } from "../i18n/server-overview";
 import type { ServerNavigationRequest } from "./server-navigation";
 const t = messages(shellMessages);
 
@@ -66,6 +67,7 @@ const activeConnection = computed(() => !pending.value && !error.value && select
 watch([activeConnection, workspaceViews, focused], () => { const id = activeConnection.value; if (!props.readOnly) monitor.activate(id, !!id && (workspaceViews.value[id] ?? 'terminal') !== 'files' && !focused.value); }, { immediate: true, deep: true });
 const settingsOpen = ref(false); const paletteOpen = ref(false);
 const settingsText = messages(settingsMessages); const paletteText = messages(paletteMessages);
+const overviewText = messages(serverOverviewMessages);
 const workspaceRefs = ref<InstanceType<typeof TerminalWorkspace>[]>([]);
 const commands = computed(() => [...servers.value.map(server => ({ id: `server:${server.id}`, label: server.name, meta: `${server.username}@${server.host}`, keywords: [server.host, 'server', 'connect'] })), ...['workspace', 'monitor', 'files', 'add', 'settings', 'theme', 'language', 'clear'].map(id => ({ id, label: paletteText(id as keyof typeof paletteMessages), keywords: [id], disabled: ['workspace', 'monitor', 'files'].includes(id) ? !activeConnection.value : id === 'settings' ? props.readOnly : ['theme', 'language'].includes(id) ? props.readOnly || terminalPreferences.busy.value || !terminalPreferences.record.value : id === 'add' ? !canManage.value : id === 'clear' ? !transfers.snapshots.value.some(task => task.state === 'completed') : false }))]);
 async function executeCommand(id: string) {
@@ -161,6 +163,15 @@ function onConnectionTestResult(result: { kind: "success" | "error"; message: st
   else toast.error(result.message);
 }
 
+async function copyOverviewValue(kind: "address" | "ssh", value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(overviewText(kind === "address" ? "addressCopied" : "sshCommandCopied"));
+  } catch {
+    toast.error(overviewText("copyFailed"));
+  }
+}
+
 async function load() {
   pending.value = true;
   error.value = null;
@@ -204,11 +215,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
           <BaseButton @click="load">{{ t('retry') }}</BaseButton>
         </BaseEmptyState>
-        <ConnectionPanel v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :read-only="!canManage">
-          <BaseButton @click="selectServer(null)">{{ t('backToServers') }}</BaseButton>
-          <BaseButton :disabled="!canManage" @click="openEditor(selected.id)">{{ t('editServer') }}</BaseButton>
-          <BaseButton :disabled="!canManage" @click="deleteTarget = { ...selected }">{{ t('deleteServer') }}</BaseButton>
-        </ConnectionPanel>
+        <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
         <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />

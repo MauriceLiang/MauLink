@@ -1,0 +1,50 @@
+.server-overview { width: min(100%, 1200px); min-width: 0; margin: 0 auto; padding: clamp(20px, 3vw, 32px); animation: view-enter var(--motion-slow) var(--ease-enter); }
+.server-overview-header { display: grid; gap: 22px; margin-bottom: 24px; }
+.server-overview-toolbar, .server-overview-title-line, .server-overview-actions { display: flex; min-width: 0; align-items: center; }
+.server-overview-toolbar { justify-content: space-between; gap: 12px; }
+.server-overview-actions { justify-content: flex-end; gap: 8px; }
+.server-overview-back { min-height: 32px; gap: 7px; padding: 0 10px; color: var(--color-text-secondary); font-size: 12.5px; }
+.server-overview-back span { font-size: 17px; line-height: 1; }
+.server-overview-identity { display: grid; min-width: 0; gap: 5px; }
+.server-overview-title-line { flex-wrap: wrap; gap: 10px; }
+.server-overview-title-line h1 { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 21px; font-weight: 650; letter-spacing: -.02em; line-height: 1.3; }
+.server-overview-endpoint { margin: 0; color: var(--color-text-secondary); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.server-overview-actions .connection-panel { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0; animation: none; }
+.server-overview-actions .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.server-overview-actions .connection-actions .base-button { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
+.server-overview-actions .connection-actions .base-button--primary { min-width: 104px; }
+.server-overview-actions .connection-error { max-width: 280px; margin: 0; font-size: 12px; }
+.server-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.server-overview-card { min-width: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.server-overview-card h2 { margin: 0 0 18px; font-size: 14px; font-weight: 600; }
+.server-overview-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 20px; margin: 0; }
+.server-overview-info-item { display: grid; min-width: 0; gap: 5px; }
+.server-overview-info-item dt { color: var(--color-text-secondary); font-size: 11.5px; }
+.server-overview-info-item dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--color-text-primary); font-size: 12.5px; line-height: 1.45; }
+.server-overview-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.server-overview-route { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.server-overview-route-step { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.server-overview-route-arrow { display: grid; width: 22px; height: 22px; flex: none; place-items: center; border-radius: 50%; color: var(--color-text-secondary); background: var(--color-bg-subtle); font-size: 14px; }
+.server-overview-route-node { display: grid; min-width: 0; gap: 3px; }
+.server-overview-route-node strong { font-size: 12.5px; font-weight: 600; }
+.server-overview-route-detail { overflow-wrap: anywhere; color: var(--color-text-secondary); font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.server-overview-grid .server-overview-card:only-child { grid-column: 1 / -1; }
+.server-overview-grid .server-overview-route { gap: 12px; }
+.server-overview-grid .server-overview-route-step { align-items: flex-start; }
+@media (max-width: 1100px) {
+  .server-overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .server-overview { padding: 20px; }
+  .server-overview-header { gap: 18px; margin-bottom: 18px; }
+  .server-overview-toolbar { align-items: flex-start; }
+  .server-overview-actions { flex-wrap: wrap; }
+  .server-overview-actions .connection-panel { justify-content: flex-end; }
+}
+@media (max-width: 640px) {
+  .server-overview-toolbar { flex-direction: column; align-items: stretch; }
+  .server-overview-actions { justify-content: flex-start; }
+  .server-overview-actions .connection-panel { flex-wrap: wrap; justify-content: flex-start; }
+  .server-overview-info-grid { gap: 15px 12px; }
+  .server-overview-card { padding: 16px; }
+}

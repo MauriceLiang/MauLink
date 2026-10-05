@@ -10,6 +10,13 @@
     "reference": "view=home"
   },
   {
+    "page": "server-overview",
+    "steps": [
+      "select"
+    ],
+    "reference": null
+  },
+  {
     "page": "add-server",
     "steps": [
       "add"

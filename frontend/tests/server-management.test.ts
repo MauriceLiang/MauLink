@@ -257,9 +257,10 @@ describe("server management contracts", () => {
     wrappers.push(wrapper);
     await flushPromises();
     await ui().get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
-    const trigger = ui().get("main").findAll("button").find(button => button.text() === "删除服务器")!;
-    trigger.element.focus();
-    await trigger.trigger("click");
+    await ui().get('[aria-label="更多服务器操作 · Web-01"]').trigger("click");
+    const deleteAction = ui().get('[data-action="delete"]');
+    (deleteAction.element as HTMLElement).focus();
+    await deleteAction.trigger("click");
     await flushPromises();
     await ui().get(".base-button--danger").trigger("click");
     await flushPromises();

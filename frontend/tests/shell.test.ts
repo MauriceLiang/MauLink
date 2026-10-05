@@ -79,7 +79,8 @@ describe("application shell", () => {
     expect(activity).toHaveBeenCalledTimes(1);
     expect(activity).toHaveBeenCalledWith({ activeConnectionId: null, monitorVisible: false });
     await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
-    expect(wrapper.get("main").text()).toContain("root@192.168.1.20:22 · 尚未连接");
+    expect(wrapper.get(".server-overview-endpoint").text()).toBe("root@192.168.1.20:22");
+    expect(wrapper.get(".server-overview-title-line .base-status-badge").text()).toBe("尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
     expect(commands).toHaveLength(6);

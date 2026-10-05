@@ -44,8 +44,13 @@ export const visualTranscript = 'Last login: Sun Sep 28 09:12:04 on ttys001\r\n$
 // Every visible value is fixed. Ordinary production stores/pollers still run against this isolated transport.
 export function createVisualMock(config: VisualConfig) {
   const servers = config.page === 'empty' ? [] : structuredClone(shellServers);
+  if (config.page === 'server-overview' && servers[0]) {
+    servers[0].hasSavedCredential = true;
+    servers[0].createdAtMs = visualEpoch - 30 * 24 * 60 * 60 * 1000;
+    servers[0].updatedAtMs = visualEpoch - 24 * 60 * 60 * 1000;
+  }
   let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale }, revision: 1, updatedAtMs: visualEpoch };
-  let connection: ConnectionSnapshot = { connectionId: 'visual-connection', serverId: 'web-01', mode: 'workspace', state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
+  let connection: ConnectionSnapshot = { connectionId: 'visual-connection', serverId: 'web-01', mode: 'workspace', state: config.page === 'server-overview' ? 'closed' : 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
   const terminals = new Map<string, TerminalSnapshot>(); let terminalNumber = 0; let output: Channel<TerminalChunk> | undefined;
   const files = structuredClone(visualFiles); const tasks = config.page === 'transfer' ? visualTransfers(connection.connectionId) : [];
   const snapshot = () => structuredClone(connection);

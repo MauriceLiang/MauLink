@@ -10,6 +10,7 @@ import "./styles/overlays.css";
 import "./styles/shell.css";
 import "./styles/servers.css";
 import "./styles/connections.css";
+import "./styles/server-overview.css";
 import "@xterm/xterm/css/xterm.css";
 import "./styles/terminal.css";
 import "./styles/files.css";

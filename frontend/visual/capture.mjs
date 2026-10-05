@@ -23,7 +23,7 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const labels = {
   add: ['添加服务器', 'Add Server'], 'server-menu': ['更多操作 Web-01', 'More actions Web-01'],
   edit: ['编辑服务器 Web-01', 'Edit server Web-01'], 'delete-server': ['删除服务器 Web-01', 'Delete server Web-01'],
-  select: ['查看 Web-01', 'View Web-01'], connect: ['连接', 'Connect'], focus: ['专注', 'Focus'],
+  select: ['查看 Web-01', 'View Web-01'], connect: ['连接服务器', 'Connect server'], focus: ['专注', 'Focus'],
   files: ['文件', 'Files'], monitor: ['监控', 'Monitor'], settings: ['设置', 'Settings'],
   general: ['通用', 'General'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'],
   'terminal-settings': ['终端设置', 'Terminal settings'], language: ['语言', 'Language'],
@@ -65,6 +65,7 @@ async function prepare(tab, item, locale) {
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
     'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
     'settings-language':['中文','English'], palette:['combobox','combobox'],
+    'server-overview':['连接信息','Connection information'],
     transfer:['config.yml','config.yml'], monitor:['24.5%','24.5%'], 'monitor-unavailable':['不支持','Unsupported'],
     toast:['设置已保存。','Settings saved.'],
   }[item.page];

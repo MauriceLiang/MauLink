@@ -23,6 +23,7 @@
 .base-menu-trigger:disabled { opacity: .52; cursor: not-allowed; }
 .base-menu-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .base-menu-content { z-index: var(--z-dropdown); min-width: 160px; max-height: var(--reka-popper-available-height); overflow: auto; padding: 5px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
+.base-menu-separator { height: 1px; margin: 5px 4px; background: var(--color-divider); }
 .base-menu-item { min-height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border-radius: var(--radius-sm); font-size: 13px; color: var(--color-text-primary); outline: none; cursor: default; transition: background-color var(--motion-instant) var(--ease-standard), color var(--motion-instant) var(--ease-standard); }
 .base-menu-item[data-highlighted] { background: var(--color-bg-hover); }
 .base-menu-item--danger { color: var(--color-danger); }
