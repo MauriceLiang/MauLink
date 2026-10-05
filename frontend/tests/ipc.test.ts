@@ -8,6 +8,7 @@ import { createSftpApi } from "../src/ipc/sftp";
 import { createMonitorApi } from "../src/ipc/monitor";
 import { createSettingsApi } from "../src/ipc/settings";
 import { createHostKeysApi } from "../src/ipc/host-keys";
+import { createNetworkApi } from "../src/ipc/network";
 import { emptyServers, timeoutError } from "../src/harness/fixtures";
 
 describe("typed IPC contract", () => {
@@ -33,8 +34,9 @@ describe("typed IPC contract", () => {
     await createMonitorApi(client).getSnapshot({ connectionId: "connection" });
     await createSettingsApi(client).get();
     await createHostKeysApi(client).get({ host: "example.com", port: 22 });
+    await createNetworkApi(client).inspect({ host: "example.com", detailed: true });
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([
-      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get",
+      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get", "network_inspect",
     ]);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ request: { apiVersion: 1, requestId: expect.any(String), payload: query } });
   });

@@ -31,6 +31,14 @@
 .server-overview-grid .server-overview-card:only-child { grid-column: 1 / -1; }
 .server-overview-grid .server-overview-route { gap: 12px; }
 .server-overview-grid .server-overview-route-step { align-items: flex-start; }
+.server-overview-network-note { margin: -6px 0 16px; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
+.server-overview-network-state { display: grid; gap: 14px; color: var(--color-text-primary); font-size: 12.5px; line-height: 1.5; }
+.server-overview-network-state > p { margin: 0; color: var(--color-text-secondary); }
+.server-overview-network-summary { display: grid; gap: 4px; }
+.server-overview-network-summary strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.server-overview-network-summary span, .server-overview-network-source { color: var(--color-text-secondary); }
+.server-overview-network-hint { margin: 0; color: var(--color-text-secondary); font-size: 11.5px; }
+.server-overview-network-state .server-overview-info-grid { margin-top: 0; }
 .server-overview-host-identity-note { margin: -6px 0 16px; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
 .server-overview-trust-state { color: var(--color-text-primary); font-size: 12.5px; line-height: 1.5; }
 .server-overview-trust-state > p { margin: 0; color: var(--color-text-secondary); }

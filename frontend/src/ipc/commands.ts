@@ -19,6 +19,8 @@ import type { MonitorGetSnapshotPayload } from "../../../contracts/v1/MonitorGet
 import type { MonitorHistoryPage } from "../../../contracts/v1/MonitorHistoryPage";
 import type { MonitorRefreshPayload } from "../../../contracts/v1/MonitorRefreshPayload";
 import type { MonitorSnapshot } from "../../../contracts/v1/MonitorSnapshot";
+import type { NetworkInspection } from "../../../contracts/v1/NetworkInspection";
+import type { NetworkInspectPayload } from "../../../contracts/v1/NetworkInspectPayload";
 import type { RemoteFileEntry } from "../../../contracts/v1/RemoteFileEntry";
 import type { ResourceIdPayload } from "../../../contracts/v1/ResourceIdPayload";
 import type { RetainedCredential } from "../../../contracts/v1/RetainedCredential";
@@ -84,6 +86,7 @@ export interface CommandContracts {
   connection_cancel: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
   host_key_respond: { payload: HostKeyRespondPayload; result: void };
   host_key_get: { payload: HostKeyGetPayload; result: HostKeyRecord | null };
+  network_inspect: { payload: NetworkInspectPayload; result: NetworkInspection };
   auth_respond: { payload: AuthenticationRespondPayload; result: void };
   connection_disconnect: { payload: ConnectionDisconnectPayload; result: ConnectionSnapshot };
   sftp_list_start: { payload: SftpListStartPayload; result: SftpDirectoryPage };

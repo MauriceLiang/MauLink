@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 base64.workspace = true
+dns-lookup.workspace = true
 idna.workspace = true
 keyring-core.workspace = true
 serde.workspace = true

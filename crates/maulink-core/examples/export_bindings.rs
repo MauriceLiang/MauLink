@@ -11,18 +11,19 @@ use maulink_core::{
     MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,
     MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot, MonitorMetricQuality,
     MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus, MonitorRefreshPayload,
-    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NegotiatedAlgorithms, ProxyType,
-    RemoteFileEntry, RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload,
-    SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
-    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord,
-    SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
-    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
-    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
-    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
-    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState, TerminalWritePayload,
-    TerminalWriteResult, Theme, WorkspaceActivityPayload,
+    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NegotiatedAlgorithms,
+    NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection, NetworkInspectionSource,
+    NetworkIpVersion, NetworkScope, ProxyType, RemoteFileEntry, RemoteFileType, ResourceIdPayload,
+    RetainedCredential, RevisionPayload, SelectedLocalFile, ServerCreatePayload,
+    ServerDeletePayload, ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile,
+    ServerProfileDraft, ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload,
+    SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload,
+    SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
+    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalState, TerminalWritePayload, TerminalWriteResult, Theme, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -58,6 +59,13 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerMutationResult::export_all(&config)?;
     HostKeyRecord::export_all(&config)?;
     HostKeyGetPayload::export_all(&config)?;
+    NetworkHostKind::export_all(&config)?;
+    NetworkIpVersion::export_all(&config)?;
+    NetworkScope::export_all(&config)?;
+    NetworkInspectionSource::export_all(&config)?;
+    NetworkGeo::export_all(&config)?;
+    NetworkInspection::export_all(&config)?;
+    NetworkInspectPayload::export_all(&config)?;
     HostKeyChallenge::export_all(&config)?;
     AuthenticationChallenge::export_all(&config)?;
     ConnectionStartPayload::export_all(&config)?;

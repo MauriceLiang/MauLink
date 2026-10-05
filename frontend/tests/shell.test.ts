@@ -65,6 +65,11 @@ describe("application shell", () => {
       workspace_set_activity: activity,
       app_get_info: () => shellAppInfo, group_list: () => shellGroups,
       host_key_get: () => null,
+      network_inspect: ({ host, detailed }) => ({
+        inputHost: host, hostKind: "ip", resolvedAddresses: [host], primaryAddress: host, ipVersion: "ipv4", scope: "private",
+        reverseDns: null, geo: { countryCode: null, countryName: null, region: null, city: null }, asn: null, organization: null,
+        source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null,
+      }),
       server_list: payload => payload.cursor === null
         ? { items: [shellServers[0]!], nextCursor: "page-2" }
         : { items: [shellServers[1]!, shellServers[2]!], nextCursor: null },
@@ -84,7 +89,7 @@ describe("application shell", () => {
     expect(wrapper.get(".server-overview-title-line .base-status-badge").text()).toBe("尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
-    expect(commands).toHaveLength(7);
+    expect(commands).toHaveLength(8);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
     expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);

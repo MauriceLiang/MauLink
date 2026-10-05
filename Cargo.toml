@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 base64 = "0.22"
+dns-lookup = "4.0.1"
 idna = "1.1"
 keyring-core = "1.0"
 serde = { version = "1.0", features = ["derive"] }

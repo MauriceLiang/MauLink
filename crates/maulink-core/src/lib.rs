@@ -8,6 +8,7 @@ pub mod error;
 pub mod host_keys;
 pub mod local_files;
 pub mod monitor;
+pub mod network;
 pub mod profiles;
 pub mod settings;
 pub mod sftp;
@@ -28,15 +29,17 @@ pub use contracts::{
     MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,
     MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot, MonitorMetricQuality,
     MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus, MonitorRefreshPayload,
-    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, RemoteFileEntry, RemoteFileType,
-    ResourceIdPayload, RevisionPayload, ServerCreatePayload, ServerDeletePayload,
-    ServerProfileDraft, ServerUpdatePayload, SftpCursorPayload, SftpDeletePayload,
-    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
-    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload,
-    TerminalResizePayload, TerminalWritePayload, WorkspaceActivityPayload,
+    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NetworkGeo, NetworkHostKind,
+    NetworkInspectPayload, NetworkInspection, NetworkInspectionSource, NetworkIpVersion,
+    NetworkScope, RemoteFileEntry, RemoteFileType, ResourceIdPayload, RevisionPayload,
+    ServerCreatePayload, ServerDeletePayload, ServerProfileDraft, ServerUpdatePayload,
+    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
+    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
+    TerminalIdPayload, TerminalOpenPayload, TerminalResizePayload, TerminalWritePayload,
+    WorkspaceActivityPayload,
 };
 pub use credentials::{
     CredentialDeleteResult, CredentialKind, CredentialManager, CredentialReplaceResult,
@@ -47,6 +50,7 @@ pub use error::{AppError, ErrorAction, ErrorCode};
 pub use host_keys::{HostKeyCandidate, HostKeyCheck, HostKeyRecord, HostKeyStore, HostKeyVerifier};
 pub use local_files::{LocalFilePurpose, LocalFileRegistry, SelectedLocalFile};
 pub use monitor::MonitorManager;
+pub use network::NetworkInspector;
 pub use profiles::{
     AuthType, Group, GroupCreate, GroupUpdate, PathEncoding, ProfileStore, ProxyType,
     ServerListPage, ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,

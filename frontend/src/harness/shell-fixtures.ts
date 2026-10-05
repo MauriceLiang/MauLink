@@ -2,6 +2,7 @@ import type { AppInfo } from "../ipc/commands";
 import type { Group } from "../../../contracts/v1/Group";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import { createMockIpc } from "../ipc/mock";
+import { networkFixture } from "./network-fixtures";
 
 export const shellAppInfo: AppInfo = {
   name: "MauLink", version: "0.1.0", apiVersion: 1, platform: "macos", architecture: "aarch64",
@@ -28,5 +29,6 @@ export function createShellMock(state: "empty" | "servers" = "empty") {
     group_list: () => state === "servers" ? shellGroups : [],
     server_list: () => ({ items: state === "servers" ? shellServers : [], nextCursor: null }),
     host_key_get: () => null,
+    network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
   });
 }

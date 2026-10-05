@@ -2,6 +2,7 @@ import type { AppError } from "../../../contracts/v1/AppError";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
 import { createMockIpc } from "../ipc/mock";
 import { shellAppInfo, shellGroups, shellServers } from "./shell-fixtures";
+import { networkFixture } from "./network-fixtures";
 
 export function fixtureError(code: AppError["code"], messageKey: string): AppError {
   return { code, messageKey, params: {}, retryable: false, action: code === "REVISION_CONFLICT" ? "reload" : "none", stage: null, requestId: null, details: "Fixture debug details must not be displayed" };
@@ -34,6 +35,7 @@ export function createServerMock(options: { state?: "empty" | "servers"; failure
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_get: ({ id }) => structuredClone(find(id)),
     host_key_get: () => null,
+    network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
     local_file_select: () => {
       const token = crypto.randomUUID();
       keys.add(token);
