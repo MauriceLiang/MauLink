@@ -63,6 +63,17 @@ function openEntry(entry: RemoteFileEntry) {
   if (entry.fileType === 'directory' || entry.isSymlink || entry.fileType === 'symlink') { void files.open(entry); return; }
   if (entry.fileType === 'file') fileToOpen.value = { ...entry };
 }
+function selectContextRow(entry: RemoteFileEntry, event: MouseEvent) {
+  selectedPath.value = entry.path;
+  if (unavailable.value) event.preventDefault();
+}
+function openContextMenuFromKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+  event.preventDefault();
+  const row = event.currentTarget as HTMLTableRowElement;
+  const rect = row.getBoundingClientRect();
+  row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: rect.left + 16, clientY: rect.top + rect.height / 2 }));
+}
 function openEntryFromRow(entry: RemoteFileEntry, event: MouseEvent) {
   const target = event.target;
   if (target instanceof Element && target.closest('button') && !target.closest('.file-name, .file-open')) return;
@@ -166,8 +177,10 @@ onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose()
       <BaseAlert v-if="error" class="files-message">{{ presentError(error).message }}</BaseAlert>
       <BaseAlert v-if="cleanupError" class="files-message">{{ t('cursorCleanup') }}{{ presentError(cleanupError).message }}</BaseAlert>
       <p v-if="notice" class="files-message" role="status">{{ notice }}</p>
-      <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th v-if="showSizeColumn" scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead><tbody>
-        <tr v-for="entry in entries" :key="entry.path" :class="{ selected: selectedPath === entry.path }" @click="selectedPath = entry.path" @dblclick="openEntryFromRow(entry, $event)"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @keydown.enter.prevent="openEntry(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td v-if="showSizeColumn">{{ displaySize(entry) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td><td><FileMenu :name="entry.name" :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" :viewable="viewable(entry)" @action="action($event, entry)" /></td></tr>
+      <div class="files-table-scroll" :aria-busy="pending"><table class="files-table"><thead><tr><th scope="col">{{ t('name') }}</th><th v-if="showSizeColumn" scope="col">{{ t('size') }}</th><th scope="col">{{ t('modified') }}</th></tr></thead><tbody>
+        <FileMenu v-for="entry in entries" :key="entry.path" :name="entry.name" context-menu :disabled="unavailable" :downloadable="downloadable(entry) && !transfers.starting.value[connectionId]" :viewable="viewable(entry)" @action="action($event, entry)">
+          <tr :class="{ selected: selectedPath === entry.path }" @click="selectedPath = entry.path" @contextmenu="selectContextRow(entry, $event)" @keydown="openContextMenuFromKeyboard($event)" @dblclick="openEntryFromRow(entry, $event)"><td><button class="file-name" :disabled="unavailable" :aria-pressed="selectedPath === entry.path" :title="entry.path" @click="selectedPath = entry.path" @keydown.enter.prevent="openEntry(entry)"><span class="file-entry-icon" aria-hidden="true"><BaseIcon v-if="entry.fileType === 'directory' && !entry.isSymlink" name="folder" /><BaseIcon v-else-if="entry.fileType === 'file' && !entry.isSymlink" name="file-text" /><span v-else>↗</span></span>{{ entry.name }}</button><button v-if="entry.fileType === 'directory' || entry.isSymlink" class="file-open" :disabled="unavailable" :aria-label="t('openName', {name: entry.name})" @click="files.open(entry)">{{ t('open') }}</button></td><td v-if="showSizeColumn">{{ displaySize(entry) }}</td><td>{{ modifiedTime(entry.modifiedAtMs) }}</td></tr>
+        </FileMenu>
       </tbody></table><p v-if="pending" class="files-empty" role="status">{{ t('readingDirectory') }}</p><p v-else-if="!entries.length && !error" class="files-empty">{{ t('directoryIsEmpty') }}</p></div>
       <footer class="files-pagination"><span v-if="!compactFooter">{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>

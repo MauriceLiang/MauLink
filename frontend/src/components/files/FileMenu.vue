@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import BaseDropdownMenu from '../base/BaseDropdownMenu.vue';
+import BaseContextMenu from '../base/BaseContextMenu.vue';
 import { messages } from '../../i18n/locale';
 import { filesMessages } from '../../i18n/files';
 const t = messages(filesMessages);
-const props = withDefaults(defineProps<{ name: string; disabled: boolean; downloadable: boolean; viewable?: boolean }>(), { viewable: false });
+const props = withDefaults(defineProps<{ name: string; disabled: boolean; downloadable: boolean; viewable?: boolean; contextMenu?: boolean }>(), { viewable: false, contextMenu: false });
 const emit = defineEmits<{ action: [action: 'download' | 'rename' | 'delete' | 'copy' | 'view'] }>();
 const items = computed(() => [
   {id: 'download', label: t('download'), disabled: !props.downloadable || props.disabled},
@@ -15,4 +16,7 @@ const items = computed(() => [
 ]);
 function action(id: string) { emit('action', id as 'download' | 'rename' | 'delete' | 'copy' | 'view'); }
 </script>
-<template><BaseDropdownMenu :label="`${name} ${t('actions')}`" :disabled="disabled" :items="items" @action="action" /></template>
+<template>
+  <BaseContextMenu v-if="contextMenu" :label="`${name} ${t('actions')}`" :disabled="disabled" :items="items" @action="action"><slot /></BaseContextMenu>
+  <BaseDropdownMenu v-else :label="`${name} ${t('actions')}`" :disabled="disabled" :items="items" @action="action" />
+</template>
