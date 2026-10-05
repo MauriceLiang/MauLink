@@ -11,7 +11,7 @@ import type { TerminalThemeMode } from "../../../contracts/v1/TerminalThemeMode"
 import type { TerminalCustomColors } from "../../../contracts/v1/TerminalCustomColors";
 import type { TerminalBackgroundImageSettings } from "../../../contracts/v1/TerminalBackgroundImageSettings";
 import type { BackgroundImagesApi } from "../ipc/background-images";
-import { resolveTerminalAppearance } from "../terminal/theme";
+import { resolveTerminalTheme } from "../terminal/theme";
 import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import { terminalBackgroundImageStyle, terminalBackgroundOverlayStyle } from "../terminal/background";
@@ -35,7 +35,7 @@ const customColorLabels: Record<keyof TerminalCustomColors, keyof typeof termina
 const previewAppearance = computed(() => {
   const current = props.preferences.record.value?.value ?? defaultSettings;
   const systemIsDark = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return resolveTerminalAppearance({ ...current, terminalThemeMode: themeMode.value, terminalCustomColors: customColors.value, terminalBackgroundImage: backgroundSettings.value }, current.theme, systemIsDark);
+  return resolveTerminalTheme({ ...current, terminalThemeMode: themeMode.value, terminalCustomColors: customColors.value, terminalBackgroundImage: backgroundSettings.value }, current.theme, systemIsDark);
 });
 const previewBackgroundStyle = computed(() => terminalBackgroundImageStyle(backgroundUrl.value, backgroundSettings.value));
 const previewOverlayStyle = computed(() => terminalBackgroundOverlayStyle(backgroundSettings.value));

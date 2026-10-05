@@ -5,6 +5,9 @@ import { createIpcClient, type IpcTransport } from "../src/ipc/client";
 import { createMockIpc } from "../src/ipc/mock";
 import { createServerApi } from "../src/ipc/server";
 import { createServerStore } from "../src/stores/servers";
+import { createServerAppearanceStore } from "../src/stores/server-appearance";
+import { createServerAppearanceApi } from "../src/ipc/server-appearance";
+import { createBackgroundImagesApi } from "../src/ipc/background-images";
 import { createServerMock, fixtureError } from "../src/harness/server-fixtures";
 import { shellServers } from "../src/harness/shell-fixtures";
 import { credentialValidation, newServerDraft, normalizeServerDraft, validateServerDraft } from "../src/dialogs/server-form";
@@ -14,6 +17,7 @@ import GroupDialog from "../src/dialogs/GroupDialog.vue";
 import AppShell from "../src/app/AppShell.vue";
 import { startOccupancyProbe } from "../src/harness/occupancy-probe";
 import type { ServerMutationResult } from "../../contracts/v1/ServerMutationResult";
+import type { ServerAppearanceUpdate } from "../../contracts/v1/ServerAppearanceUpdate";
 
 const ui = () => new DOMWrapper(document.body);
 const wrappers: VueWrapper[] = [];
@@ -21,7 +25,10 @@ afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); docu
 const profile = shellServers[0]!;
 const makeStore = (transport: IpcTransport = createServerMock()) => createServerStore(createServerApi(createIpcClient(transport)));
 function mountEditor(store = makeStore(), serverId: string | null = null) {
-  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store } });
+  const client = createIpcClient(createMockIpc({ server_get: () => profile, server_appearance_get: ({ serverId }) => ({ serverId, labelColor: null, environment: null, terminalOverrideEnabled: false, terminalAppearance: { themeMode: "followApp", customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" }, backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 } }, revision: 0, updatedAtMs: 0 }) }));
+  const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
+  const backgroundImages = createBackgroundImagesApi(client, path => path);
+  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store, appearanceStore, backgroundImages } });
   wrappers.push(wrapper);
   return wrapper;
 }
@@ -36,6 +43,45 @@ async function selectDialogTab(section: "basic" | "advanced") {
 }
 
 describe("server management contracts", () => {
+  it("saves per-server appearance independently with its own revision", async () => {
+    const initialAppearance = {
+      serverId: profile.id, labelColor: null, environment: null, terminalOverrideEnabled: false,
+      terminalAppearance: {
+        themeMode: "followApp" as const,
+        customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
+      }, revision: 0, updatedAtMs: 0,
+    };
+    const updatedAppearance = vi.fn((payload: ServerAppearanceUpdate) => ({ ...initialAppearance, ...payload, revision: 1, updatedAtMs: 1 }));
+    const client = createIpcClient(createMockIpc({
+      server_get: () => profile,
+      server_appearance_get: () => initialAppearance,
+      server_appearance_update: updatedAppearance,
+    }));
+    const store = createServerStore(createServerApi(client));
+    const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
+    const backgroundImages = createBackgroundImagesApi(client, path => path);
+    const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId: profile.id, store, appearanceStore, backgroundImages } });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    const appearanceTab = ui().findAll('[role="tab"]')[2]!;
+    await appearanceTab.trigger("mousedown", { button: 0, ctrlKey: false });
+    await flushPromises();
+    const checkboxes = ui().findAll('input[type="checkbox"]');
+    await checkboxes[0]!.setValue(true);
+    await ui().get('input[type="color"]').setValue("#D92D20");
+    await checkboxes[1]!.setValue(true);
+    const saveAppearance = ui().findAll("button").find(button => button.text().trim() === "保存外观");
+    expect(saveAppearance).toBeDefined();
+    await saveAppearance!.trigger("click");
+    await flushPromises();
+    expect(updatedAppearance).toHaveBeenCalledWith(expect.objectContaining({
+      serverId: profile.id, expectedRevision: 0, labelColor: "#d92d20", terminalOverrideEnabled: true,
+    }));
+    expect(appearanceStore.appearances.value[profile.id]?.revision).toBe(1);
+  });
+
   it("never starts the native occupancy probe for a remote, credentialed or proxied profile", async () => {
     const start = vi.fn();
     const fixture = { ...profile, name: "Phase4-占用验收", host: "127.0.0.1", port: 42424, username: "phase4", connectTimeoutMs: 120000 };

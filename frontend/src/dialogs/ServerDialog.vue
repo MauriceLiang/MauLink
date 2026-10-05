@@ -6,11 +6,21 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
 import { computed, reactive, ref, useId, watch } from "vue";
 import type { Language } from "../../../contracts/v1/Language";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
+import type { ServerAppearance } from "../../../contracts/v1/ServerAppearance";
+import type { ServerAppearanceUpdate } from "../../../contracts/v1/ServerAppearanceUpdate";
+import type { ServerEnvironment } from "../../../contracts/v1/ServerEnvironment";
+import type { TerminalAppearanceSettings } from "../../../contracts/v1/TerminalAppearanceSettings";
+import type { TerminalBackgroundFit } from "../../../contracts/v1/TerminalBackgroundFit";
+import type { TerminalBackgroundPosition } from "../../../contracts/v1/TerminalBackgroundPosition";
+import type { TerminalBackgroundOverlayKind } from "../../../contracts/v1/TerminalBackgroundOverlayKind";
+import type { TerminalThemeMode } from "../../../contracts/v1/TerminalThemeMode";
 import type { SelectedLocalFile } from "../../../contracts/v1/SelectedLocalFile";
 import type { CredentialUpdate } from "../../../contracts/v1/CredentialUpdate";
 import type { AppError } from "../../../contracts/v1/AppError";
 import type { ServerStore } from "../stores/servers";
 import type { ConnectionStore } from "../stores/connections";
+import type { ServerAppearanceStore } from "../stores/server-appearance";
+import type { BackgroundImagesApi } from "../ipc/background-images";
 import { isFinished } from "../stores/connections";
 import { serverText, type ServerMessage } from "../i18n/servers";
 import { mapError } from "../errors/mapper";
@@ -20,7 +30,7 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 
-const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
+const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
 const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: { kind: "success" | "error"; message: string }] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
@@ -30,7 +40,7 @@ const secret = ref("");
 const visible = ref(false);
 const key = ref<SelectedLocalFile | null>(null);
 const mode = ref<CredentialUpdate["mode"]>("keep");
-type ServerDialogSection = "basic" | "advanced";
+type ServerDialogSection = "basic" | "advanced" | "appearance";
 const section = ref<ServerDialogSection>("basic");
 const errorSection = ref<ServerDialogSection>("basic");
 const phase = ref<"loading" | "editing" | "validation" | "saving" | "error">("editing");
@@ -39,8 +49,22 @@ const testRunning = ref(false);
 const testConnectionId = ref<string | null>(null);
 const error = ref("");
 const failure = ref<AppError | null>(null);
+const appearanceBusy = ref(false);
+const appearanceError = ref("");
+const appearanceRevision = ref(0);
+const appearanceDraft = reactive({
+  labelColorEnabled: false,
+  labelColor: "#3B82F6",
+  environment: null as ServerEnvironment | null,
+  terminalOverrideEnabled: false,
+  terminalAppearance: {
+    themeMode: "followApp" as TerminalThemeMode,
+    customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+    backgroundImage: { imageId: null as string | null, fit: "cover" as TerminalBackgroundFit, position: "center" as TerminalBackgroundPosition, imageOpacity: 100, overlayKind: "dark" as TerminalBackgroundOverlayKind, overlayOpacity: 45, blurPx: 0 },
+  } satisfies TerminalAppearanceSettings,
+});
 const groups = props.store.groups;
-const busy = computed(() => phase.value === "loading" || phase.value === "saving" || selectingKey.value);
+const busy = computed(() => phase.value === "loading" || phase.value === "saving" || selectingKey.value || appearanceBusy.value);
 const formBusy = computed(() => busy.value || testRunning.value);
 let testStartedAt = 0;
 let challengeStartedAt: number | null = null;
@@ -51,6 +75,9 @@ let cancelTestRequested = false;
 async function initialize() {
   error.value = "";
   failure.value = null;
+  appearanceBusy.value = false;
+  appearanceError.value = "";
+  appearanceRevision.value = 0;
   secret.value = "";
   key.value = null;
   visible.value = false;
@@ -66,11 +93,65 @@ async function initialize() {
     if (!props.open) return;
     current.value = profile;
     Object.assign(draft, newServerDraft(profile));
+    const appearance = await props.appearanceStore.get(profile.id);
+    if (!props.open) return;
+    loadAppearanceDraft(appearance);
     phase.value = "editing";
   } catch (reason) {
     failure.value = mapError(reason);
     error.value = presentError(failure.value, props.language).message;
     phase.value = "error";
+  }
+}
+
+function loadAppearanceDraft(appearance: ServerAppearance) {
+  appearanceRevision.value = appearance.revision;
+  appearanceDraft.labelColorEnabled = appearance.labelColor !== null;
+  appearanceDraft.labelColor = appearance.labelColor ?? "#3B82F6";
+  appearanceDraft.environment = appearance.environment;
+  appearanceDraft.terminalOverrideEnabled = appearance.terminalOverrideEnabled;
+  appearanceDraft.terminalAppearance = structuredClone(appearance.terminalAppearance);
+}
+
+async function chooseAppearanceImage() {
+  if (busy.value) return;
+  appearanceError.value = "";
+  try {
+    const asset = await props.backgroundImages.select();
+    if (asset) appearanceDraft.terminalAppearance.backgroundImage.imageId = asset.id;
+  } catch (reason) {
+    appearanceError.value = presentError(mapError(reason), props.language).message;
+  }
+}
+
+async function saveAppearance() {
+  if (!current.value || formBusy.value || appearanceBusy.value) return;
+  if (appearanceDraft.terminalAppearance.themeMode === "image" && !appearanceDraft.terminalAppearance.backgroundImage.imageId) {
+    appearanceError.value = t("imageRequired");
+    return;
+  }
+  appearanceBusy.value = true;
+  appearanceError.value = "";
+  const payload: ServerAppearanceUpdate = {
+    serverId: current.value.id,
+    expectedRevision: appearanceRevision.value,
+    labelColor: appearanceDraft.labelColorEnabled ? appearanceDraft.labelColor : null,
+    environment: appearanceDraft.environment,
+    terminalOverrideEnabled: appearanceDraft.terminalOverrideEnabled,
+    terminalAppearance: {
+      themeMode: appearanceDraft.terminalAppearance.themeMode,
+      customColors: { ...appearanceDraft.terminalAppearance.customColors },
+      backgroundImage: { ...appearanceDraft.terminalAppearance.backgroundImage },
+    },
+  };
+  try {
+    const saved = await props.appearanceStore.update(payload);
+    loadAppearanceDraft(saved);
+    emit("saved", t("appearanceSaved"));
+  } catch (reason) {
+    appearanceError.value = presentError(mapError(reason), props.language).message;
+  } finally {
+    appearanceBusy.value = false;
   }
 }
 
@@ -260,6 +341,7 @@ async function save() {
       <TabsList class="server-dialog-tabs" :aria-label="t('serverConfigSections')">
         <TabsTrigger value="basic" class="server-dialog-tab" :disabled="formBusy">{{ t('basicInfo') }}</TabsTrigger>
         <TabsTrigger value="advanced" class="server-dialog-tab" :disabled="formBusy">{{ t('advancedConfig') }}</TabsTrigger>
+        <TabsTrigger v-if="serverId" value="appearance" class="server-dialog-tab" :disabled="formBusy">{{ t('appearance') }}</TabsTrigger>
       </TabsList>
       <form :id="formId" class="server-dialog-form" :data-state="phase" novalidate @submit.prevent="save">
         <TabsContent value="basic" class="server-dialog-panel">
@@ -316,6 +398,46 @@ async function save() {
             </section>
           </fieldset>
           <p v-if="error && errorSection === 'advanced'" role="alert" class="server-form-error">{{ error }}</p>
+        </TabsContent>
+        <TabsContent v-if="serverId" value="appearance" class="server-dialog-panel">
+          <fieldset :disabled="formBusy || !current" class="server-advanced-sections">
+            <section class="server-advanced-section">
+              <header class="server-advanced-section-heading"><h3>{{ t('serverLabelColor') }}</h3></header>
+              <label class="server-appearance-toggle"><input v-model="appearanceDraft.labelColorEnabled" type="checkbox" /> {{ t('customLabelColor') }}</label>
+              <input v-if="appearanceDraft.labelColorEnabled" v-model="appearanceDraft.labelColor" class="server-appearance-color" type="color" :aria-label="t('serverLabelColor')" />
+            </section>
+            <section class="server-advanced-section">
+              <header class="server-advanced-section-heading"><h3>{{ t('environment') }}</h3></header>
+              <BaseSelect v-model="appearanceDraft.environment" :label="t('environment')" :options="[{value:null,label:t('noEnvironment')},{value:'production',label:t('production')},{value:'staging',label:t('staging')},{value:'development',label:t('development')},{value:'custom',label:t('customEnvironment')}]" />
+            </section>
+            <section class="server-advanced-section">
+              <header class="server-advanced-section-heading"><h3>{{ t('terminalAppearance') }}</h3></header>
+              <label class="server-appearance-toggle"><input v-model="appearanceDraft.terminalOverrideEnabled" type="checkbox" /> {{ t('useServerAppearance') }}</label>
+              <template v-if="appearanceDraft.terminalOverrideEnabled">
+                <BaseSelect v-model="appearanceDraft.terminalAppearance.themeMode" :label="t('themeMode')" :options="[{value:'followApp',label:t('themeFollowApp')},{value:'light',label:t('themeLight')},{value:'dark',label:t('themeDark')},{value:'customColor',label:t('themeCustom')},{value:'image',label:t('themeImage')}]" />
+                <div class="server-appearance-colors">
+                  <label><span>{{ t('terminalBackground') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.background" type="color" /></label>
+                  <label><span>{{ t('terminalForeground') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.foreground" type="color" /></label>
+                  <label><span>{{ t('terminalCursor') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.cursor" type="color" /></label>
+                  <label><span>{{ t('terminalSelection') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.selection" type="color" /></label>
+                </div>
+                <section class="server-appearance-image">
+                  <h4>{{ t('backgroundImage') }}</h4>
+                  <span>{{ appearanceDraft.terminalAppearance.backgroundImage.imageId ? t('imageSelected') : t('noImageSelected') }}</span>
+                  <BaseButton type="button" @click="chooseAppearanceImage">{{ t('selectImage') }}</BaseButton>
+                  <BaseButton v-if="appearanceDraft.terminalAppearance.backgroundImage.imageId" type="button" @click="appearanceDraft.terminalAppearance.backgroundImage.imageId = null">{{ t('clearImage') }}</BaseButton>
+                  <label>{{ t('imageFit') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.fit"><option value="cover">Cover</option><option value="contain">Contain</option><option value="stretch">Stretch</option><option value="original">Original</option><option value="tile">Tile</option></select></label>
+                  <label>{{ t('imagePosition') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.position"><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option><option value="topLeft">Top left</option><option value="topRight">Top right</option><option value="bottomLeft">Bottom left</option><option value="bottomRight">Bottom right</option></select></label>
+                  <label>{{ t('imageOpacity') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.imageOpacity" type="range" min="10" max="100" /> {{ appearanceDraft.terminalAppearance.backgroundImage.imageOpacity }}%</label>
+                  <label>{{ t('overlay') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.overlayKind"><option value="dark">{{ t('dark') }}</option><option value="light">{{ t('light') }}</option></select></label>
+                  <label>{{ t('overlayOpacity') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.overlayOpacity" type="range" min="0" max="90" /> {{ appearanceDraft.terminalAppearance.backgroundImage.overlayOpacity }}%</label>
+                  <label>{{ t('blur') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.blurPx" type="range" min="0" max="16" /> {{ appearanceDraft.terminalAppearance.backgroundImage.blurPx }} px</label>
+                </section>
+              </template>
+            </section>
+          </fieldset>
+          <p v-if="appearanceError" role="alert" class="server-form-error">{{ appearanceError }}</p>
+          <BaseButton type="button" :disabled="formBusy || appearanceBusy || !current" :loading="appearanceBusy" @click="saveAppearance">{{ t('saveAppearance') }}</BaseButton>
         </TabsContent>
       </form>
     </TabsRoot>

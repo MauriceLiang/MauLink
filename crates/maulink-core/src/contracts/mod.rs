@@ -694,6 +694,12 @@ pub struct BackgroundImagePayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct ServerAppearancePayload {
+    pub server_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct BackgroundImageAsset {
     pub id: String,
     pub file_name: String,

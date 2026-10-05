@@ -221,12 +221,18 @@ pub async fn server_delete(
     state: tauri::State<'_, DesktopState>,
 ) -> Result<CredentialDeleteResult, AppError> {
     let (request_id, payload) = request.validate()?;
+    let _image_guard = state.background_image_mutation.lock().await;
     let _connection_guard = state.connections.lock_profile_operations().await;
     attach_request_id(
         request_id.clone(),
         state.connections.ensure_server_idle(&payload.server_id),
     )?;
-    attach_request_id(
+    let appearance = attach_request_id(
+        request_id.clone(),
+        state.server_appearance.get(payload.server_id.clone()).await,
+    )?;
+    let appearance_image = appearance.terminal_appearance.background_image.image_id;
+    let result = attach_request_id(
         request_id,
         state
             .credentials
@@ -236,7 +242,39 @@ pub async fn server_delete(
                 payload.remove_credentials,
             )
             .await,
-    )
+    );
+    if result.is_ok()
+        && let Some(image_id) = appearance_image
+    {
+        let referenced_by_global = state
+            .settings
+            .current()
+            .value
+            .terminal_background_image
+            .image_id
+            .as_deref()
+            == Some(image_id.as_str());
+        match state
+            .server_appearance
+            .references_background_image(image_id.clone())
+            .await
+        {
+            Ok(false) if !referenced_by_global => {
+                if let Err(error) = state.background_images.delete(&image_id) {
+                    eprintln!(
+                        "MauLink deferred terminal background cleanup: {}",
+                        error.code.as_str()
+                    );
+                }
+            }
+            Ok(_) => {}
+            Err(error) => eprintln!(
+                "MauLink deferred terminal background cleanup check: {}",
+                error.code.as_str()
+            ),
+        }
+    }
+    result
 }
 
 #[tauri::command]
@@ -771,15 +809,23 @@ pub async fn background_image_delete(
 ) -> Result<(), AppError> {
     let (request_id, payload) = request.validate()?;
     let _guard = state.background_image_mutation.lock().await;
-    let result = if state
+    let referenced_by_global = state
         .settings
         .current()
         .value
         .terminal_background_image
         .image_id
         .as_deref()
-        == Some(payload.image_id.as_str())
+        == Some(payload.image_id.as_str());
+    let referenced_by_server = match state
+        .server_appearance
+        .references_background_image(payload.image_id.clone())
+        .await
     {
+        Ok(value) => value,
+        Err(error) => return attach_request_id(request_id, Err(error)),
+    };
+    let result = if referenced_by_global || referenced_by_server {
         Err(AppError::new(
             ErrorCode::ResourceInUse,
             "errors.terminalBackgroundImageInUse",

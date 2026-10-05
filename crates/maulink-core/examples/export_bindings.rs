@@ -17,18 +17,19 @@ use maulink_core::{
     NegotiatedAlgorithms, NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection,
     NetworkInspectionSource, NetworkIpVersion, NetworkScope, ProxyType, RemoteFileEntry,
     RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
-    ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
-    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord,
-    SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    ServerAppearance, ServerAppearancePayload, ServerAppearanceUpdate, ServerCreatePayload,
+    ServerDeletePayload, ServerEnvironment, ServerListPage, ServerListQuery, ServerMutationResult,
+    ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord, SettingsUpdate,
+    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
     SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
     SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
     SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
     SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalBackgroundFit, TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind,
-    TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalState, TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme,
-    WorkspaceActivityPayload,
+    TerminalAppearanceSettings, TerminalBackgroundFit, TerminalBackgroundImageSettings,
+    TerminalBackgroundOverlayKind, TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors,
+    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
+    TerminalSize, TerminalSnapshot, TerminalState, TerminalThemeMode, TerminalWritePayload,
+    TerminalWriteResult, Theme, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -103,6 +104,11 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerCreatePayload::export_all(&config)?;
     ServerUpdatePayload::export_all(&config)?;
     ServerDeletePayload::export_all(&config)?;
+    ServerAppearancePayload::export_all(&config)?;
+    ServerAppearance::export_all(&config)?;
+    ServerAppearanceUpdate::export_all(&config)?;
+    ServerEnvironment::export_all(&config)?;
+    TerminalAppearanceSettings::export_all(&config)?;
     GroupUpdatePayload::export_all(&config)?;
     LocalFileSelectPayload::export_all(&config)?;
     BackgroundImageAsset::export_all(&config)?;

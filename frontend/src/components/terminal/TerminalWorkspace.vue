@@ -11,6 +11,7 @@ import { transferFinished, type TransferStore } from "../../stores/transfers";
 import { presentError } from "../../errors/presenter";
 import type { AppError } from "../../../../contracts/v1/AppError";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
+import type { ServerAppearance } from "../../../../contracts/v1/ServerAppearance";
 import type { ConnectionSnapshot } from "../../../../contracts/v1/ConnectionSnapshot";
 import type { TerminalController } from "../../terminal/controller";
 import type { TerminalPreferences } from "../../terminal/preferences";
@@ -25,8 +26,10 @@ import XtermHost from "./XtermHost.vue";
 import TerminalSettingsDialog from "../../dialogs/TerminalSettingsDialog.vue";
 import { mapError } from "../../errors/mapper";
 import { terminalBackgroundImageStyle, terminalBackgroundOverlayStyle } from "../../terminal/background";
+import { resolveTerminalAppearance } from "../../terminal/appearance";
+import { resolveTerminalTheme } from "../../terminal/theme";
 const t = messages(terminalMessages);
-const props = defineProps<{ server: ServerProfile; snapshot: ConnectionSnapshot; controller: TerminalController; sftp: ReturnType<typeof createSftpApi>; transfers: TransferStore; monitor: MonitorStore; preferences: TerminalPreferences; backgroundImages: BackgroundImagesApi; visible: boolean; busy: boolean; error?: AppError | null }>();
+const props = defineProps<{ server: ServerProfile; serverAppearance?: ServerAppearance; snapshot: ConnectionSnapshot; controller: TerminalController; sftp: ReturnType<typeof createSftpApi>; transfers: TransferStore; monitor: MonitorStore; preferences: TerminalPreferences; backgroundImages: BackgroundImagesApi; visible: boolean; busy: boolean; error?: AppError | null }>();
 const emit = defineEmits<{ home: []; disconnect: [stopActiveTransfers: boolean]; focusMode: [enabled: boolean]; view: [pane: 'terminal' | 'files' | 'monitor'] }>();
 const root = ref<HTMLElement | null>(null);
 const activeId = ref<string | null>(null);
@@ -38,27 +41,46 @@ const pane = ref<'terminal' | 'files' | 'monitor'>('terminal'); const filesVisit
 const activeTransfers = computed(() => props.transfers.snapshots.value.filter(task => task.connectionId === props.snapshot.connectionId && !transferFinished(task)).length);
 const filePageInfo = ref('');
 const backgroundImageUrl = ref(''); const backgroundError = ref('');
-const currentBackground = computed(() => props.preferences.record.value?.value.terminalBackgroundImage);
+const effectiveSettings = computed(() => {
+  const global = props.preferences.record.value?.value;
+  return global ? resolveTerminalAppearance(props.server.id, global, props.serverAppearance) : null;
+});
+const currentBackground = computed(() => effectiveSettings.value?.terminalBackgroundImage);
+const terminalStackStyle = computed(() => {
+  const effective = effectiveSettings.value;
+  if (!effective || effective.terminalThemeMode === 'followApp') return {};
+  const systemIsDark = typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  return { '--color-terminal-bg': resolveTerminalTheme(effective, effective.theme, systemIsDark).theme.background };
+});
 const terminalBackgroundStyle = computed(() => {
   const settings = currentBackground.value;
   if (!backgroundImageUrl.value || !settings) return {};
   return terminalBackgroundImageStyle(backgroundImageUrl.value, settings);
 });
+const environmentLabel = computed(() => {
+  const key = {
+    production: "environmentProduction",
+    staging: "environmentStaging",
+    development: "environmentDevelopment",
+    custom: "environmentCustom",
+  } as const;
+  const environment = props.serverAppearance?.environment;
+  return environment ? t(key[environment]) : "";
+});
 const terminalOverlayStyle = computed(() => currentBackground.value ? terminalBackgroundOverlayStyle(currentBackground.value) : {});
 const requireStopConfirmation = computed(() => activeTransfers.value > 0 || props.error?.messageKey === 'errors.activeTransfersRequireConfirmation');
 watch(() => {
-  const value = props.preferences.record.value?.value;
-  return { mode: value?.terminalThemeMode, imageId: value?.terminalBackgroundImage.imageId };
+  return { mode: effectiveSettings.value?.terminalThemeMode, imageId: effectiveSettings.value?.terminalBackgroundImage.imageId };
 }, async target => {
   backgroundImageUrl.value = ''; backgroundError.value = '';
   if (target.mode !== 'image' || !target.imageId) return;
   const requestedId = target.imageId;
   try {
     const image = await props.backgroundImages.resolve(requestedId);
-    const current = props.preferences.record.value?.value;
+    const current = effectiveSettings.value;
     if (current?.terminalThemeMode === 'image' && current.terminalBackgroundImage.imageId === requestedId) backgroundImageUrl.value = image.src;
   } catch (reason) {
-    const current = props.preferences.record.value?.value;
+    const current = effectiveSettings.value;
     if (current?.terminalThemeMode === 'image' && current.terminalBackgroundImage.imageId === requestedId) backgroundError.value = presentError(mapError(reason)).message;
   }
 }, { immediate: true });
@@ -67,7 +89,7 @@ function toggleFiles() { filesExpanded.value = !filesExpanded.value; if (filesEx
 let initialized = false; let initializing = false;
 async function create() {
   if (!ready.value || props.busy) return;
-  activeId.value = props.controller.create(props.snapshot.connectionId);
+  activeId.value = props.controller.create(props.snapshot.connectionId, props.server.id);
   await nextTick(); props.controller.focus(activeId.value);
 }
 watch([() => props.visible, () => props.busy, ready], async ([visible, busy]) => {
@@ -87,10 +109,10 @@ defineExpose({ connectionId: props.snapshot.connectionId, view });
 </script>
 <template>
   <section ref="root" class="terminal-workspace" :class="{ 'is-focused': focused, 'is-files': pane === 'files', 'is-monitor': pane === 'monitor' }" :aria-label="t('workspace', {name: server.name})">
-    <header class="workspace-heading"><BaseIconButton class="workspace-heading-action" :label="t('backToServers')" @click="emit('home')"><BaseIcon name="arrow-left" /></BaseIconButton><div><h1>{{ server.name }}</h1><span>{{ server.username }}@{{ server.host }}:{{ server.port }}</span></div><span class="workspace-connection-state">{{ connectionStateText(snapshot.state) }}</span><BaseIconButton class="workspace-heading-action" :label="t('disconnect')" :disabled="!ready || busy || transfers.starting.value[snapshot.connectionId]" @click="disconnect"><BaseIcon name="power" /></BaseIconButton><div class="workspace-view-tabs" role="group" :aria-label="t('workspace', {name: server.name})"><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'terminal'" @click="view('terminal')">{{ t('terminal') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'files'" @click="view('files')">{{ t('files') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'monitor'" @click="view('monitor')">{{ t('monitor') }}</BaseButton></div></header>
+    <header class="workspace-heading"><BaseIconButton class="workspace-heading-action" :label="t('backToServers')" @click="emit('home')"><BaseIcon name="arrow-left" /></BaseIconButton><div><h1>{{ server.name }}</h1><span>{{ server.username }}@{{ server.host }}:{{ server.port }}</span><span v-if="environmentLabel || serverAppearance?.labelColor" class="workspace-server-environment"><i :style="serverAppearance?.labelColor ? { backgroundColor: serverAppearance.labelColor } : undefined"></i>{{ environmentLabel }}</span></div><span class="workspace-connection-state">{{ connectionStateText(snapshot.state) }}</span><BaseIconButton class="workspace-heading-action" :label="t('disconnect')" :disabled="!ready || busy || transfers.starting.value[snapshot.connectionId]" @click="disconnect"><BaseIcon name="power" /></BaseIconButton><div class="workspace-view-tabs" role="group" :aria-label="t('workspace', {name: server.name})"><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'terminal'" @click="view('terminal')">{{ t('terminal') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'files'" @click="view('files')">{{ t('files') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'monitor'" @click="view('monitor')">{{ t('monitor') }}</BaseButton></div></header>
     <div v-show="pane === 'terminal'" class="terminal-toolbar"><TerminalTabs :tabs="tabs" :active-id="activeId" @activate="activate" @close="close" /><BaseIconButton class="terminal-new terminal-toolbar-action" :label="t('newTerminal')" :disabled="!ready || busy" @click="create"><BaseIcon name="plus" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="focused ? t('exitFocus') : t('focus')" :disabled="!active" :aria-pressed="focused" @click="toggleFocus"><BaseIcon :name="focused ? 'minimize' : 'maximize'" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('terminalSettings')" @click="settingsOpen = true"><BaseIcon name="settings" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('clearTerminal')" :disabled="!active" @click="activeId && controller.clear(activeId)"><BaseIcon name="eraser" /></BaseIconButton></div>
     <div v-show="pane === 'terminal' || pane === 'files'" class="terminal-main" :class="{ 'has-inline-files': pane === 'terminal' && filesExpanded, 'is-full-files': pane === 'files' }">
-      <div v-show="pane === 'terminal'" class="terminal-stack"><div v-if="backgroundImageUrl" class="terminal-background-layer" aria-hidden="true" :style="terminalBackgroundStyle"></div><div v-if="backgroundImageUrl" class="terminal-background-overlay" aria-hidden="true" :style="terminalOverlayStyle"></div><XtermHost v-for="tab in tabs" :key="tab.id" v-show="tab.id === activeId" :id="tab.id" :controller="controller" :active="visible && pane === 'terminal' && tab.id === activeId" /><p v-if="!tabs.length" class="terminal-empty">{{ ready ? t('selectNewTerminalToOpenAShell') : t('sshConnectionEnded') }}</p></div>
+      <div v-show="pane === 'terminal'" class="terminal-stack" :style="terminalStackStyle"><div v-if="backgroundImageUrl" class="terminal-background-layer" aria-hidden="true" :style="terminalBackgroundStyle"></div><div v-if="backgroundImageUrl" class="terminal-background-overlay" aria-hidden="true" :style="terminalOverlayStyle"></div><XtermHost v-for="tab in tabs" :key="tab.id" v-show="tab.id === activeId" :id="tab.id" :controller="controller" :active="visible && pane === 'terminal' && tab.id === activeId" /><p v-if="!tabs.length" class="terminal-empty">{{ ready ? t('selectNewTerminalToOpenAShell') : t('sshConnectionEnded') }}</p></div>
       <MonitorView v-show="pane === 'terminal'" :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" quick @full="view('monitor')" />
       <div v-if="filesVisited" v-show="pane === 'files' || (pane === 'terminal' && filesExpanded)" class="terminal-inline-files">
         <FilesPanel :api="sftp" :transfers="transfers" :preferences="preferences" :connection-id="snapshot.connectionId" :visible="visible && (pane === 'files' || (pane === 'terminal' && filesExpanded))" :ready="ready && !busy" :compact-footer="pane === 'terminal' && filesExpanded" @pagination="filePageInfo = $event" />

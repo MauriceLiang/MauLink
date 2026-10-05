@@ -14,7 +14,7 @@ export interface TerminalAppearance {
   transparent: boolean;
 }
 
-export function resolveTerminalAppearance(
+export function resolveTerminalTheme(
   settings: AppSettings,
   appTheme: Theme,
   systemIsDark: boolean,

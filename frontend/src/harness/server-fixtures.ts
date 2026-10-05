@@ -33,6 +33,7 @@ export function createServerMock(options: { state?: "empty" | "servers"; failure
     app_get_info: () => shellAppInfo,
     group_list: () => structuredClone(groups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
+    server_appearance_list: () => [],
     server_get: ({ id }) => structuredClone(find(id)),
     host_key_get: () => null,
     network_inspect: ({ host, detailed }) => networkFixture(host, detailed),

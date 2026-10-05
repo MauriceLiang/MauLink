@@ -1,6 +1,7 @@
 mod app_icon;
 mod background_images;
 mod commands;
+mod server_appearance;
 mod state;
 
 use std::fs;
@@ -21,9 +22,10 @@ use commands::{
 use maulink_core::{
     AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialManager, CredentialWorker,
     Database, HostKeyStore, HostKeyVerifier, LocalFileRegistry, MonitorManager, NetworkInspector,
-    ProfileStore, SettingsService, SftpManager, SftpTransferManager, SshConnectionManager,
-    SshConnector, TerminalManager,
+    ProfileStore, ServerAppearanceStore, SettingsService, SftpManager, SftpTransferManager,
+    SshConnectionManager, SshConnector, TerminalManager,
 };
+use server_appearance::{server_appearance_get, server_appearance_list, server_appearance_update};
 use state::DesktopState;
 use tauri::Manager;
 
@@ -55,6 +57,7 @@ pub fn run() {
                 );
             }
             let profiles = ProfileStore::new(database.clone());
+            let server_appearance = ServerAppearanceStore::new(database.clone());
             let connection_registry = ConnectionRegistry::default();
             let host_keys = HostKeyStore::new(database);
             let network = NetworkInspector::default();
@@ -78,6 +81,7 @@ pub fn run() {
             app.manage(DesktopState {
                 core,
                 profiles,
+                server_appearance,
                 settings,
                 local_files,
                 credentials,
@@ -104,6 +108,9 @@ pub fn run() {
             server_create,
             server_update,
             server_delete,
+            server_appearance_list,
+            server_appearance_get,
+            server_appearance_update,
             credential_list_retained,
             credential_delete_retained,
             credential_cleanup_retry,

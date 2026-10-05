@@ -2,6 +2,8 @@
 .workspace-heading { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 5px 15px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .workspace-heading > div { flex: 1; min-width: 0; }
 .workspace-heading h1 { margin: 0 0 3px; font-size: 15px; font-weight: 600; }
+.workspace-server-environment { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 1px 6px; border-radius: 999px; color: var(--color-text-primary) !important; background: var(--color-surface); font-size: 10px !important; }
+.workspace-server-environment i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary); }
 .workspace-heading span { color: var(--color-text-secondary); font-size: 11px; }
 .workspace-heading .base-button { min-height: 28px; font-size: 11px; }
 .workspace-heading .workspace-heading-action { width: 30px; min-width: 30px; min-height: 30px; padding: 0; flex: none; }

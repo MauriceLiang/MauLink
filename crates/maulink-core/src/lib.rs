@@ -11,6 +11,7 @@ pub mod monitor;
 pub mod network;
 pub mod preflight;
 pub mod profiles;
+pub mod server_appearance;
 pub mod settings;
 pub mod sftp;
 pub mod ssh;
@@ -35,14 +36,14 @@ pub use contracts::{
     MonitorRefreshPayload, MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot,
     NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection, NetworkInspectionSource,
     NetworkIpVersion, NetworkScope, RemoteFileEntry, RemoteFileType, ResourceIdPayload,
-    RevisionPayload, ServerCreatePayload, ServerDeletePayload, ServerProfileDraft,
-    ServerUpdatePayload, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage,
-    SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload,
-    SftpReadTextResult, SftpRenamePayload, SftpStatPayload, SftpTransferDirection,
-    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState,
-    SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload,
-    TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload, TerminalResizePayload,
-    TerminalWritePayload, WorkspaceActivityPayload,
+    RevisionPayload, ServerAppearancePayload, ServerCreatePayload, ServerDeletePayload,
+    ServerProfileDraft, ServerUpdatePayload, SftpCursorPayload, SftpDeletePayload,
+    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
+    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
+    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload,
+    TerminalResizePayload, TerminalWritePayload, WorkspaceActivityPayload,
 };
 pub use credentials::{
     CredentialDeleteResult, CredentialKind, CredentialManager, CredentialReplaceResult,
@@ -60,6 +61,10 @@ pub use network::NetworkInspector;
 pub use profiles::{
     AuthType, Group, GroupCreate, GroupUpdate, PathEncoding, ProfileStore, ProxyType,
     ServerListPage, ServerListQuery, ServerProfile, ServerProfileInput, StoredPath,
+};
+pub use server_appearance::{
+    ServerAppearance, ServerAppearanceStore, ServerAppearanceUpdate, ServerEnvironment,
+    TerminalAppearanceSettings,
 };
 pub use settings::{
     AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,

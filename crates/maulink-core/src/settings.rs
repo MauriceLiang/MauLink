@@ -361,6 +361,52 @@ fn migrate_settings(mut settings: AppSettings) -> AppSettings {
     settings
 }
 
+pub(crate) fn validate_terminal_appearance(
+    mode: TerminalThemeMode,
+    colors: &TerminalCustomColors,
+    background: &TerminalBackgroundImageSettings,
+) -> Result<(), AppError> {
+    if [
+        &colors.background,
+        &colors.foreground,
+        &colors.cursor,
+        &colors.selection,
+    ]
+    .into_iter()
+    .any(|color| !is_valid_accent_hex(color))
+    {
+        return Err(validation(
+            "terminalCustomColors",
+            "errors.terminalCustomColorInvalid",
+        ));
+    }
+    if background.image_id.as_ref().is_some_and(|id| {
+        uuid::Uuid::parse_str(id).map_or(true, |parsed| parsed.to_string() != *id)
+    }) {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageIdInvalid",
+        ));
+    }
+    if background.image_opacity > 100
+        || background.image_opacity < 10
+        || background.overlay_opacity > 90
+        || background.blur_px > 16
+    {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageSettingsOutOfRange",
+        ));
+    }
+    if mode == TerminalThemeMode::Image && background.image_id.is_none() {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageRequired",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
     if settings
         .custom_accent_color
@@ -373,51 +419,11 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
             "errors.customAccentColorInvalid",
         ));
     }
-    if [
-        &settings.terminal_custom_colors.background,
-        &settings.terminal_custom_colors.foreground,
-        &settings.terminal_custom_colors.cursor,
-        &settings.terminal_custom_colors.selection,
-    ]
-    .into_iter()
-    .any(|color| !is_valid_accent_hex(color))
-    {
-        return Err(validation(
-            "terminalCustomColors",
-            "errors.terminalCustomColorInvalid",
-        ));
-    }
-    if settings
-        .terminal_background_image
-        .image_id
-        .as_ref()
-        .is_some_and(|id| {
-            uuid::Uuid::parse_str(id).map_or(true, |parsed| parsed.to_string() != *id)
-        })
-    {
-        return Err(validation(
-            "terminalBackgroundImage",
-            "errors.terminalBackgroundImageIdInvalid",
-        ));
-    }
-    if settings.terminal_background_image.image_opacity > 100
-        || settings.terminal_background_image.image_opacity < 10
-        || settings.terminal_background_image.overlay_opacity > 90
-        || settings.terminal_background_image.blur_px > 16
-    {
-        return Err(validation(
-            "terminalBackgroundImage",
-            "errors.terminalBackgroundImageSettingsOutOfRange",
-        ));
-    }
-    if settings.terminal_theme_mode == TerminalThemeMode::Image
-        && settings.terminal_background_image.image_id.is_none()
-    {
-        return Err(validation(
-            "terminalBackgroundImage",
-            "errors.terminalBackgroundImageRequired",
-        ));
-    }
+    validate_terminal_appearance(
+        settings.terminal_theme_mode,
+        &settings.terminal_custom_colors,
+        &settings.terminal_background_image,
+    )?;
     let font_length = settings.terminal_font_family.trim().chars().count();
     if !(1..=128).contains(&font_length)
         || settings.terminal_font_family.chars().any(char::is_control)
@@ -464,7 +470,7 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
     Ok(())
 }
 
-fn is_valid_accent_hex(value: &str) -> bool {
+pub(crate) fn is_valid_accent_hex(value: &str) -> bool {
     value
         .strip_prefix('#')
         .is_some_and(|hex| hex.len() == 6 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))

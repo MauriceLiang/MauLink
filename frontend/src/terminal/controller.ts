@@ -13,9 +13,11 @@ import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import { createOutputConsumer, encodeBytesBase64, nextSequence } from "./codec";
 import { defaultSettings } from "./preferences";
-import { resolveTerminalAppearance } from "./theme";
+import { resolveTerminalAppearance } from "./appearance";
+import { resolveTerminalTheme } from "./theme";
+import type { ServerAppearance } from "../../../contracts/v1/ServerAppearance";
 const t = messages(terminalMessages);
-export interface TerminalTab { id: string; connectionId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
+export interface TerminalTab { id: string; connectionId: string; serverId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
 interface Runtime {
   terminal: Terminal; fit: FitAddon; mount: HTMLElement; channel: Channel<TerminalChunk>;
   transparentAtCreation: boolean;
@@ -32,6 +34,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   const tabs = shallowRef<TerminalTab[]>([]);
   const requiresReopen = ref(false);
   let settings = defaultSettings;
+  const serverAppearances = new Map<string, ServerAppearance>();
   const systemThemeQuery = typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia("(prefers-color-scheme: dark)")
     : null;
@@ -45,9 +48,9 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (!current || Object.entries(patch).every(([key, value]) => current[key as keyof TerminalTab] === value)) return;
     tabs.value = tabs.value.map(value => value.id === id ? { ...value, ...patch } : value);
   }
-  function create(connectionId: string) {
+  function create(connectionId: string, serverId: string) {
     const id = crypto.randomUUID();
-    tabs.value = [...tabs.value, { id, connectionId, title: `Terminal ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false }];
+    tabs.value = [...tabs.value, { id, connectionId, serverId, title: `Terminal ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false }];
     return id;
   }
   function fail(id: string, error: unknown, stream = false) {
@@ -129,24 +132,32 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (focus) runtime.terminal.focus();
   }
   function applyTerminalTheme() {
-    const appearance = resolveTerminalAppearance(settings, settings.theme, systemIsDark);
-    const theme = appearance.theme;
+    const globalTheme = resolveTerminalTheme(settings, settings.theme, systemIsDark).theme;
     const root = document.documentElement.style;
-    root.setProperty('--color-terminal-bg', theme.background);
-    root.setProperty('--color-terminal-text', theme.foreground);
-    root.setProperty('--color-terminal-cursor', theme.cursor);
-    root.setProperty('--color-terminal-selection', theme.selectionBackground);
-    runtimes.forEach(runtime => {
+    root.setProperty('--color-terminal-bg', globalTheme.background);
+    root.setProperty('--color-terminal-text', globalTheme.foreground);
+    root.setProperty('--color-terminal-cursor', globalTheme.cursor);
+    root.setProperty('--color-terminal-selection', globalTheme.selectionBackground);
+    runtimes.forEach((runtime, id) => {
+      const metadata = tab(id);
+      if (!metadata) return;
+      const effective = resolveTerminalAppearance(metadata.serverId, settings, serverAppearances.get(metadata.serverId));
+      const appearance = resolveTerminalTheme(effective, effective.theme, systemIsDark);
+      const theme = appearance.theme;
       if (!appearance.transparent || runtime.transparentAtCreation) runtime.terminal.options.theme = theme;
     });
   }
   function updateTransparencyNotice() {
-    requiresReopen.value = settings.terminalThemeMode === 'image'
-      && [...runtimes.values()].some(runtime => !runtime.transparentAtCreation);
+    requiresReopen.value = [...runtimes.entries()].some(([id, runtime]) => {
+      const metadata = tab(id);
+      return metadata
+        && resolveTerminalAppearance(metadata.serverId, settings, serverAppearances.get(metadata.serverId)).terminalThemeMode === 'image'
+        && !runtime.transparentAtCreation;
+    });
   }
   const onSystemThemeChange = (event: MediaQueryListEvent) => {
     systemIsDark = event.matches;
-    if (settings.theme === 'system' && settings.terminalThemeMode === 'followApp') applyTerminalTheme();
+    if (settings.theme === 'system') applyTerminalTheme();
   };
   systemThemeQuery?.addEventListener('change', onSystemThemeChange);
   function release(id: string) {
@@ -161,7 +172,8 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (runtime) { host.append(runtime.mount); fit(id); return; }
     const metadata = tab(id); if (!metadata || disposed) return;
     const mount = document.createElement('div'); mount.className = 'terminal-mount'; host.append(mount);
-    const appearance = resolveTerminalAppearance(settings, settings.theme, systemIsDark);
+    const effective = resolveTerminalAppearance(metadata.serverId, settings, serverAppearances.get(metadata.serverId));
+    const appearance = resolveTerminalTheme(effective, effective.theme, systemIsDark);
     const terminal = new Terminal({ allowProposedApi: false, allowTransparency: appearance.transparent, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
@@ -217,11 +229,17 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     updateTransparencyNotice();
     runtimes.forEach((runtime, id) => { runtime.terminal.options.fontFamily = value.terminalFontFamily; runtime.terminal.options.fontSize = value.terminalFontSize; runtime.terminal.options.cursorStyle = value.terminalCursorStyle; runtime.terminal.options.scrollback = value.terminalScrollbackLines; runtime.terminal.options.lineHeight = value.terminalLineHeight; runtime.terminal.options.cursorBlink = value.terminalCursorBlink; fit(id); });
   }
+  function setServerAppearance(serverId: string, appearance: ServerAppearance | undefined) {
+    if (appearance) serverAppearances.set(serverId, appearance);
+    else serverAppearances.delete(serverId);
+    applyTerminalTheme();
+    updateTransparencyNotice();
+  }
   function setCopyPreference(read: () => boolean) { copyOnSelect = read; }
   function focus(id: string) { fit(id, true); }
   function clear(id: string) { runtimes.get(id)?.terminal.clear(); focus(id); }
   function dispose() { disposed = true; systemThemeQuery?.removeEventListener('change', onSystemThemeChange); [...runtimes.keys()].forEach(release); ['--color-terminal-bg', '--color-terminal-text', '--color-terminal-cursor', '--color-terminal-selection'].forEach(name => document.documentElement.style.removeProperty(name)); }
-  return { tabs, requiresReopen, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setCopyPreference, dispose };
+  return { tabs, requiresReopen, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setServerAppearance, setCopyPreference, dispose };
 }
 export type TerminalController = ReturnType<typeof createTerminalController>;
 export type TerminalChannelFactory = () => Channel<TerminalChunk>;

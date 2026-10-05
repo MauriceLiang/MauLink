@@ -1,13 +1,14 @@
 use crate::background_images::BackgroundImageStore;
 use maulink_core::{
     AppCore, CredentialManager, HostKeyStore, LocalFileRegistry, MonitorManager, NetworkInspector,
-    ProfileStore, SettingsService, SftpManager, SftpTransferManager, SshConnectionManager,
-    TerminalManager,
+    ProfileStore, ServerAppearanceStore, SettingsService, SftpManager, SftpTransferManager,
+    SshConnectionManager, TerminalManager,
 };
 
 pub struct DesktopState {
     pub core: AppCore,
     pub profiles: ProfileStore,
+    pub server_appearance: ServerAppearanceStore,
     pub settings: SettingsService,
     pub local_files: LocalFileRegistry,
     pub credentials: CredentialManager,

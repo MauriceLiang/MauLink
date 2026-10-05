@@ -46,7 +46,7 @@ describe("application shell", () => {
   it("does not show an empty home or a ready backend before IPC finishes", async () => {
     let resolveInfo!: (value: typeof shellAppInfo) => void;
     const info = new Promise<typeof shellAppInfo>(resolve => { resolveInfo = resolve; });
-    const wrapper = mountShell(createMockIpc({ app_get_info: () => info, group_list: () => [], server_list: () => ({ items: [], nextCursor: null }) }));
+    const wrapper = mountShell(createMockIpc({ app_get_info: () => info, group_list: () => [], server_list: () => ({ items: [], nextCursor: null }), server_appearance_list: () => [] }));
     expect(wrapper.get("main").text()).toContain("正在加载本地数据");
     expect(wrapper.get('[role="status"]').text()).toContain("正在连接本地服务");
     expect(wrapper.find(".shell-welcome").exists()).toBe(false);
@@ -64,6 +64,7 @@ describe("application shell", () => {
     const mock = createMockIpc({
       workspace_set_activity: activity,
       app_get_info: () => shellAppInfo, group_list: () => shellGroups,
+      server_appearance_list: () => [],
       host_key_get: () => null,
       network_inspect: ({ host, detailed }) => ({
         inputHost: host, hostKind: "ip", resolvedAddresses: [host], primaryAddress: host, ipVersion: "ipv4", scope: "private",
@@ -85,7 +86,7 @@ describe("application shell", () => {
     } });
     await flushPromises();
     expect(wrapper.findAll(".shell-server-item")).toHaveLength(3);
-    expect(commands.filter(command => command !== "workspace_set_activity" && command !== "settings_get")).toEqual(["app_get_info", "group_list", "server_list", "server_list"]);
+    expect(commands.filter(command => command !== "workspace_set_activity" && command !== "settings_get")).toEqual(["app_get_info", "group_list", "server_list", "server_list", "server_appearance_list"]);
     expect(activity).toHaveBeenCalledTimes(1);
     expect(activity).toHaveBeenCalledWith({ activeConnectionId: null, monitorVisible: false });
     await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
@@ -93,7 +94,7 @@ describe("application shell", () => {
     expect(wrapper.get(".server-overview-title-line .base-status-badge").text()).toBe("尚未连接");
     expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
-    expect(commands).toHaveLength(8);
+    expect(commands).toHaveLength(9);
     await wrapper.get('[aria-label="服务器"]').trigger("click");
     expect(wrapper.get("h1").text()).toBe("服务器");
     expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);
@@ -102,6 +103,7 @@ describe("application shell", () => {
   it("keeps global/sidebar search in sync and preserves unknown groups as ungrouped", async () => {
     const wrapper = mountShell(createMockIpc({
       app_get_info: () => shellAppInfo, group_list: () => shellGroups,
+      server_appearance_list: () => [],
       server_list: () => ({ items: [...shellServers, { ...shellServers[0]!, id: "orphan", name: "Other", groupId: "removed" }], nextCursor: null }),
     }));
     await flushPromises();
@@ -120,6 +122,7 @@ describe("application shell", () => {
     let fail = true;
     const wrapper = mountShell(createMockIpc({
       app_get_info: () => shellAppInfo, group_list: () => [],
+      server_appearance_list: () => [],
       server_list: () => {
         if (fail) throw new Error("private database path and debug details");
         return { items: [], nextCursor: null };
@@ -138,7 +141,7 @@ describe("application shell", () => {
 
   it("opens command palette with the platform shortcut and restores About trigger focus", async () => {
     const wrapper = mountShell(createMockIpc({
-      app_get_info: () => ({ ...shellAppInfo, platform: "windows" }), group_list: () => [], server_list: () => ({ items: [], nextCursor: null }),
+      app_get_info: () => ({ ...shellAppInfo, platform: "windows" }), group_list: () => [], server_list: () => ({ items: [], nextCursor: null }), server_appearance_list: () => [],
     }));
     await flushPromises();
     expect(wrapper.get("kbd").text()).toBe("Ctrl K");

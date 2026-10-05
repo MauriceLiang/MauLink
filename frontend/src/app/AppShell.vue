@@ -18,6 +18,7 @@ import { createTransferStore, transferFinished, type TransferChannelFactory } fr
 import { createTerminalApi } from "../ipc/terminal";
 import { createSettingsApi } from "../ipc/settings";
 import { createBackgroundImagesApi } from "../ipc/background-images";
+import { createServerAppearanceApi } from "../ipc/server-appearance";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
 import { createTerminalPreferences } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
@@ -30,6 +31,7 @@ import { createConnectionStore, isFinished } from "../stores/connections";
 import ConnectionDialogs from "../dialogs/ConnectionDialogs.vue";
 import { createServerApi } from "../ipc/server";
 import { createServerStore } from "../stores/servers";
+import { createServerAppearanceStore } from "../stores/server-appearance";
 import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
@@ -53,6 +55,7 @@ const t = messages(shellMessages);
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
 const store = createServerStore(createServerApi(props.client));
+const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));
 const { servers, groups, pending, error, query, filtered } = store;
 const connections = createConnectionStore(createConnectionApi(props.client));
 const hostKeys = createHostKeysApi(props.client);
@@ -80,6 +83,12 @@ const selectedId = ref<string | null>(null);
 const pendingServerNavigation = ref<{ serverId: string; view: "terminal" | "monitor" | "files" } | null>(null);
 const activeConnection = computed(() => !pending.value && !error.value && selectedId.value && connections.snapshots.value[selectedId.value]?.state === 'ready' ? connections.snapshots.value[selectedId.value]!.connectionId : null);
 watch([activeConnection, workspaceViews, focused], () => { const id = activeConnection.value; if (!props.readOnly) monitor.activate(id, !!id && (workspaceViews.value[id] ?? 'terminal') !== 'files' && !focused.value); }, { immediate: true, deep: true });
+let knownAppearanceIds = new Set<string>();
+watch(serverAppearances.appearances, values => {
+  for (const id of knownAppearanceIds) if (!values[id]) terminals.setServerAppearance(id, undefined);
+  for (const [id, appearance] of Object.entries(values)) terminals.setServerAppearance(id, appearance);
+  knownAppearanceIds = new Set(Object.keys(values));
+}, { immediate: true });
 const settingsOpen = ref(false); const paletteOpen = ref(false);
 const settingsText = messages(settingsMessages); const paletteText = messages(paletteMessages);
 const overviewText = messages(serverOverviewMessages);
@@ -113,6 +122,7 @@ function openEditor(id: string | null = null) {
 }
 
 async function onRemoved(message: string) {
+  if (deleteTarget.value) serverAppearances.remove(deleteTarget.value.id);
   toast.success(message);
   selectServer(null);
   await nextTick();
@@ -193,6 +203,7 @@ async function load() {
   try {
     info.value = await props.client.getInfo();
     await store.load();
+    await serverAppearances.load();
   } catch (failure) {
     error.value = presentError(mapError(failure));
   } finally {
@@ -233,7 +244,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
       </main>
       <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" :transfer-count="activeTransfers" />
     </div>
@@ -241,7 +252,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :connection-store="connections" @close="editor = false" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" @close="editor = false" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
     <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />

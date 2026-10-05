@@ -37,7 +37,7 @@ function controllerFor(handlers: Parameters<typeof createMockIpc>[0] = {}) {
 }
 async function attach(controller: ReturnType<typeof createTerminalController>) {
   vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockReturnValue({ width: 800, height: 600 } as DOMRect);
-  const host = document.createElement('div'); document.body.append(host); const id = controller.create('connection-a'); await controller.attach(id, host); return { id, host, renderer: renderers.instances.at(-1)! };
+  const host = document.createElement('div'); document.body.append(host); const id = controller.create('connection-a', 'server-a'); await controller.attach(id, host); return { id, host, renderer: renderers.instances.at(-1)! };
 }
 describe('terminal byte flow', () => {
   it('increments decimal u64 sequences without Number precision loss', () => { expect(nextSequence('9007199254740999')).toBe('9007199254741000'); expect(nextSequence('99')).toBe('100'); });
@@ -76,7 +76,7 @@ describe('terminal byte flow', () => {
   it('buffers pre-open Channel output, then validates the opened stream and ACKs', async () => {
     let resolve!: (value: { terminalId: string; streamId: string }) => void;
     const {controller,channel,ack} = controllerFor({ terminal_open: () => new Promise(done => { resolve = done; }) });
-    const host=document.createElement('div'); document.body.append(host); const id=controller.create('connection-a'); const opening=controller.attach(id,host);
+    const host=document.createElement('div'); document.body.append(host); const id=controller.create('connection-a', 'server-a'); const opening=controller.attach(id,host);
     channel.onmessage(chunk()); expect(ack).not.toHaveBeenCalled(); resolve({terminalId:'terminal-a',streamId:'stream-a'}); await opening; await flushPromises(); expect(ack).toHaveBeenCalledOnce();
   });
   it('halts mismatched output streams and closes that remote PTY explicitly', async () => {
@@ -124,7 +124,7 @@ describe('terminal byte flow', () => {
     controller.applySettings({...defaultSettings,terminalThemeMode:'image',terminalBackgroundImage:{...defaultSettings.terminalBackgroundImage,imageId:'00000000-0000-4000-8000-000000000001'}});
     expect(existing.options.theme).toMatchObject({background:previousBackground});
     expect(controller.requiresReopen.value).toBe(true);
-    const nextId=controller.create('connection-a'); const host=document.createElement('div'); document.body.append(host); await controller.attach(nextId,host);
+    const nextId=controller.create('connection-a', 'server-a'); const host=document.createElement('div'); document.body.append(host); await controller.attach(nextId,host);
     const next=renderers.instances.at(-1)!;
     expect(next.options.allowTransparency).toBe(true);
     expect(next.options.theme).toMatchObject({background:'transparent'});
