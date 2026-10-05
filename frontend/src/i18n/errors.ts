@@ -3,6 +3,8 @@ export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
   "errors.settingsDataInvalid": { "zh-CN": "设置数据无效，请重新加载或检查本地存储。", en: "Settings data is invalid. Reload or check local storage." },
   "errors.settingsSerializeFailed": { "zh-CN": "设置未能保存，请重试。", en: "Settings could not be saved. Try again." },
   "errors.customAccentColorInvalid": { "zh-CN": "自定义主题色无效，请选择 6 位十六进制颜色。", en: "The custom accent color is invalid. Choose a six-digit hexadecimal color." },
+  "errors.terminalCustomColorInvalid": { "zh-CN": "终端自定义颜色无效，请选择 6 位十六进制颜色。", en: "A custom terminal color is invalid. Choose a six-digit hexadecimal color." },
+  "errors.terminalLineHeightOutOfRange": { "zh-CN": "终端行高需在 1 到 2 之间。", en: "Terminal line height must be between 1 and 2." },
   "errors.terminalFontFamilyInvalid": { "zh-CN": "字体名称需为 1 到 128 个字符，且不含控制字符。", en: "Font family must contain 1 to 128 characters with no control characters." },
   "errors.terminalFontSizeOutOfRange": { "zh-CN": "字号需在 8 到 72 之间。", en: "Font size must be between 8 and 72." },
   "errors.terminalScrollbackOutOfRange": { "zh-CN": "滚动缓冲需在 1000 到 100000 行之间。", en: "Scrollback must be between 1,000 and 100,000 lines." },

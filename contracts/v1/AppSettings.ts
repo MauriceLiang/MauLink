@@ -3,6 +3,8 @@ import type { AccentColor } from "./AccentColor";
 import type { AppIconStyle } from "./AppIconStyle";
 import type { CursorStyle } from "./CursorStyle";
 import type { Language } from "./Language";
+import type { TerminalCustomColors } from "./TerminalCustomColors";
+import type { TerminalThemeMode } from "./TerminalThemeMode";
 import type { Theme } from "./Theme";
 
-export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };
+export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, terminalThemeMode: TerminalThemeMode, terminalCustomColors: TerminalCustomColors, terminalLineHeight: number, terminalCursorBlink: boolean, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };

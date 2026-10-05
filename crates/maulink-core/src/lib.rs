@@ -59,7 +59,7 @@ pub use profiles::{
 };
 pub use settings::{
     AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
-    SettingsUpdate, Theme,
+    SettingsUpdate, TerminalCustomColors, TerminalThemeMode, Theme,
 };
 pub use sftp::{SftpManager, SftpTransferManager};
 pub use ssh::{SshConnectionManager, SshConnector, SshSession};

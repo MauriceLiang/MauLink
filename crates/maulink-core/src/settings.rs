@@ -11,6 +11,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_terminal_line_height() -> f32 {
+    1.35
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum AccentColor {
@@ -22,6 +26,37 @@ pub enum AccentColor {
     Orange,
     Red,
     Custom,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalThemeMode {
+    #[default]
+    FollowApp,
+    Light,
+    Dark,
+    CustomColor,
+    Image,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalCustomColors {
+    pub background: String,
+    pub foreground: String,
+    pub cursor: String,
+    pub selection: String,
+}
+
+impl Default for TerminalCustomColors {
+    fn default() -> Self {
+        Self {
+            background: "#111318".to_owned(),
+            foreground: "#EAECF0".to_owned(),
+            cursor: "#3B82F6".to_owned(),
+            selection: "#3B82F6".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -73,6 +108,14 @@ pub struct AppSettings {
     pub terminal_font_size: f32,
     pub terminal_cursor_style: CursorStyle,
     pub terminal_scrollback_lines: u32,
+    #[serde(default)]
+    pub terminal_theme_mode: TerminalThemeMode,
+    #[serde(default)]
+    pub terminal_custom_colors: TerminalCustomColors,
+    #[serde(default = "default_terminal_line_height")]
+    pub terminal_line_height: f32,
+    #[serde(default = "default_true")]
+    pub terminal_cursor_blink: bool,
     pub download_directory_token: Option<String>,
     pub confirm_before_disconnect: bool,
     #[serde(default = "default_true")]
@@ -95,6 +138,10 @@ impl Default for AppSettings {
             terminal_font_size: 14.0,
             terminal_cursor_style: CursorStyle::Block,
             terminal_scrollback_lines: 10_000,
+            terminal_theme_mode: TerminalThemeMode::FollowApp,
+            terminal_custom_colors: TerminalCustomColors::default(),
+            terminal_line_height: default_terminal_line_height(),
+            terminal_cursor_blink: true,
             download_directory_token: None,
             confirm_before_disconnect: true,
             show_size_column: true,
@@ -236,6 +283,20 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
             "errors.customAccentColorInvalid",
         ));
     }
+    if [
+        &settings.terminal_custom_colors.background,
+        &settings.terminal_custom_colors.foreground,
+        &settings.terminal_custom_colors.cursor,
+        &settings.terminal_custom_colors.selection,
+    ]
+    .into_iter()
+    .any(|color| !is_valid_accent_hex(color))
+    {
+        return Err(validation(
+            "terminalCustomColors",
+            "errors.terminalCustomColorInvalid",
+        ));
+    }
     let font_length = settings.terminal_font_family.trim().chars().count();
     if !(1..=128).contains(&font_length)
         || settings.terminal_font_family.chars().any(char::is_control)
@@ -257,6 +318,14 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
         return Err(validation(
             "terminalScrollbackLines",
             "errors.terminalScrollbackOutOfRange",
+        ));
+    }
+    if !settings.terminal_line_height.is_finite()
+        || !(1.0..=2.0).contains(&settings.terminal_line_height)
+    {
+        return Err(validation(
+            "terminalLineHeight",
+            "errors.terminalLineHeightOutOfRange",
         ));
     }
     if settings
@@ -323,6 +392,13 @@ mod tests {
             app_icon_style: AppIconStyle::Dark,
             accent_color: AccentColor::Custom,
             custom_accent_color: Some("#12AbEf".to_owned()),
+            terminal_theme_mode: TerminalThemeMode::CustomColor,
+            terminal_custom_colors: TerminalCustomColors {
+                background: "#102030".to_owned(),
+                foreground: "#E0E0E0".to_owned(),
+                cursor: "#33AAFF".to_owned(),
+                selection: "#7755CC".to_owned(),
+            },
             ..AppSettings::default()
         };
         let stored = service
@@ -361,10 +437,18 @@ mod tests {
         object.remove("appIconStyle");
         object.remove("accentColor");
         object.remove("customAccentColor");
+        object.remove("terminalThemeMode");
+        object.remove("terminalCustomColors");
+        object.remove("terminalLineHeight");
+        object.remove("terminalCursorBlink");
         let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
         assert_eq!(old.app_icon_style, AppIconStyle::Light);
         assert_eq!(old.accent_color, AccentColor::Blue);
         assert_eq!(old.custom_accent_color, None);
+        assert_eq!(old.terminal_theme_mode, TerminalThemeMode::FollowApp);
+        assert_eq!(old.terminal_custom_colors, TerminalCustomColors::default());
+        assert_eq!(old.terminal_line_height, 1.35);
+        assert!(old.terminal_cursor_blink);
         value["appIconStyle"] = serde_json::json!("system");
         assert!(serde_json::from_value::<AppSettings>(value).is_err());
     }
@@ -408,6 +492,38 @@ mod tests {
                 .code,
             ErrorCode::ValidationFailed
         );
+    }
+
+    #[test]
+    fn terminal_custom_colors_and_line_height_are_validated() {
+        for color in ["#123", "rgb(1,2,3)", "#12345678"] {
+            let settings = AppSettings {
+                terminal_custom_colors: TerminalCustomColors {
+                    selection: color.to_owned(),
+                    ..TerminalCustomColors::default()
+                },
+                ..AppSettings::default()
+            };
+            assert_eq!(
+                validate_settings(&settings)
+                    .expect_err("custom terminal colors must be hex")
+                    .message_key,
+                "errors.terminalCustomColorInvalid"
+            );
+        }
+
+        for line_height in [f32::NAN, 0.99, 2.01] {
+            let settings = AppSettings {
+                terminal_line_height: line_height,
+                ..AppSettings::default()
+            };
+            assert_eq!(
+                validate_settings(&settings)
+                    .expect_err("line height outside the range must fail")
+                    .message_key,
+                "errors.terminalLineHeightOutOfRange"
+            );
+        }
     }
 
     #[test]

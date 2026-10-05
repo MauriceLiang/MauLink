@@ -111,6 +111,23 @@ describe('terminal byte flow', () => {
     controller.setCopyPreference(()=>true);renderer.selected();await vi.advanceTimersByTimeAsync(150);expect(clipboard).toHaveBeenCalledWith('fixture selection');
     controller.applySettings({...defaultSettings,terminalFontSize:18,terminalCursorStyle:'bar',terminalScrollbackLines:12000});expect(renderer.options.fontSize).toBe(18);expect(renderer.options.cursorStyle).toBe('bar');
   });
+  it('updates theme, line height and cursor behavior on existing xterm instances without reopening the PTY', async () => {
+    const {controller,open}=controllerFor();const {renderer}=await attach(controller);
+    controller.applySettings({...defaultSettings,terminalThemeMode:'customColor',terminalCustomColors:{background:'#102030',foreground:'#E0E0E0',cursor:'#33AAFF',selection:'#7755CC'},terminalLineHeight:1.5,terminalCursorBlink:false});
+    expect(renderer.options.theme).toMatchObject({background:'#102030',foreground:'#E0E0E0',cursor:'#33AAFF'});
+    expect(renderer.options.lineHeight).toBe(1.5);expect(renderer.options.cursorBlink).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('--color-terminal-bg')).toBe('#102030');expect(open).toHaveBeenCalledOnce();
+  });
+  it('updates Follow App colors when the system theme changes without reopening the PTY', async () => {
+    let listener: ((event: MediaQueryListEvent) => void) | undefined;
+    const query={matches:false,addEventListener:(_type:string,callback:EventListenerOrEventListenerObject)=>{listener=callback as (event:MediaQueryListEvent)=>void;},removeEventListener:vi.fn()} as unknown as MediaQueryList;
+    vi.stubGlobal('matchMedia',vi.fn(()=>query));
+    const {controller,open}=controllerFor();const {renderer}=await attach(controller);
+    expect((renderer.options.theme as {background:string}).background).toBe('#FFFFFF');
+    Object.defineProperty(query,'matches',{value:true,configurable:true});listener?.({matches:true} as MediaQueryListEvent);
+    expect((renderer.options.theme as {background:string}).background).toBe('#111318');
+    expect(open).toHaveBeenCalledOnce();
+  });
 });
 describe('terminal preferences',()=>{
   it('preserves unrelated settings and revisions, defaults copy-on-select off',async()=>{

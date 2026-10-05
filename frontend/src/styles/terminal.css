@@ -31,6 +31,19 @@
 .terminal-settings-dialog { width: min(560px, calc(100vw - 40px)); }
 .terminal-settings-dialog .base-dialog-heading, .terminal-settings-dialog .base-dialog-footer { border: 0; }
 .terminal-settings-dialog .terminal-settings-form fieldset { gap: 12px; }
+.terminal-settings-dialog .terminal-settings-form .terminal-theme-mode-field { display: block; margin: 0; padding: 0; border: 0; }
+.terminal-theme-mode-field legend { margin-bottom: 8px; color: var(--color-text-secondary); font-size: 13px; }
+.terminal-theme-mode-options { display: flex; flex-wrap: wrap; gap: 7px; }
+.terminal-settings-dialog .terminal-theme-mode-option { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--color-border); border-radius: 16px; color: var(--color-text-secondary); font-size: 12px; cursor: pointer; }
+.terminal-theme-mode-option:has(input:checked) { border-color: var(--color-primary); color: var(--color-text-primary); background: var(--color-primary-soft); }
+.terminal-theme-mode-option:has(input:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.terminal-custom-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.terminal-settings-dialog .terminal-custom-colors label { display: grid; grid-template-columns: minmax(0, 1fr) 38px; gap: 6px 10px; color: var(--color-text-secondary); font-size: 12px; }
+.terminal-custom-colors label > input { grid-column: 2; grid-row: 1 / span 2; width: 38px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); cursor: pointer; }
+.terminal-custom-colors code { color: var(--color-text-primary); font-family: ui-monospace, monospace; }
+.terminal-preview { display: grid; gap: 3px; min-height: 88px; padding: 12px; overflow: auto; border: 1px solid var(--color-border); border-radius: 7px; font-family: ui-monospace, monospace; white-space: nowrap; }
+.terminal-preview-prompt, .terminal-preview-cursor { font-weight: 600; }
+.terminal-preview-selection { border-radius: 2px; }
 .terminal-settings-dialog .terminal-settings-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); column-gap: 14px; align-items: center; min-width: 0; }
 .terminal-settings-dialog label.terminal-settings-row { color: var(--color-text-secondary); white-space: nowrap; }
 .terminal-settings-dialog label.terminal-settings-row > span { white-space: nowrap; }

@@ -13,6 +13,7 @@ import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import { createOutputConsumer, encodeBytesBase64, nextSequence } from "./codec";
 import { defaultSettings } from "./preferences";
+import { resolveTerminalAppearance } from "./theme";
 const t = messages(terminalMessages);
 export interface TerminalTab { id: string; connectionId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
 interface Runtime {
@@ -29,6 +30,10 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   const runtimes = new Map<string, Runtime>();
   const tabs = shallowRef<TerminalTab[]>([]);
   let settings = defaultSettings;
+  const systemThemeQuery = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
+  let systemIsDark = systemThemeQuery?.matches ?? false;
   let copyOnSelect = () => false;
   let number = 1;
   let disposed = false;
@@ -121,6 +126,21 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     runtime.fit.fit(); resize(id);
     if (focus) runtime.terminal.focus();
   }
+  function applyTerminalTheme() {
+    const appearance = resolveTerminalAppearance(settings, settings.theme, systemIsDark);
+    const theme = appearance.theme;
+    const root = document.documentElement.style;
+    root.setProperty('--color-terminal-bg', theme.background);
+    root.setProperty('--color-terminal-text', theme.foreground);
+    root.setProperty('--color-terminal-cursor', theme.cursor);
+    root.setProperty('--color-terminal-selection', theme.selectionBackground);
+    runtimes.forEach(runtime => { runtime.terminal.options.theme = theme; });
+  }
+  const onSystemThemeChange = (event: MediaQueryListEvent) => {
+    systemIsDark = event.matches;
+    if (settings.theme === 'system' && settings.terminalThemeMode === 'followApp') applyTerminalTheme();
+  };
+  systemThemeQuery?.addEventListener('change', onSystemThemeChange);
   function release(id: string) {
     const runtime = runtimes.get(id); if (!runtime) return;
     runtime.disposed = true;
@@ -133,8 +153,8 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     if (runtime) { host.append(runtime.mount); fit(id); return; }
     const metadata = tab(id); if (!metadata || disposed) return;
     const mount = document.createElement('div'); mount.className = 'terminal-mount'; host.append(mount);
-    const colors = getComputedStyle(document.documentElement);
-    const terminal = new Terminal({ allowProposedApi: false, cursorBlink: true, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: 1.35, theme: { background: colors.getPropertyValue('--color-terminal-bg').trim(), foreground: colors.getPropertyValue('--color-terminal-text').trim(), cursor: colors.getPropertyValue('--color-terminal-cursor').trim(), selectionBackground: colors.getPropertyValue('--color-terminal-selection').trim() } });
+    const appearance = resolveTerminalAppearance(settings, settings.theme, systemIsDark);
+    const terminal = new Terminal({ allowProposedApi: false, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
     runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false };
@@ -184,12 +204,13 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   async function refreshConnection(connectionId: string) { await Promise.all(tabs.value.filter(value => value.connectionId === connectionId).map(value => poll(value.id))); }
   function applySettings(value: AppSettings) {
     settings = value;
-    runtimes.forEach((runtime, id) => { runtime.terminal.options.fontFamily = value.terminalFontFamily; runtime.terminal.options.fontSize = value.terminalFontSize; runtime.terminal.options.cursorStyle = value.terminalCursorStyle; runtime.terminal.options.scrollback = value.terminalScrollbackLines; fit(id); });
+    applyTerminalTheme();
+    runtimes.forEach((runtime, id) => { runtime.terminal.options.fontFamily = value.terminalFontFamily; runtime.terminal.options.fontSize = value.terminalFontSize; runtime.terminal.options.cursorStyle = value.terminalCursorStyle; runtime.terminal.options.scrollback = value.terminalScrollbackLines; runtime.terminal.options.lineHeight = value.terminalLineHeight; runtime.terminal.options.cursorBlink = value.terminalCursorBlink; fit(id); });
   }
   function setCopyPreference(read: () => boolean) { copyOnSelect = read; }
   function focus(id: string) { fit(id, true); }
   function clear(id: string) { runtimes.get(id)?.terminal.clear(); focus(id); }
-  function dispose() { disposed = true; [...runtimes.keys()].forEach(release); }
+  function dispose() { disposed = true; systemThemeQuery?.removeEventListener('change', onSystemThemeChange); [...runtimes.keys()].forEach(release); ['--color-terminal-bg', '--color-terminal-text', '--color-terminal-cursor', '--color-terminal-selection'].forEach(name => document.documentElement.style.removeProperty(name)); }
   return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setCopyPreference, dispose };
 }
 export type TerminalController = ReturnType<typeof createTerminalController>;

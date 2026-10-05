@@ -15,6 +15,7 @@ import { connectionMessages } from '../src/i18n/connection';
 import { settingsMessages } from '../src/i18n/settings';
 import { paletteMessages } from '../src/i18n/palette';
 import SettingsDialog from '../src/dialogs/SettingsDialog.vue';
+import TerminalSettingsDialog from '../src/dialogs/TerminalSettingsDialog.vue';
 import CommandPalette from '../src/components/base/CommandPalette.vue';
 import BaseDropdownMenu from '../src/components/base/BaseDropdownMenu.vue';
 import SettingsHarness from '../src/harness/SettingsHarness.vue';
@@ -67,6 +68,17 @@ describe('shared SettingsService preferences', () => {
     const picker=document.querySelector<HTMLInputElement>('input[type="color"]')!; picker.value='#12abef'; picker.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises();
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value).toMatchObject({accentColor:'custom',customAccentColor:'#12abef'});
+  });
+  it('previews terminal themes with static DOM and saves custom colors through SettingsService', async () => {
+    const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(TerminalSettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
+    expect(document.querySelector('[role="img"][aria-label="终端主题静态预览"]')).not.toBeNull(); expect(document.querySelector('.xterm')).toBeNull();
+    document.querySelector<HTMLInputElement>('input[name="terminalThemeMode"][value="customColor"]')!.click(); await flushPromises();
+    for (const [label,color] of [['背景色','#102030'],['文字颜色','#E0E0E0'],['光标颜色','#33AAFF'],['选中颜色','#7755CC']]) {
+      const picker=document.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label}"]`)!; picker.value=color; picker.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    await flushPromises(); expect(fixture.current().value.terminalThemeMode).toBe('followApp');
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value).toMatchObject({terminalThemeMode:'customColor',terminalCustomColors:{background:'#102030',foreground:'#e0e0e0',cursor:'#33aaff',selection:'#7755cc'}});
   });
   it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();

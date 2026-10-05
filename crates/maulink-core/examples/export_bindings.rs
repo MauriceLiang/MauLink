@@ -22,9 +22,10 @@ use maulink_core::{
     SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
     SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
     SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalState, TerminalWritePayload, TerminalWriteResult, Theme, WorkspaceActivityPayload,
+    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalCustomColors,
+    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
+    TerminalSize, TerminalSnapshot, TerminalState, TerminalThemeMode, TerminalWritePayload,
+    TerminalWriteResult, Theme, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -47,6 +48,8 @@ fn main() -> Result<(), ts_rs::ExportError> {
     AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
     SettingsUpdate::export_all(&config)?;
+    TerminalThemeMode::export_all(&config)?;
+    TerminalCustomColors::export_all(&config)?;
     Theme::export_all(&config)?;
     Language::export_all(&config)?;
     CursorStyle::export_all(&config)?;
