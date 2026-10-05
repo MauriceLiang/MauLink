@@ -55,8 +55,8 @@ describe('shared SettingsService preferences', () => {
   });
   it('does not apply an unsaved dialog draft and saves valid values through IPC', async () => {
     const fixture=createSettingsMock(); const apply=vi.fn(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),apply); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
-    button('外观').click(); await flushPromises(); await changeSelect(0, '深色'); expect(fixture.current().value.theme).toBe('system');
-    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value.theme).toBe('dark'); expect(wrapper.emitted('saved')).toHaveLength(1);
+    button('外观').click(); await flushPromises(); await changeSelect(0, '深色'); await changeSelect(1, '紧凑'); await changeSelect(2, '宽'); expect(fixture.current().value.theme).toBe('system'); expect(fixture.current().value.uiDensity).toBe('standard');
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value).toMatchObject({theme:'dark',uiDensity:'compact',sidebarWidth:'wide'}); expect(wrapper.emitted('saved')).toHaveLength(1);
   });
   it('persists the selected accent and custom hex color only after saving', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
@@ -98,17 +98,17 @@ describe('shared SettingsService preferences', () => {
   it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     button('外观').click(); await flushPromises();
-    await changeSelect(1, '深色'); await flushPromises();
+    await changeSelect(3, '深色'); await flushPromises();
     expect(document.querySelector('img[alt="应用图标预览"]')?.getAttribute('src')).toContain('app-icon-dark');
     expect(fixture.current().value.appIconStyle).toBe('light');
     button('取消').click(); await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
-    expect(document.querySelectorAll('[role=combobox]')[1]!.textContent).toContain('浅色');
-    await changeSelect(1, '深色');
+    expect(document.querySelectorAll('[role=combobox]')[3]!.textContent).toContain('浅色');
+    await changeSelect(3, '深色');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value.appIconStyle).toBe('dark'); expect(fixture.current().value.theme).toBe('system'); expect(wrapper.emitted('saved')).toHaveLength(1);
     await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
-    expect(document.querySelectorAll('[role=combobox]')[1]!.textContent).toContain('深色');
-    await changeSelect(0, '深色'); await changeSelect(1, '浅色');
+    expect(document.querySelectorAll('[role=combobox]')[3]!.textContent).toContain('深色');
+    await changeSelect(0, '深色'); await changeSelect(3, '浅色');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value.theme).toBe('dark'); expect(fixture.current().value.appIconStyle).toBe('light');
   });

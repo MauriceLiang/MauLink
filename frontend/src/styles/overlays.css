@@ -8,7 +8,7 @@
   }
 }
 .base-icon { width: 16px; height: 16px; flex: none; vertical-align: middle; }
-.base-select-trigger { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
+.base-select-trigger { width: 100%; min-height: var(--app-density-input-height, 38px); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
 .base-select-trigger:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-select-trigger:focus-visible { outline: 3px solid var(--color-focus-ring); border-color: var(--color-border-active); }
 .base-select-trigger[aria-invalid="true"] { border-color: var(--color-danger); }
@@ -78,7 +78,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 .base-button--loading .base-button-label { opacity: 0; }
 .base-button-spinner { position: absolute; left: calc(50% - 8px); animation: spinner-turn calc(var(--motion-slow) * 3) linear infinite; }
 @keyframes spinner-turn { to { transform: rotate(360deg); } }
-.base-input { min-height: 38px; border-radius: var(--radius-md); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.base-input { min-height: var(--app-density-input-height, 38px); border-radius: var(--radius-md); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-input:focus-visible { outline: none; border-color: var(--color-border-active); box-shadow: 0 0 0 3px var(--color-focus-ring); }
 .base-select-trigger { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-checkbox, .base-switch { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }

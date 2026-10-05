@@ -77,4 +77,16 @@
   --app-traffic-light-narrow-space: 68px;
   --app-search-width: 300px;
   --app-welcome-icon-size: 64px;
+  --app-density-button-height: 36px;
+  --app-density-input-height: 38px;
+  --app-density-file-row-padding: 8px 12px;
+  --app-density-sidebar-row-height: 42px;
+}
+
+:root[data-density="compact"] {
+  --app-toolbar-height: 44px;
+  --app-density-button-height: 34px;
+  --app-density-input-height: 34px;
+  --app-density-file-row-padding: 6px 9px;
+  --app-density-sidebar-row-height: 36px;
 }

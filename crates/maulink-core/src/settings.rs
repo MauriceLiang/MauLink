@@ -150,6 +150,23 @@ pub enum AppIconStyle {
     Dark,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum UiDensity {
+    #[default]
+    Standard,
+    Compact,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum SidebarWidth {
+    Narrow,
+    #[default]
+    Standard,
+    Wide,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum Language {
     #[serde(rename = "zh-CN")]
@@ -178,6 +195,10 @@ pub struct AppSettings {
     pub accent_color: AccentColor,
     #[serde(default)]
     pub custom_accent_color: Option<String>,
+    #[serde(default)]
+    pub ui_density: UiDensity,
+    #[serde(default)]
+    pub sidebar_width: SidebarWidth,
     pub language: Language,
     pub terminal_font_family: String,
     pub terminal_font_size: f32,
@@ -210,6 +231,8 @@ impl Default for AppSettings {
             app_icon_style: AppIconStyle::Light,
             accent_color: AccentColor::Blue,
             custom_accent_color: None,
+            ui_density: UiDensity::Standard,
+            sidebar_width: SidebarWidth::Standard,
             language: Language::ZhCn,
             terminal_font_family: "monospace".to_owned(),
             terminal_font_size: 14.0,
@@ -618,6 +641,8 @@ mod tests {
         object.remove("appIconStyle");
         object.remove("accentColor");
         object.remove("customAccentColor");
+        object.remove("uiDensity");
+        object.remove("sidebarWidth");
         object.remove("terminalThemeMode");
         object.remove("terminalCustomColors");
         object.remove("terminalBackgroundImage");
@@ -627,6 +652,8 @@ mod tests {
         assert_eq!(old.app_icon_style, AppIconStyle::Light);
         assert_eq!(old.accent_color, AccentColor::Blue);
         assert_eq!(old.custom_accent_color, None);
+        assert_eq!(old.ui_density, UiDensity::Standard);
+        assert_eq!(old.sidebar_width, SidebarWidth::Standard);
         assert_eq!(old.terminal_theme_mode, TerminalThemeMode::FollowApp);
         assert_eq!(old.terminal_custom_colors, TerminalCustomColors::default());
         assert_eq!(

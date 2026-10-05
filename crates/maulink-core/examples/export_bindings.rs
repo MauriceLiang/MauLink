@@ -24,12 +24,13 @@ use maulink_core::{
     SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
     SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
     SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
-    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
-    TerminalAppearanceSettings, TerminalBackgroundFit, TerminalBackgroundImageSettings,
-    TerminalBackgroundOverlayKind, TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors,
-    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
-    TerminalSize, TerminalSnapshot, TerminalState, TerminalThemeMode, TerminalWritePayload,
-    TerminalWriteResult, Theme, WorkspaceActivityPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, SidebarWidth,
+    TerminalAckPayload, TerminalAppearanceSettings, TerminalBackgroundFit,
+    TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
+    TerminalChunk, TerminalCustomColors, TerminalIdPayload, TerminalOpenPayload,
+    TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState,
+    TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme, UiDensity,
+    WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -49,6 +50,8 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerListPage::export_all(&config)?;
     AuthType::export_all(&config)?;
     AppSettings::export_all(&config)?;
+    UiDensity::export_all(&config)?;
+    SidebarWidth::export_all(&config)?;
     AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
     SettingsUpdate::export_all(&config)?;

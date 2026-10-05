@@ -1,4 +1,5 @@
 .terminal-workspace { display: grid; min-width: 0; min-height: 0; height: 100%; grid-template-rows: 46px 38px minmax(0, 1fr) 26px auto; overflow: hidden; }
+:root[data-density="compact"] .terminal-workspace { grid-template-rows: 42px 34px minmax(0, 1fr) 26px auto; }
 .workspace-heading { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 5px 15px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .workspace-heading > div { flex: 1; min-width: 0; }
 .workspace-heading h1 { margin: 0 0 3px; font-size: 15px; font-weight: 600; }

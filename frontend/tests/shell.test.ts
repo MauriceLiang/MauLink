@@ -7,6 +7,7 @@ import { createShellMock, shellAppInfo, shellGroups, shellServers } from "../src
 import desktopConfig from "../../src-tauri/tauri.conf.json";
 import frontendV2Config from "../../src-tauri/tauri.frontend-v2.conf.json";
 import ipcHarnessConfig from "../../src-tauri/tauri.harness.conf.json";
+import { defaultSettings } from "../src/terminal/preferences";
 
 const wrappers: VueWrapper[] = [];
 function mountShell(transport = createShellMock()) {
@@ -17,6 +18,7 @@ function mountShell(transport = createShellMock()) {
 afterEach(() => {
   wrappers.splice(0).forEach(wrapper => wrapper.unmount());
   document.body.innerHTML = "";
+  delete document.documentElement.dataset.density;
 });
 
 describe("application shell", () => {
@@ -57,6 +59,19 @@ describe("application shell", () => {
     expect(wrapper.get('[role="status"]').text()).toContain("v0.1.0");
     expect(wrapper.get('[aria-label="设置"]').element).toHaveProperty("disabled", false);
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
+  });
+
+  it("applies saved density and sidebar width preferences to the shell", async () => {
+    const wrapper = mountShell(createMockIpc({
+      settings_get: () => ({
+        value: { ...defaultSettings, uiDensity: "compact", sidebarWidth: "wide" },
+        revision: 1,
+        updatedAtMs: 1_800_000_000_000,
+      }),
+    }));
+    await flushPromises();
+    expect(document.documentElement.dataset.density).toBe("compact");
+    expect(wrapper.get(".application-shell").attributes("data-sidebar-width")).toBe("wide");
   });
 
   it("loads every navigation page without connecting SSH and marks home inactive for Core monitoring", async () => {

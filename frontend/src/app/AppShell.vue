@@ -65,6 +65,7 @@ const terminals = createTerminalController(createTerminalApi(props.client), prop
 const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), settings => {
   terminals.applySettings(settings);
   document.documentElement.dataset.theme = settings.theme;
+  document.documentElement.dataset.density = settings.uiDensity;
   applyAccentColor(settings.accentColor, settings.customAccentColor);
   document.documentElement.lang = settings.language;
   locale.value = settings.language;
@@ -232,7 +233,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
 </script>
 
 <template>
-  <div class="application-shell" :class="{ 'terminal-focused': focused }">
+  <div class="application-shell" :class="{ 'terminal-focused': focused }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
     <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" :settings-enabled="!readOnly" @home="selectServer(null)" @about="about = true" @add="openEditor()" @settings="settingsOpen = true" @palette="paletteOpen = true" />
     <div class="shell-content">
       <Sidebar v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />

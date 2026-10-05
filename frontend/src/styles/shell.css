@@ -1,4 +1,7 @@
 .application-shell { display: grid; height: 100%; min-width: var(--app-min-width); grid-template-rows: var(--app-toolbar-height) minmax(0, 1fr); overflow: hidden; }
+.application-shell[data-sidebar-width="narrow"] { --app-sidebar-width: 190px; }
+.application-shell[data-sidebar-width="standard"] { --app-sidebar-width: 236px; }
+.application-shell[data-sidebar-width="wide"] { --app-sidebar-width: 286px; }
 .shell-icon { display: block; width: 16px; height: 16px; flex: none; }
 .shell-topbar { display: grid; grid-template-columns: var(--app-sidebar-width) minmax(180px, 1fr) var(--app-sidebar-width); align-items: center; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); padding-left: var(--app-traffic-light-space); }
@@ -36,7 +39,7 @@
 .shell-server-group { margin-top: var(--space-3); }
 .shell-group-title { display: flex; gap: 6px; margin: 0; padding: 4px 8px; color: var(--color-text-secondary); font-size: 11px; font-weight: 600; }
 .shell-group-title > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.shell-server-item { display: flex; width: 100%; min-height: 42px; justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; box-shadow: none; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.shell-server-item { display: flex; width: 100%; min-height: var(--app-density-sidebar-row-height, 42px); justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; box-shadow: none; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); box-shadow: var(--shadow-sm); transform: scale(1.02); }
 .shell-server-item:active:not(:disabled) { transform: translateX(1px); }
 .shell-server-item.is-selected { color: var(--color-text-primary); background: var(--color-primary-soft); }
@@ -46,6 +49,7 @@
 .shell-server-meta { display: grid; min-width: 0; }
 .shell-server-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
 .shell-server-host { overflow: hidden; color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+:root[data-density="compact"] .shell-server-item { gap: 7px; padding: 5px 7px; }
 .shell-sidebar-bottom { padding: 10px; border-top: 1px solid var(--color-border); }
 .shell-sidebar-bottom .base-button { width: 100%; min-height: 32px; font-size: 12.5px; font-weight: 600; }
 .shell-main { display: grid; min-width: 0; min-height: 0; overflow: auto; background: var(--color-bg-app); }
