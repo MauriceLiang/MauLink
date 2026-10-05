@@ -15,6 +15,14 @@ fn default_terminal_line_height() -> f32 {
     1.35
 }
 
+fn default_image_opacity() -> u8 {
+    100
+}
+
+fn default_overlay_opacity() -> u8 {
+    45
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum AccentColor {
@@ -46,6 +54,73 @@ pub struct TerminalCustomColors {
     pub foreground: String,
     pub cursor: String,
     pub selection: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalBackgroundFit {
+    #[default]
+    Cover,
+    Contain,
+    Stretch,
+    Original,
+    Tile,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalBackgroundPosition {
+    #[default]
+    Center,
+    Top,
+    Bottom,
+    Left,
+    Right,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalBackgroundOverlayKind {
+    #[default]
+    Dark,
+    Light,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalBackgroundImageSettings {
+    #[serde(default)]
+    pub image_id: Option<String>,
+    #[serde(default)]
+    pub fit: TerminalBackgroundFit,
+    #[serde(default)]
+    pub position: TerminalBackgroundPosition,
+    #[serde(default = "default_image_opacity")]
+    pub image_opacity: u8,
+    #[serde(default)]
+    pub overlay_kind: TerminalBackgroundOverlayKind,
+    #[serde(default = "default_overlay_opacity")]
+    pub overlay_opacity: u8,
+    #[serde(default)]
+    pub blur_px: u8,
+}
+
+impl Default for TerminalBackgroundImageSettings {
+    fn default() -> Self {
+        Self {
+            image_id: None,
+            fit: TerminalBackgroundFit::Cover,
+            position: TerminalBackgroundPosition::Center,
+            image_opacity: default_image_opacity(),
+            overlay_kind: TerminalBackgroundOverlayKind::Dark,
+            overlay_opacity: default_overlay_opacity(),
+            blur_px: 0,
+        }
+    }
 }
 
 impl Default for TerminalCustomColors {
@@ -112,6 +187,8 @@ pub struct AppSettings {
     pub terminal_theme_mode: TerminalThemeMode,
     #[serde(default)]
     pub terminal_custom_colors: TerminalCustomColors,
+    #[serde(default)]
+    pub terminal_background_image: TerminalBackgroundImageSettings,
     #[serde(default = "default_terminal_line_height")]
     pub terminal_line_height: f32,
     #[serde(default = "default_true")]
@@ -140,6 +217,7 @@ impl Default for AppSettings {
             terminal_scrollback_lines: 10_000,
             terminal_theme_mode: TerminalThemeMode::FollowApp,
             terminal_custom_colors: TerminalCustomColors::default(),
+            terminal_background_image: TerminalBackgroundImageSettings::default(),
             terminal_line_height: default_terminal_line_height(),
             terminal_cursor_blink: true,
             download_directory_token: None,
@@ -259,8 +337,9 @@ async fn load_settings(database: &Database) -> Result<SettingsRecord, AppError> 
             let Some((json, revision, updated_at_ms)) = stored else {
                 return Ok(SettingsRecord::default());
             };
-            let value = serde_json::from_str(&json)
+            let value: AppSettings = serde_json::from_str(&json)
                 .map_err(|_| storage_error("errors.settingsDataInvalid"))?;
+            let value = migrate_settings(value);
             validate_settings(&value)?;
             Ok(SettingsRecord {
                 value,
@@ -269,6 +348,17 @@ async fn load_settings(database: &Database) -> Result<SettingsRecord, AppError> 
             })
         })
         .await
+}
+
+fn migrate_settings(mut settings: AppSettings) -> AppSettings {
+    // Phase 6 exposed Image mode before background assets existed. Reset that
+    // incomplete preference instead of making the saved settings unloadable.
+    if settings.terminal_theme_mode == TerminalThemeMode::Image
+        && settings.terminal_background_image.image_id.is_none()
+    {
+        settings.terminal_theme_mode = TerminalThemeMode::FollowApp;
+    }
+    settings
 }
 
 fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
@@ -295,6 +385,37 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
         return Err(validation(
             "terminalCustomColors",
             "errors.terminalCustomColorInvalid",
+        ));
+    }
+    if settings
+        .terminal_background_image
+        .image_id
+        .as_ref()
+        .is_some_and(|id| {
+            uuid::Uuid::parse_str(id).map_or(true, |parsed| parsed.to_string() != *id)
+        })
+    {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageIdInvalid",
+        ));
+    }
+    if settings.terminal_background_image.image_opacity > 100
+        || settings.terminal_background_image.image_opacity < 10
+        || settings.terminal_background_image.overlay_opacity > 90
+        || settings.terminal_background_image.blur_px > 16
+    {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageSettingsOutOfRange",
+        ));
+    }
+    if settings.terminal_theme_mode == TerminalThemeMode::Image
+        && settings.terminal_background_image.image_id.is_none()
+    {
+        return Err(validation(
+            "terminalBackgroundImage",
+            "errors.terminalBackgroundImageRequired",
         ));
     }
     let font_length = settings.terminal_font_family.trim().chars().count();
@@ -399,6 +520,15 @@ mod tests {
                 cursor: "#33AAFF".to_owned(),
                 selection: "#7755CC".to_owned(),
             },
+            terminal_background_image: TerminalBackgroundImageSettings {
+                image_id: Some(uuid::Uuid::new_v4().to_string()),
+                fit: TerminalBackgroundFit::Contain,
+                position: TerminalBackgroundPosition::TopRight,
+                image_opacity: 82,
+                overlay_kind: TerminalBackgroundOverlayKind::Light,
+                overlay_opacity: 28,
+                blur_px: 3,
+            },
             ..AppSettings::default()
         };
         let stored = service
@@ -431,6 +561,51 @@ mod tests {
     }
 
     #[test]
+    fn terminal_background_settings_validate_ranges_and_require_an_image_in_image_mode() {
+        let settings = AppSettings {
+            terminal_theme_mode: TerminalThemeMode::Image,
+            ..AppSettings::default()
+        };
+        assert_eq!(
+            validate_settings(&settings)
+                .expect_err("image mode requires an asset id")
+                .message_key,
+            "errors.terminalBackgroundImageRequired"
+        );
+
+        let valid = AppSettings {
+            terminal_theme_mode: TerminalThemeMode::Image,
+            terminal_background_image: TerminalBackgroundImageSettings {
+                image_id: Some(uuid::Uuid::new_v4().to_string()),
+                ..TerminalBackgroundImageSettings::default()
+            },
+            ..AppSettings::default()
+        };
+        assert!(validate_settings(&valid).is_ok());
+
+        for (image_opacity, overlay_opacity, blur_px) in
+            [(9, 45, 0), (101, 45, 0), (100, 91, 0), (100, 45, 17)]
+        {
+            let settings = AppSettings {
+                terminal_background_image: TerminalBackgroundImageSettings {
+                    image_id: Some(uuid::Uuid::new_v4().to_string()),
+                    image_opacity,
+                    overlay_opacity,
+                    blur_px,
+                    ..TerminalBackgroundImageSettings::default()
+                },
+                ..AppSettings::default()
+            };
+            assert_eq!(
+                validate_settings(&settings)
+                    .expect_err("image settings must stay within UI limits")
+                    .message_key,
+                "errors.terminalBackgroundImageSettingsOutOfRange"
+            );
+        }
+    }
+
+    #[test]
     fn old_settings_default_to_light_icon_and_invalid_styles_fail() {
         let mut value = serde_json::to_value(AppSettings::default()).expect("settings JSON");
         let object = value.as_object_mut().expect("object");
@@ -439,6 +614,7 @@ mod tests {
         object.remove("customAccentColor");
         object.remove("terminalThemeMode");
         object.remove("terminalCustomColors");
+        object.remove("terminalBackgroundImage");
         object.remove("terminalLineHeight");
         object.remove("terminalCursorBlink");
         let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
@@ -447,10 +623,54 @@ mod tests {
         assert_eq!(old.custom_accent_color, None);
         assert_eq!(old.terminal_theme_mode, TerminalThemeMode::FollowApp);
         assert_eq!(old.terminal_custom_colors, TerminalCustomColors::default());
+        assert_eq!(
+            old.terminal_background_image,
+            TerminalBackgroundImageSettings::default()
+        );
         assert_eq!(old.terminal_line_height, 1.35);
         assert!(old.terminal_cursor_blink);
         value["appIconStyle"] = serde_json::json!("system");
         assert!(serde_json::from_value::<AppSettings>(value).is_err());
+    }
+
+    #[tokio::test]
+    async fn migrates_pre_asset_image_mode_when_loading_saved_settings() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = Database::open(directory.path().join("settings.sqlite3")).expect("database");
+        let mut legacy = serde_json::to_value(AppSettings {
+            terminal_theme_mode: TerminalThemeMode::Image,
+            ..AppSettings::default()
+        })
+        .expect("legacy settings JSON");
+        legacy
+            .as_object_mut()
+            .expect("settings object")
+            .remove("terminalBackgroundImage");
+        let legacy_json = serde_json::to_string(&legacy).expect("legacy JSON string");
+        database
+            .execute(move |connection| {
+                connection
+                    .execute(
+                        "INSERT INTO settings (key, value_json, revision, updated_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                        params![SETTINGS_KEY, legacy_json, 1u32, 1i64],
+                    )
+                    .map_err(storage::map_sqlite_error)?;
+                Ok(())
+            })
+            .await
+            .expect("write old setting");
+
+        let settings = SettingsService::load(database)
+            .await
+            .expect("load migrated settings");
+        assert_eq!(
+            settings.current().value.terminal_theme_mode,
+            TerminalThemeMode::FollowApp
+        );
+        assert_eq!(
+            settings.current().value.terminal_background_image,
+            TerminalBackgroundImageSettings::default()
+        );
     }
 
     #[test]

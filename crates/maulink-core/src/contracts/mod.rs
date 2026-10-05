@@ -682,6 +682,39 @@ pub struct LocalFileSelectPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct BackgroundImageImportPayload {
+    pub token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct BackgroundImagePayload {
+    pub image_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct BackgroundImageAsset {
+    pub id: String,
+    pub file_name: String,
+    pub media_type: String,
+    pub width: u32,
+    pub height: u32,
+    #[ts(type = "number")]
+    pub byte_length: u64,
+    #[ts(type = "number")]
+    pub created_at_ms: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct BackgroundImageGetResult {
+    pub asset: BackgroundImageAsset,
+    pub local_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub name: String,
     pub version: String,

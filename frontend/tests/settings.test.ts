@@ -20,9 +20,11 @@ import CommandPalette from '../src/components/base/CommandPalette.vue';
 import BaseDropdownMenu from '../src/components/base/BaseDropdownMenu.vue';
 import SettingsHarness from '../src/harness/SettingsHarness.vue';
 import { applyAccentColor, isValidAccentHex, resolveAccentColor } from '../src/theme/accent';
+import type { BackgroundImagesApi } from '../src/ipc/background-images';
 const wrappers: VueWrapper[] = [];
 beforeEach(() => { const values = new Map<string, string>(); vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key,value), clear: () => values.clear(), key: (index: number) => [...values.keys()][index] ?? null, get length() { return values.size; } }); });
-function mounted(component: Parameters<typeof mount>[0], props: Record<string, unknown> = {}): VueWrapper { const wrapper = mount(component, { props, attachTo: document.body }); wrappers.push(wrapper); return wrapper; }
+const backgroundImages = { select: vi.fn(async () => null), get: vi.fn(), resolve: vi.fn(), delete: vi.fn(async () => {}) } as unknown as BackgroundImagesApi;
+function mounted(component: Parameters<typeof mount>[0], props: Record<string, unknown> = {}): VueWrapper { const withBackgroundImages = component === SettingsDialog || component === TerminalSettingsDialog ? { backgroundImages, ...props } : props; const wrapper = mount(component, { props: withBackgroundImages, attachTo: document.body }); wrappers.push(wrapper); return wrapper; }
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); locale.value = 'zh-CN'; document.body.innerHTML = ''; localStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const button = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find(element => element.textContent?.trim() === label)!;
 async function changeSelect(index: number, label: string) {
@@ -79,6 +81,19 @@ describe('shared SettingsService preferences', () => {
     await flushPromises(); expect(fixture.current().value.terminalThemeMode).toBe('followApp');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value).toMatchObject({terminalThemeMode:'customColor',terminalCustomColors:{background:'#102030',foreground:'#e0e0e0',cursor:'#33aaff',selection:'#7755cc'}});
+  });
+  it('imports and previews a background image draft before saving its ID and presentation settings', async () => {
+    const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{});
+    const asset={id:'00000000-0000-4000-8000-000000000001',fileName:'wallpaper.webp',mediaType:'image/webp',width:1920,height:1080,byteLength:1234,createdAtMs:1};
+    const images={select:vi.fn(async()=>asset),get:vi.fn(),resolve:vi.fn(async()=>({asset,src:'asset://background'})),delete:vi.fn(async()=>{})};
+    const wrapper=mounted(TerminalSettingsDialog,{open:false,preferences,backgroundImages:images}); await wrapper.setProps({open:true}); await flushPromises();
+    document.querySelector<HTMLInputElement>('input[name="terminalThemeMode"][value="image"]')!.click(); await flushPromises();
+    button('选择图片').click(); await flushPromises();
+    expect(images.select).toHaveBeenCalledOnce(); expect(document.querySelector('.terminal-background-preview-image')).not.toBeNull();
+    const opacity=document.querySelector<HTMLInputElement>('input[type="range"][min="10"]')!; opacity.value='72'; opacity.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises();
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value).toMatchObject({terminalThemeMode:'image',terminalBackgroundImage:{imageId:asset.id,imageOpacity:72}});
+    expect(document.querySelector('.xterm')).toBeNull(); expect(wrapper.emitted('close')).toHaveLength(1);
   });
   it('saves the icon independently of theme, restores it on reopen, and discards cancellation', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();

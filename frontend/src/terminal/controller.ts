@@ -1,6 +1,6 @@
 import { messages } from "../i18n/locale";
 import { terminalMessages } from "../i18n/terminal";
-import { shallowRef } from "vue";
+import { ref, shallowRef } from "vue";
 import { Channel } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -18,6 +18,7 @@ const t = messages(terminalMessages);
 export interface TerminalTab { id: string; connectionId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
 interface Runtime {
   terminal: Terminal; fit: FitAddon; mount: HTMLElement; channel: Channel<TerminalChunk>;
+  transparentAtCreation: boolean;
   opened: TerminalOpenResult | null; early: TerminalChunk[]; earlyBytes: number;
   output: (chunk: TerminalChunk) => Promise<void>; lastOutput: Promise<void>;
   input: Promise<void>; inputSeq: string; inputBytes: number; inputStopped: boolean; outputStopped: boolean;
@@ -29,6 +30,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   // Runtime data, Channel chunks and xterm instances never enter Vue reactive state.
   const runtimes = new Map<string, Runtime>();
   const tabs = shallowRef<TerminalTab[]>([]);
+  const requiresReopen = ref(false);
   let settings = defaultSettings;
   const systemThemeQuery = typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia("(prefers-color-scheme: dark)")
@@ -134,7 +136,13 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     root.setProperty('--color-terminal-text', theme.foreground);
     root.setProperty('--color-terminal-cursor', theme.cursor);
     root.setProperty('--color-terminal-selection', theme.selectionBackground);
-    runtimes.forEach(runtime => { runtime.terminal.options.theme = theme; });
+    runtimes.forEach(runtime => {
+      if (!appearance.transparent || runtime.transparentAtCreation) runtime.terminal.options.theme = theme;
+    });
+  }
+  function updateTransparencyNotice() {
+    requiresReopen.value = settings.terminalThemeMode === 'image'
+      && [...runtimes.values()].some(runtime => !runtime.transparentAtCreation);
   }
   const onSystemThemeChange = (event: MediaQueryListEvent) => {
     systemIsDark = event.matches;
@@ -146,7 +154,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     runtime.disposed = true;
     clearTimeout(runtime.timer); clearTimeout(runtime.resizeTimer); clearTimeout(runtime.copyTimer);
     runtime.channel.onmessage = () => undefined;
-    runtime.terminal.dispose(); runtime.mount.remove(); runtimes.delete(id);
+    runtime.terminal.dispose(); runtime.mount.remove(); runtimes.delete(id); updateTransparencyNotice();
   }
   async function attach(id: string, host: HTMLElement) {
     let runtime = runtimes.get(id);
@@ -154,12 +162,13 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     const metadata = tab(id); if (!metadata || disposed) return;
     const mount = document.createElement('div'); mount.className = 'terminal-mount'; host.append(mount);
     const appearance = resolveTerminalAppearance(settings, settings.theme, systemIsDark);
-    const terminal = new Terminal({ allowProposedApi: false, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
+    const terminal = new Terminal({ allowProposedApi: false, allowTransparency: appearance.transparent, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
-    runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false };
+    runtime = { terminal, fit: addon, mount, channel, transparentAtCreation: appearance.transparent, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false };
     const entry = runtime;
     runtimes.set(id, entry);
+    updateTransparencyNotice();
     entry.output = createOutputConsumer((bytes, done) => terminal.write(bytes, done), chunk => api.ack({ terminalId: chunk.terminalId, streamId: chunk.streamId, seq: chunk.seq }));
     channel.onmessage = chunk => receive(id, chunk);
     terminal.onData(text => send(id, new TextEncoder().encode(text)));
@@ -205,13 +214,14 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   function applySettings(value: AppSettings) {
     settings = value;
     applyTerminalTheme();
+    updateTransparencyNotice();
     runtimes.forEach((runtime, id) => { runtime.terminal.options.fontFamily = value.terminalFontFamily; runtime.terminal.options.fontSize = value.terminalFontSize; runtime.terminal.options.cursorStyle = value.terminalCursorStyle; runtime.terminal.options.scrollback = value.terminalScrollbackLines; runtime.terminal.options.lineHeight = value.terminalLineHeight; runtime.terminal.options.cursorBlink = value.terminalCursorBlink; fit(id); });
   }
   function setCopyPreference(read: () => boolean) { copyOnSelect = read; }
   function focus(id: string) { fit(id, true); }
   function clear(id: string) { runtimes.get(id)?.terminal.clear(); focus(id); }
   function dispose() { disposed = true; systemThemeQuery?.removeEventListener('change', onSystemThemeChange); [...runtimes.keys()].forEach(release); ['--color-terminal-bg', '--color-terminal-text', '--color-terminal-cursor', '--color-terminal-selection'].forEach(name => document.documentElement.style.removeProperty(name)); }
-  return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setCopyPreference, dispose };
+  return { tabs, requiresReopen, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setCopyPreference, dispose };
 }
 export type TerminalController = ReturnType<typeof createTerminalController>;
 export type TerminalChannelFactory = () => Channel<TerminalChunk>;

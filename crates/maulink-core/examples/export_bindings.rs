@@ -2,30 +2,33 @@ use std::path::PathBuf;
 
 use maulink_core::{
     AccentColor, ApiRequest, AppError, AppInfo, AppSettings, AuthType, AuthenticationChallenge,
-    AuthenticationRespondPayload, ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionMode,
-    ConnectionPreflightError, ConnectionPreflightPayload, ConnectionPreflightResult,
-    ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource, ConnectionState,
-    CredentialDeleteResult, CredentialKind, CredentialReplaceResult, CredentialUpdate, CursorStyle,
-    DecimalU64, EmptyPayload, Group, GroupCreate, GroupUpdate, GroupUpdatePayload,
-    HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload,
-    Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot, MonitorDiskSnapshot,
-    MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric, MonitorHistoryPage,
-    MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot, MonitorMetricQuality,
-    MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus, MonitorRefreshPayload,
-    MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot, NegotiatedAlgorithms,
-    NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection, NetworkInspectionSource,
-    NetworkIpVersion, NetworkScope, ProxyType, RemoteFileEntry, RemoteFileType, ResourceIdPayload,
-    RetainedCredential, RevisionPayload, SelectedLocalFile, ServerCreatePayload,
-    ServerDeletePayload, ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile,
-    ServerProfileDraft, ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload,
-    SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload,
-    SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
-    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalCustomColors,
-    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
-    TerminalSize, TerminalSnapshot, TerminalState, TerminalThemeMode, TerminalWritePayload,
-    TerminalWriteResult, Theme, WorkspaceActivityPayload,
+    AuthenticationRespondPayload, BackgroundImageAsset, BackgroundImageGetResult,
+    BackgroundImageImportPayload, BackgroundImagePayload, ConnectionDisconnectPayload,
+    ConnectionIdPayload, ConnectionMode, ConnectionPreflightError, ConnectionPreflightPayload,
+    ConnectionPreflightResult, ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource,
+    ConnectionState, CredentialDeleteResult, CredentialKind, CredentialReplaceResult,
+    CredentialUpdate, CursorStyle, DecimalU64, EmptyPayload, Group, GroupCreate, GroupUpdate,
+    GroupUpdatePayload, HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord,
+    HostKeyRespondPayload, Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot,
+    MonitorDiskSnapshot, MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric,
+    MonitorHistoryPage, MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot,
+    MonitorMetricQuality, MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus,
+    MonitorRefreshPayload, MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot,
+    NegotiatedAlgorithms, NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection,
+    NetworkInspectionSource, NetworkIpVersion, NetworkScope, ProxyType, RemoteFileEntry,
+    RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
+    ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
+    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerUpdatePayload, SettingsRecord,
+    SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
+    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
+    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
+    SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState, SftpUploadPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
+    TerminalBackgroundFit, TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind,
+    TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors, TerminalIdPayload,
+    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
+    TerminalState, TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme,
+    WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -50,6 +53,10 @@ fn main() -> Result<(), ts_rs::ExportError> {
     SettingsUpdate::export_all(&config)?;
     TerminalThemeMode::export_all(&config)?;
     TerminalCustomColors::export_all(&config)?;
+    TerminalBackgroundImageSettings::export_all(&config)?;
+    TerminalBackgroundFit::export_all(&config)?;
+    TerminalBackgroundPosition::export_all(&config)?;
+    TerminalBackgroundOverlayKind::export_all(&config)?;
     Theme::export_all(&config)?;
     Language::export_all(&config)?;
     CursorStyle::export_all(&config)?;
@@ -98,6 +105,10 @@ fn main() -> Result<(), ts_rs::ExportError> {
     ServerDeletePayload::export_all(&config)?;
     GroupUpdatePayload::export_all(&config)?;
     LocalFileSelectPayload::export_all(&config)?;
+    BackgroundImageAsset::export_all(&config)?;
+    BackgroundImageGetResult::export_all(&config)?;
+    BackgroundImageImportPayload::export_all(&config)?;
+    BackgroundImagePayload::export_all(&config)?;
     TerminalState::export_all(&config)?;
     TerminalSize::export_all(&config)?;
     TerminalSnapshot::export_all(&config)?;

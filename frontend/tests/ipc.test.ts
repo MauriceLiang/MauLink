@@ -10,6 +10,7 @@ import { createSettingsApi } from "../src/ipc/settings";
 import { createHostKeysApi } from "../src/ipc/host-keys";
 import { createNetworkApi } from "../src/ipc/network";
 import { createPreflightApi } from "../src/ipc/preflight";
+import { createBackgroundImagesApi } from "../src/ipc/background-images";
 import { emptyServers, timeoutError } from "../src/harness/fixtures";
 
 describe("typed IPC contract", () => {
@@ -60,5 +61,20 @@ describe("typed IPC contract", () => {
     const client = createIpcClient(createMockIpc({ server_list: () => emptyServers }));
     await expect(createServerApi(client).list({ query: null, groupId: null, limit: 20, cursor: null })).resolves.toEqual(emptyServers);
     await expect(createSettingsApi(client).get()).rejects.toMatchObject({ code: "INTERNAL", messageKey: "errors.unexpected" });
+  });
+
+  it("selects, imports, resolves and deletes background images through scoped IPC commands", async () => {
+    const asset={id:'00000000-0000-4000-8000-000000000001',fileName:'wallpaper.png',mediaType:'image/png',width:640,height:480,byteLength:120,createdAtMs:1};
+    const transport=createMockIpc({
+      local_file_select:()=>({token:'00000000-0000-4000-8000-000000000002',displayName:'wallpaper.png',purpose:'terminalBackground',expiresAtMs:2}),
+      background_image_import:payload=>{expect(payload.token).toMatch(/00000000/);return asset;},
+      background_image_get:()=>({asset,localPath:'/app-data/terminal-backgrounds/image.png'}),
+      background_image_delete:()=>undefined,
+    });
+    const invoke=vi.spyOn(transport,'invoke'); const api=createBackgroundImagesApi(createIpcClient(transport),path=>`asset:${path}`);
+    await expect(api.select()).resolves.toEqual(asset);
+    await expect(api.resolve(asset.id)).resolves.toEqual({asset,src:'asset:/app-data/terminal-backgrounds/image.png'});
+    await api.delete(asset.id);
+    expect(invoke.mock.calls.map(([command])=>command)).toEqual(['local_file_select','background_image_import','background_image_get','background_image_delete']);
   });
 });

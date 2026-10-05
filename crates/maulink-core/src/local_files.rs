@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io,
+    io::{self, Cursor, Read},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -15,6 +15,10 @@ use crate::{AppError, ErrorCode, PathEncoding, StoredPath};
 const DEFAULT_TOKEN_TTL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_TOKEN_CAPACITY: usize = 64;
 const MAX_PRIVATE_KEY_BYTES: u64 = 16 * 1024 * 1024;
+pub const MAX_TERMINAL_BACKGROUND_BYTES: u64 = 25 * 1024 * 1024;
+const MAX_TERMINAL_BACKGROUND_EDGE: u32 = 8_192;
+const MAX_TERMINAL_BACKGROUND_PIXELS: u64 = 32 * 1024 * 1024;
+const MAX_TERMINAL_BACKGROUND_DECODE_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +26,15 @@ pub enum LocalFilePurpose {
     PrivateKey,
     Upload,
     Download,
+    TerminalBackground,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalBackgroundImageInfo {
+    pub media_type: String,
+    pub width: u32,
+    pub height: u32,
+    pub byte_length: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -155,6 +168,12 @@ impl LocalFileRegistry {
         }
     }
 
+    pub fn consume_terminal_background_path(&self, token: &str) -> Result<PathBuf, AppError> {
+        let path = self.consume_path(token, LocalFilePurpose::TerminalBackground)?;
+        validate_terminal_background_path(&path)?;
+        Ok(path)
+    }
+
     fn consume_path(&self, token: &str, purpose: LocalFilePurpose) -> Result<PathBuf, AppError> {
         validate_token(token)?;
         let mut entries = self
@@ -178,6 +197,162 @@ impl LocalFileRegistry {
             entries.remove(token);
         }
     }
+}
+
+pub fn validate_terminal_background_image_bytes(
+    bytes: &[u8],
+) -> Result<TerminalBackgroundImageInfo, AppError> {
+    if bytes.is_empty() || bytes.len() as u64 > MAX_TERMINAL_BACKGROUND_BYTES {
+        return Err(validation("file", "errors.terminalBackgroundImageTooLarge"));
+    }
+
+    let mut reader = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|_| terminal_background_invalid())?;
+    let format = reader.format().ok_or_else(terminal_background_invalid)?;
+    let media_type = match format {
+        image::ImageFormat::Png => {
+            if png_is_animated(bytes) {
+                return Err(terminal_background_animated());
+            }
+            "image/png"
+        }
+        image::ImageFormat::Jpeg => "image/jpeg",
+        image::ImageFormat::WebP => {
+            if webp_is_animated(bytes) {
+                return Err(terminal_background_animated());
+            }
+            "image/webp"
+        }
+        _ => {
+            return Err(validation(
+                "file",
+                "errors.terminalBackgroundImageFormatUnsupported",
+            ));
+        }
+    };
+
+    let dimensions_reader = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|_| terminal_background_invalid())?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_TERMINAL_BACKGROUND_EDGE);
+    limits.max_image_height = Some(MAX_TERMINAL_BACKGROUND_EDGE);
+    limits.max_alloc = Some(MAX_TERMINAL_BACKGROUND_DECODE_BYTES);
+    let (width, height) = dimensions_reader
+        .into_dimensions()
+        .map_err(|_| terminal_background_invalid())?;
+    if width == 0
+        || height == 0
+        || width > MAX_TERMINAL_BACKGROUND_EDGE
+        || height > MAX_TERMINAL_BACKGROUND_EDGE
+        || u64::from(width) * u64::from(height) > MAX_TERMINAL_BACKGROUND_PIXELS
+    {
+        return Err(validation(
+            "file",
+            "errors.terminalBackgroundImageDimensionsOutOfRange",
+        ));
+    }
+
+    reader.limits(limits);
+    reader.decode().map_err(|_| terminal_background_invalid())?;
+
+    Ok(TerminalBackgroundImageInfo {
+        media_type: media_type.to_owned(),
+        width,
+        height,
+        byte_length: bytes.len() as u64,
+    })
+}
+
+fn validate_terminal_background_path(path: &Path) -> Result<(), AppError> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|_| validation("token", "errors.terminalBackgroundImageUnreadable"))?;
+    if !metadata.file_type().is_file() {
+        return Err(validation(
+            "token",
+            "errors.terminalBackgroundImageUnreadable",
+        ));
+    }
+    if metadata.len() == 0 || metadata.len() > MAX_TERMINAL_BACKGROUND_BYTES {
+        return Err(validation(
+            "token",
+            "errors.terminalBackgroundImageTooLarge",
+        ));
+    }
+    let file = std::fs::File::open(path)
+        .map_err(|_| validation("token", "errors.terminalBackgroundImageUnreadable"))?;
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    file.take(MAX_TERMINAL_BACKGROUND_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| validation("token", "errors.terminalBackgroundImageUnreadable"))?;
+    if bytes.len() as u64 > MAX_TERMINAL_BACKGROUND_BYTES {
+        return Err(validation(
+            "token",
+            "errors.terminalBackgroundImageTooLarge",
+        ));
+    }
+    validate_terminal_background_image_bytes(&bytes).map(|_| ())
+}
+
+fn png_is_animated(bytes: &[u8]) -> bool {
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return false;
+    }
+    let mut offset = 8usize;
+    while offset.checked_add(12).is_some_and(|end| end <= bytes.len()) {
+        let length = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
+        let Some(end) = offset
+            .checked_add(12)
+            .and_then(|base| base.checked_add(length))
+        else {
+            return false;
+        };
+        if end > bytes.len() {
+            return false;
+        }
+        if &bytes[offset + 4..offset + 8] == b"acTL" {
+            return true;
+        }
+        offset = end;
+    }
+    false
+}
+
+fn webp_is_animated(bytes: &[u8]) -> bool {
+    if bytes.len() < 12 || &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WEBP" {
+        return false;
+    }
+    let mut offset = 12usize;
+    while offset.checked_add(8).is_some_and(|end| end <= bytes.len()) {
+        let kind = &bytes[offset..offset + 4];
+        let length = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap()) as usize;
+        let Some(data_end) = offset
+            .checked_add(8)
+            .and_then(|start| start.checked_add(length))
+        else {
+            return false;
+        };
+        if data_end > bytes.len() {
+            return false;
+        }
+        if kind == b"ANIM" || kind == b"ANMF" {
+            return true;
+        }
+        if kind == b"VP8X" && length >= 1 && bytes[offset + 8] & 0x02 != 0 {
+            return true;
+        }
+        offset = data_end + (length & 1);
+    }
+    false
+}
+
+fn terminal_background_invalid() -> AppError {
+    validation("file", "errors.terminalBackgroundImageInvalid")
+}
+
+fn terminal_background_animated() -> AppError {
+    validation("file", "errors.terminalBackgroundImageAnimatedUnsupported")
 }
 
 fn current_time_ms() -> Result<i64, AppError> {
@@ -253,6 +428,7 @@ fn internal(message_key: &'static str) -> AppError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::{DynamicImage, ImageFormat};
 
     #[test]
     fn token_is_purpose_bound_and_expires() {
@@ -274,6 +450,119 @@ mod tests {
             .resolve_private_key(&selected.token)
             .expect_err("expired token must fail");
         assert_eq!(error.code, ErrorCode::ResourceClosed);
+    }
+
+    #[test]
+    fn terminal_background_accepts_static_png_jpeg_and_webp() {
+        for format in [ImageFormat::Png, ImageFormat::Jpeg, ImageFormat::WebP] {
+            let mut encoded = Cursor::new(Vec::new());
+            DynamicImage::new_rgb8(3, 2)
+                .write_to(&mut encoded, format)
+                .expect("encode fixture");
+            let info = validate_terminal_background_image_bytes(&encoded.into_inner())
+                .expect("supported static image");
+            assert_eq!((info.width, info.height), (3, 2));
+            assert_eq!(
+                info.media_type,
+                match format {
+                    ImageFormat::Png => "image/png",
+                    ImageFormat::Jpeg => "image/jpeg",
+                    ImageFormat::WebP => "image/webp",
+                    _ => unreachable!(),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn terminal_background_rejects_animation_unsupported_formats_and_invalid_bytes() {
+        let mut apng = b"\x89PNG\r\n\x1a\n".to_vec();
+        apng.extend_from_slice(&0u32.to_be_bytes());
+        apng.extend_from_slice(b"acTL");
+        apng.extend_from_slice(&0u32.to_be_bytes());
+        assert_eq!(
+            validate_terminal_background_image_bytes(&apng)
+                .expect_err("APNG must not be imported")
+                .message_key,
+            "errors.terminalBackgroundImageAnimatedUnsupported"
+        );
+
+        let mut animated_webp = b"RIFF".to_vec();
+        animated_webp.extend_from_slice(&22u32.to_le_bytes());
+        animated_webp.extend_from_slice(b"WEBPVP8X");
+        animated_webp.extend_from_slice(&10u32.to_le_bytes());
+        animated_webp.extend_from_slice(&[0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            validate_terminal_background_image_bytes(&animated_webp)
+                .expect_err("animated WebP must not be imported")
+                .message_key,
+            "errors.terminalBackgroundImageAnimatedUnsupported"
+        );
+
+        assert_eq!(
+            validate_terminal_background_image_bytes(b"GIF89a")
+                .expect_err("GIF must not be imported")
+                .message_key,
+            "errors.terminalBackgroundImageFormatUnsupported"
+        );
+        assert_eq!(
+            validate_terminal_background_image_bytes(b"not an image")
+                .expect_err("invalid image bytes must fail")
+                .message_key,
+            "errors.terminalBackgroundImageInvalid"
+        );
+        assert_eq!(
+            validate_terminal_background_image_bytes(&vec![
+                0;
+                MAX_TERMINAL_BACKGROUND_BYTES as usize
+                    + 1
+            ])
+            .expect_err("oversized images must fail")
+            .message_key,
+            "errors.terminalBackgroundImageTooLarge"
+        );
+        let mut oversized_dimensions = Cursor::new(Vec::new());
+        DynamicImage::new_rgb8(MAX_TERMINAL_BACKGROUND_EDGE + 1, 1)
+            .write_to(&mut oversized_dimensions, ImageFormat::Png)
+            .expect("encode oversized dimensions");
+        assert_eq!(
+            validate_terminal_background_image_bytes(&oversized_dimensions.into_inner())
+                .expect_err("large dimensions must fail")
+                .message_key,
+            "errors.terminalBackgroundImageDimensionsOutOfRange"
+        );
+    }
+
+    #[test]
+    fn terminal_background_token_is_single_use_and_purpose_bound() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("picture.png");
+        let mut encoded = Cursor::new(Vec::new());
+        DynamicImage::new_rgb8(2, 2)
+            .write_to(&mut encoded, ImageFormat::Png)
+            .expect("encode fixture");
+        std::fs::write(&path, encoded.into_inner()).expect("write fixture");
+        let registry = LocalFileRegistry::default();
+        let selected = registry
+            .register(path, LocalFilePurpose::TerminalBackground)
+            .expect("register selection");
+        let error = registry
+            .consume_upload_path(&selected.token)
+            .expect_err("upload cannot consume image token");
+        assert_eq!(error.message_key, "errors.localFilePurposeMismatch");
+        assert!(
+            registry
+                .consume_terminal_background_path(&selected.token)
+                .expect("consume image token")
+                .is_file()
+        );
+        assert_eq!(
+            registry
+                .consume_terminal_background_path(&selected.token)
+                .expect_err("consumed token cannot be reused")
+                .code,
+            ErrorCode::ResourceClosed
+        );
     }
 
     #[test]

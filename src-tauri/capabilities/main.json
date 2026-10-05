@@ -51,6 +51,9 @@
     "allow-workspace-set-activity",
     "allow-settings-get",
     "allow-settings-update",
-    "allow-local-file-select"
+    "allow-local-file-select",
+    "allow-background-image-import",
+    "allow-background-image-get",
+    "allow-background-image-delete"
   ]
 }

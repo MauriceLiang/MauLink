@@ -17,6 +17,7 @@ import { createSftpApi } from "../ipc/sftp";
 import { createTransferStore, transferFinished, type TransferChannelFactory } from "../stores/transfers";
 import { createTerminalApi } from "../ipc/terminal";
 import { createSettingsApi } from "../ipc/settings";
+import { createBackgroundImagesApi } from "../ipc/background-images";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
 import { createTerminalPreferences } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
@@ -65,6 +66,7 @@ const terminalPreferences = createTerminalPreferences(createSettingsApi(props.cl
   document.documentElement.lang = settings.language;
   locale.value = settings.language;
 });
+const backgroundImages = createBackgroundImagesApi(props.client);
 terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
 const sftp = createSftpApi(props.client);
 const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory);
@@ -231,7 +233,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
       </main>
       <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" :transfer-count="activeTransfers" />
     </div>
@@ -243,7 +245,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
     <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
-    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
+    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
     <BaseToastViewport :queue="toast" />
   </div>

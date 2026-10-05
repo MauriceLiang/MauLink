@@ -19,9 +19,15 @@ tauri-build = { version = "2.5", features = [] }
 [dependencies]
 maulink-core = { path = "../crates/maulink-core" }
 serde.workspace = true
-tauri = { version = "=2.11.6", features = ["image-png"] }
+serde_json.workspace = true
+tauri = { version = "=2.11.6", features = ["image-png", "protocol-asset"] }
 tauri-plugin-dialog = "2.7"
 tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+image.workspace = true
+tempfile.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

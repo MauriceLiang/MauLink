@@ -1,11 +1,13 @@
 mod app_icon;
+mod background_images;
 mod commands;
 mod state;
 
 use std::fs;
 
 use commands::{
-    app_get_info, auth_respond, connection_cancel, connection_disconnect, connection_get,
+    app_get_info, auth_respond, background_image_delete, background_image_get,
+    background_image_import, connection_cancel, connection_disconnect, connection_get,
     connection_preflight, connection_start, credential_cleanup_retry, credential_delete_retained,
     credential_list_retained, group_create, group_delete, group_list, group_update, host_key_get,
     host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
@@ -32,6 +34,9 @@ pub fn run() {
         .setup(|app| {
             let app_data_directory = app.path().app_data_dir()?;
             fs::create_dir_all(&app_data_directory)?;
+            let background_images = background_images::BackgroundImageStore::new(
+                app_data_directory.join("terminal-backgrounds"),
+            )?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -83,6 +88,8 @@ pub fn run() {
                 sftp_transfers,
                 terminals,
                 monitor,
+                background_images,
+                background_image_mutation: tokio::sync::Mutex::new(()),
             });
             Ok(())
         })
@@ -137,6 +144,9 @@ pub fn run() {
             settings_get,
             settings_update,
             local_file_select,
+            background_image_import,
+            background_image_get,
+            background_image_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while building MauLink")

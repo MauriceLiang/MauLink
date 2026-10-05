@@ -1,21 +1,23 @@
 use maulink_core::{
-    ApiRequest, AppError, AppInfo, AuthenticationRespondPayload, ConnectionDisconnectPayload,
-    ConnectionIdPayload, ConnectionPreflightPayload, ConnectionPreflightResult, ConnectionSnapshot,
-    ConnectionStartPayload, CredentialDeleteResult, CredentialUpdate, EmptyPayload, ErrorCode,
-    Group, GroupCreate, GroupUpdatePayload, HostKeyGetPayload, HostKeyRecord,
-    HostKeyRespondPayload, LocalFilePurpose, LocalFileSelectPayload, MonitorGetHistoryPayload,
-    MonitorGetSnapshotPayload, MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot,
-    NetworkInspectPayload, NetworkInspection, RemoteFileEntry, ResourceIdPayload,
-    RetainedCredential, RevisionPayload, SelectedLocalFile, ServerCreatePayload,
-    ServerDeletePayload, ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile,
-    ServerProfileDraft, ServerProfileInput, ServerUpdatePayload, SettingsRecord, SettingsUpdate,
-    SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
-    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
-    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
-    SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
+    ApiRequest, AppError, AppInfo, AuthenticationRespondPayload, BackgroundImageAsset,
+    BackgroundImageGetResult, BackgroundImageImportPayload, BackgroundImagePayload,
+    ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionPreflightPayload,
+    ConnectionPreflightResult, ConnectionSnapshot, ConnectionStartPayload, CredentialDeleteResult,
+    CredentialUpdate, EmptyPayload, ErrorCode, Group, GroupCreate, GroupUpdatePayload,
+    HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload, LocalFilePurpose,
+    LocalFileSelectPayload, MonitorGetHistoryPayload, MonitorGetSnapshotPayload,
+    MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot, NetworkInspectPayload,
+    NetworkInspection, RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload,
+    SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
+    ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
+    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
+    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
+    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
+    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload,
+    SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload,
+    TerminalChunk, TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult,
+    TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalWritePayload,
+    TerminalWriteResult, WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -680,6 +682,18 @@ pub async fn settings_update(
 ) -> Result<SettingsRecord, AppError> {
     let (request_id, payload) = request.validate()?;
     let result = async {
+        let _guard = state.background_image_mutation.lock().await;
+        let current_image_id = state
+            .settings
+            .current()
+            .value
+            .terminal_background_image
+            .image_id;
+        if payload.value.terminal_background_image.image_id != current_image_id
+            && let Some(image_id) = payload.value.terminal_background_image.image_id.as_deref()
+        {
+            state.background_images.get(image_id)?;
+        }
         let stored = state.settings.update(payload).await?;
         crate::app_icon::apply(&app, stored.value.app_icon_style).await?;
         Ok(stored)
@@ -700,6 +714,11 @@ pub async fn local_file_select(
             app.dialog().file().blocking_pick_file()
         }
         LocalFilePurpose::Download => app.dialog().file().blocking_save_file(),
+        LocalFilePurpose::TerminalBackground => app
+            .dialog()
+            .file()
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+            .blocking_pick_file(),
     };
     let Some(selected) = selected else {
         return Ok(None);
@@ -713,6 +732,62 @@ pub async fn local_file_select(
         .register(path, payload.purpose)
         .map(Some)
         .map_err(|error| error.with_request_id(request_id))
+}
+
+#[tauri::command]
+pub async fn background_image_import(
+    request: ApiRequest<BackgroundImageImportPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<BackgroundImageAsset, AppError> {
+    let (request_id, payload) = request.validate()?;
+    let store = state.background_images.clone();
+    let local_files = state.local_files.clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || store.import(&local_files, &payload.token))
+            .await
+            .map_err(|_| {
+                AppError::new(
+                    ErrorCode::Internal,
+                    "errors.terminalBackgroundImageImportFailed",
+                )
+                .with_request_id(request_id.clone())
+            })?;
+    attach_request_id(request_id, result)
+}
+
+#[tauri::command]
+pub fn background_image_get(
+    request: ApiRequest<BackgroundImagePayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<BackgroundImageGetResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.background_images.get(&payload.image_id))
+}
+
+#[tauri::command]
+pub async fn background_image_delete(
+    request: ApiRequest<BackgroundImagePayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<(), AppError> {
+    let (request_id, payload) = request.validate()?;
+    let _guard = state.background_image_mutation.lock().await;
+    let result = if state
+        .settings
+        .current()
+        .value
+        .terminal_background_image
+        .image_id
+        .as_deref()
+        == Some(payload.image_id.as_str())
+    {
+        Err(AppError::new(
+            ErrorCode::ResourceInUse,
+            "errors.terminalBackgroundImageInUse",
+        ))
+    } else {
+        state.background_images.delete(&payload.image_id)
+    };
+    attach_request_id(request_id, result)
 }
 
 fn attach_request_id<T>(request_id: String, result: Result<T, AppError>) -> Result<T, AppError> {

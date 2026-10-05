@@ -28,9 +28,14 @@ describe('terminal theme resolver', () => {
     });
   });
 
-  it('keeps Image as a distinct stored mode until its background asset is configured', () => {
-    const appearance = resolveTerminalAppearance({ ...defaultSettings, terminalThemeMode: 'image' }, 'light', false);
+  it('resolves Image mode to a transparent xterm theme and keeps custom text colors', () => {
+    const appearance = resolveTerminalAppearance({
+      ...defaultSettings,
+      terminalThemeMode: 'image',
+      terminalCustomColors: { background: '#102030', foreground: '#E0E0E0', cursor: '#33AAFF', selection: '#7755CC' },
+    }, 'light', false);
     expect(appearance.mode).toBe('image');
-    expect(appearance.theme.background).toBe('#111318');
+    expect(appearance.theme).toEqual({ background: 'transparent', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.28)' });
+    expect(appearance.transparent).toBe(true);
   });
 });

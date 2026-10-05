@@ -24,6 +24,18 @@ export function resolveTerminalAppearance(
     : settings.terminalThemeMode;
   const accent = resolveAccentColor(settings.accentColor, settings.customAccentColor);
 
+  if (mode === "image") {
+    const colors = settings.terminalCustomColors;
+    const foreground = safeHex(colors.foreground, "#EAECF0");
+    const cursor = safeHex(colors.cursor, accent);
+    const selection = safeHex(colors.selection, accent);
+    return {
+      mode,
+      theme: { background: "transparent", foreground, cursor, selectionBackground: withAlpha(selection, 0.28) },
+      transparent: true,
+    };
+  }
+
   if (mode === "customColor") {
     const colors = settings.terminalCustomColors;
     const background = safeHex(colors.background, "#111318");

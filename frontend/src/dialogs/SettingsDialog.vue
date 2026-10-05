@@ -10,6 +10,7 @@ import logoDark from '../assets/app-icon-dark.png';
 import type { Theme } from '../../../contracts/v1/Theme';
 import type { Language } from '../../../contracts/v1/Language';
 import type { TerminalPreferences } from '../terminal/preferences';
+import type { BackgroundImagesApi } from '../ipc/background-images';
 import { defaultSettings } from '../terminal/preferences';
 import BaseDialog from '../components/base/BaseDialog.vue';
 import BaseButton from '../components/base/BaseButton.vue';
@@ -18,7 +19,7 @@ import { messages } from '../i18n/locale';
 import { settingsMessages } from '../i18n/settings';
 import { accentPresetColors } from '../theme/accent';
 const t = messages(settingsMessages);
-const props = defineProps<{ open: boolean; preferences: TerminalPreferences }>();
+const props = defineProps<{ open: boolean; preferences: TerminalPreferences; backgroundImages: BackgroundImagesApi }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 const iconStyle = ref<AppIconStyle>('light');
 const accentColor = ref<AccentColor>('blue');
@@ -43,5 +44,5 @@ async function save() { if (await props.preferences.save({ theme: theme.value, a
     <BaseAlert v-if="preferences.error.value">{{ preferences.error.value }}</BaseAlert><BaseButton v-if="preferences.error.value" :disabled="preferences.busy.value" @click="preferences.load().then(reset)">{{ t('reload') }}</BaseButton>
     <template #footer><BaseButton :disabled="preferences.busy.value" @click="emit('close')">{{ t('cancel') }}</BaseButton><BaseButton variant="primary" type="submit" form="app-settings-form" :loading="preferences.busy.value" :disabled="!preferences.record.value">{{ t('save') }}</BaseButton></template>
   </BaseDialog>
-  <TerminalSettingsDialog :open="open && terminal" :preferences="preferences" @close="terminal = false" />
+  <TerminalSettingsDialog :open="open && terminal" :preferences="preferences" :background-images="backgroundImages" @close="terminal = false" />
 </template>

@@ -19,16 +19,22 @@
 .terminal-tab-close:hover:not(:disabled) .base-icon { transform: scale(1.1); }
 .terminal-tab-group:hover .terminal-tab-close, .terminal-tab-close:focus-visible { opacity: 1; }
 .terminal-stack { position: relative; min-height: 0; min-width: 0; background: var(--color-terminal-bg); overflow: hidden; }
-.xterm-host { position: absolute; inset: 0; padding: 12px 14px; }
+.terminal-background-layer, .terminal-background-overlay { position: absolute; inset: 0; pointer-events: none; }
+.terminal-background-layer { z-index: 0; }
+.terminal-background-overlay { z-index: 1; }
+.xterm-host, .terminal-empty { position: absolute; z-index: 2; }
+.xterm-host { inset: 0; padding: 12px 14px; }
+.terminal-empty { inset: 0; width: fit-content; height: fit-content; }
 .terminal-mount { width: 100%; height: 100%; }
 .terminal-mount .xterm { height: 100%; }
 .terminal-empty { padding: 20px; color: var(--color-terminal-text); font-size: 13px; }
 .terminal-footer { display: flex; gap: 12px; align-items: center; min-height: 24px; padding: 0 8px 0 12px; background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
 .terminal-footer .terminal-files-toggle { width: 24px; min-width: 24px; min-height: 22px; padding: 0; }
 .terminal-warning { margin: 0; padding: 8px 12px; color: var(--color-danger); font-size: 12px; background: var(--color-surface); }
+.terminal-background-notice { margin: 0; padding: 7px 12px; color: var(--color-text-secondary); font-size: 11px; background: var(--color-bg-subtle); }
 .terminal-settings-form fieldset { display: grid; gap: 14px; min-width: 0; padding: 0; border: 0; }
 .terminal-settings-form label { display: flex; gap: 10px; align-items: center; font-size: 13px; }
-.terminal-settings-dialog { width: min(560px, calc(100vw - 40px)); }
+.terminal-settings-dialog { width: min(620px, calc(100vw - 40px)); }
 .terminal-settings-dialog .base-dialog-heading, .terminal-settings-dialog .base-dialog-footer { border: 0; }
 .terminal-settings-dialog .terminal-settings-form fieldset { gap: 12px; }
 .terminal-settings-dialog .terminal-settings-form .terminal-theme-mode-field { display: block; margin: 0; padding: 0; border: 0; }
@@ -42,6 +48,19 @@
 .terminal-custom-colors label > input { grid-column: 2; grid-row: 1 / span 2; width: 38px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); cursor: pointer; }
 .terminal-custom-colors code { color: var(--color-text-primary); font-family: ui-monospace, monospace; }
 .terminal-preview { display: grid; gap: 3px; min-height: 88px; padding: 12px; overflow: auto; border: 1px solid var(--color-border); border-radius: 7px; font-family: ui-monospace, monospace; white-space: nowrap; }
+.terminal-background-settings { display: grid; gap: 10px; }
+.terminal-background-preview { position: relative; display: grid; min-height: 100px; align-content: center; gap: 3px; padding: 12px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 7px; white-space: nowrap; }
+.terminal-background-preview-image, .terminal-background-preview-overlay { position: absolute; inset: 0; pointer-events: none; }
+.terminal-background-preview-image { z-index: 0; }
+.terminal-background-preview-overlay { z-index: 1; }
+.terminal-background-preview-content, .terminal-background-empty { position: relative; z-index: 2; }
+.terminal-background-empty { color: var(--color-text-secondary); font-size: 12px; }
+.terminal-background-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.terminal-background-name { flex: 1 1 150px; min-width: 0; overflow: hidden; color: var(--color-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-background-range { display: grid !important; grid-template-columns: 120px minmax(0, 1fr) 48px; gap: 12px !important; color: var(--color-text-secondary); }
+.terminal-background-range input { width: 100%; accent-color: var(--color-primary); }
+.terminal-background-range output { color: var(--color-text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+.terminal-warning span { display: block; }
 .terminal-preview-prompt, .terminal-preview-cursor { font-weight: 600; }
 .terminal-preview-selection { border-radius: 2px; }
 .terminal-settings-dialog .terminal-settings-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); column-gap: 14px; align-items: center; min-width: 0; }

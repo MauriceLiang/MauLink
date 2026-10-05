@@ -1,4 +1,8 @@
 import type { Channel } from "@tauri-apps/api/core";
+import type { BackgroundImageAsset } from "../../../contracts/v1/BackgroundImageAsset";
+import type { BackgroundImageGetResult } from "../../../contracts/v1/BackgroundImageGetResult";
+import type { BackgroundImageImportPayload } from "../../../contracts/v1/BackgroundImageImportPayload";
+import type { BackgroundImagePayload } from "../../../contracts/v1/BackgroundImagePayload";
 import type { AppInfo } from "../../../contracts/v1/AppInfo";
 import type { AuthenticationRespondPayload } from "../../../contracts/v1/AuthenticationRespondPayload";
 import type { ConnectionDisconnectPayload } from "../../../contracts/v1/ConnectionDisconnectPayload";
@@ -116,6 +120,9 @@ export interface CommandContracts {
   settings_get: { payload: EmptyPayload; result: SettingsRecord };
   settings_update: { payload: SettingsUpdate; result: SettingsRecord };
   local_file_select: { payload: LocalFileSelectPayload; result: SelectedLocalFile | null };
+  background_image_import: { payload: BackgroundImageImportPayload; result: BackgroundImageAsset };
+  background_image_get: { payload: BackgroundImagePayload; result: BackgroundImageGetResult };
+  background_image_delete: { payload: BackgroundImagePayload; result: void };
 }
 
 export type Command = keyof CommandContracts;
