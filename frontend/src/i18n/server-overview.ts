@@ -48,8 +48,6 @@ export const serverOverviewMessages = {
   networkAnalysisLoading: ["正在分析网络信息…", "Analyzing network information…"],
   networkAnalysisFailed: ["无法分析网络信息，请检查域名或稍后重试。", "Could not analyze network information. Check the hostname or try again later."],
   networkPrivacyNote: ["IP 信息在本机分析，域名通过系统 DNS 解析。", "IP information is analyzed locally; hostnames use the system DNS resolver."],
-  networkAnalyze: ["分析网络信息", "Analyze network information"],
-  networkAnalyzeDetails: ["分析详细网络信息", "Analyze detailed network information"],
   networkRetry: ["重试分析", "Retry analysis"],
   networkAddress: ["地址", "Address"],
   networkType: ["类型", "Type"],

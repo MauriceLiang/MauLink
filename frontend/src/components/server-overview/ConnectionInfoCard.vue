@@ -36,7 +36,7 @@ const advancedFields = computed(() => [
         <dd :class="{ 'server-overview-mono': field.mono }">{{ field.value }}</dd>
       </div>
     </dl>
-    <details class="server-overview-extra">
+    <details :key="server.id" class="server-overview-extra" open>
       <summary>{{ t('connectionMoreDetails') }}</summary>
       <dl class="server-overview-info-grid">
         <div v-for="field in advancedFields" :key="field.label" class="server-overview-info-item"><dt>{{ field.label }}</dt><dd>{{ field.value }}</dd></div>

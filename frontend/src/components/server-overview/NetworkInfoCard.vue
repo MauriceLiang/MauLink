@@ -12,7 +12,7 @@ const props = defineProps<{ server: ServerProfile; api: ReturnType<typeof create
 const emit = defineEmits<{ openSettings: [] }>();
 type LoadState = { status: "loading" | "error"; detailed: boolean } | { status: "ready"; detailed: boolean; inspection: NetworkInspection };
 const t = messages(serverOverviewMessages);
-const state = ref<LoadState>({ status: "loading", detailed: false });
+const state = ref<LoadState>({ status: "loading", detailed: true });
 const readyState = computed(() => state.value.status === "ready" ? state.value : null);
 let requestVersion = 0;
 
@@ -62,7 +62,7 @@ function formatDate(timestamp: number) {
   return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-watch(() => props.server.host, () => { void load(false); }, { immediate: true });
+watch(() => props.server.host, () => { void load(true); }, { immediate: true });
 watch(() => props.databaseRevision, () => { void load(state.value.detailed); });
 onBeforeUnmount(() => { requestVersion += 1; });
 </script>
@@ -93,7 +93,7 @@ onBeforeUnmount(() => { requestVersion += 1; });
           <span class="server-overview-network-hint">{{ t('networkGeoUnavailable') }}</span>
           <BaseButton @click="emit('openSettings')">{{ t('configureGeoDatabase') }}</BaseButton>
         </div>
-        <details v-if="readyState.detailed" class="server-overview-extra server-overview-network-extra">
+        <details v-if="readyState.detailed" class="server-overview-extra server-overview-network-extra" open>
           <summary>{{ t('networkTechnicalDetails') }}</summary>
           <dl class="server-overview-info-grid">
             <div class="server-overview-info-item"><dt>{{ t('networkResolvedAddresses') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.resolvedAddresses.join(', ') || '—' }}</dd></div>
@@ -103,7 +103,6 @@ onBeforeUnmount(() => { requestVersion += 1; });
           </dl>
         </details>
         <p v-if="readyState.inspection.databaseSource === 'dbIp'" class="server-overview-attribution"><a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a></p>
-        <BaseButton v-if="!readyState.detailed" @click="load(true)">{{ readyState.inspection.hostKind === 'hostname' ? t('networkAnalyze') : t('networkAnalyzeDetails') }}</BaseButton>
       </template>
     </div>
   </section>

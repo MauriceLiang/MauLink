@@ -80,6 +80,7 @@ describe("server overview", () => {
     expect(wrapper.text()).toContain("私钥");
     expect(wrapper.text()).toContain("已配置");
     expect(wrapper.text()).toContain("已保存");
+    expect(wrapper.get("details").element).toHaveProperty("open", true);
   });
 
   it("supports the English overview labels", () => {
@@ -279,35 +280,29 @@ describe("server overview", () => {
     expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
   });
 
-  it("classifies an IP locally and performs detailed lookup only after explicit action", async () => {
+  it("automatically analyzes an IP and expands its technical details", async () => {
     const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
     const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: false });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: true });
     expect(wrapper.text()).toContain("192.168.1.20");
     expect(wrapper.text()).toContain("IPv4 · Private");
     expect(inspect).toHaveBeenCalledTimes(1);
 
-    await wrapper.get("button").trigger("click");
-    await flushPromises();
-    expect(inspect).toHaveBeenLastCalledWith({ host: "192.168.1.20", detailed: true });
+    expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("dns.google");
     expect(wrapper.text()).toContain("私有网络地址不提供公网 GeoIP 信息");
   });
 
-  it("shows a hostname without resolving it until the user asks for analysis", async () => {
+  it("automatically resolves a hostname when the overview opens", async () => {
     const hostname = profile({ host: "server.example.com" });
     const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
     const wrapper = mount(NetworkInfoCard, { props: { server: hostname, api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: false });
-    expect(wrapper.text()).toContain("Hostname");
-    expect(wrapper.text()).not.toContain("8.8.8.8");
-    await wrapper.get("button").trigger("click");
-    await flushPromises();
-    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true });
+    expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(wrapper.text()).toContain("反向 DNS");
     expect(wrapper.text()).toContain("暂无位置或 ASN 数据");
@@ -322,7 +317,8 @@ describe("server overview", () => {
     expect(wrapper.text()).not.toContain("resolver details");
     await wrapper.get("button").trigger("click");
     await flushPromises();
-    expect(wrapper.text()).toContain("Hostname");
+    expect(wrapper.text()).toContain("8.8.8.8");
+    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
     expect(inspect).toHaveBeenCalledTimes(2);
   });
 });
