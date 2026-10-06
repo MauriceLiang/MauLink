@@ -73,8 +73,11 @@ describe('secure connection flow', () => {
     await ui().get('form').trigger('submit'); expect(ui().text()).toContain('请输入凭据');
     await ui().get('input').setValue('wrong'); await ui().get('form').trigger('submit'); await flushPromises(); expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(false);
     expect(JSON.stringify(store.snapshots.value)).not.toContain('wrong'); await store.refresh(server.id);
-    const panel = mount(ConnectionPanel, { props: { store, server, readOnly: false } }); wrappers.push(panel);
-    expect(panel.text()).toContain('认证失败'); expect(button(panel, '重试连接')).toBeUndefined(); expect(panel.text()).not.toContain('Fixture debug');
+    const panel = mount(ConnectionPanel, { attachTo: document.body, props: { store, server, readOnly: false } }); wrappers.push(panel);
+    await flushPromises();
+    expect(ui().get('[role="dialog"]').text()).toContain('认证失败'); expect(panel.find('.connection-error').exists()).toBe(false); expect(button(panel, '重试连接')).toBeUndefined(); expect(ui().text()).not.toContain('Fixture debug');
+    await button(panel, '关闭').trigger('click'); await flushPromises();
+    expect(ui().find('[role="dialog"]').exists()).toBe(false);
     await button(panel, '关闭错误').trigger('click'); expect(button(panel, '连接')).toBeDefined();
   });
   it('clears the credential input immediately while a response is pending and keeps auth payload out of Store', async () => {
@@ -108,9 +111,11 @@ describe('secure connection flow', () => {
   it('shows retry only for retryable terminal errors; host-key changes stay blocked even with retryable true', async () => {
     const store = storeFor(); const error = { ...fixtureError('CONNECTION_TIMEOUT','errors.connectionTimeout'), retryable: true, stage: 'connectingProxy', requestId: 'safe-request-id' };
     store.snapshots.value = { [server.id]: { ...initial, state: 'failed', error } };
-    const panel = mount(ConnectionPanel, { props: { store, server, readOnly: false } }); wrappers.push(panel);
+    const panel = mount(ConnectionPanel, { attachTo: document.body, props: { store, server, readOnly: false } }); wrappers.push(panel);
+    await flushPromises();
     expect(button(panel,'重试连接')).toBeDefined(); expect(panel.text()).not.toContain('safe-request-id');
-    await button(panel,'查看诊断').trigger('click'); expect(panel.text()).toContain('safe-request-id'); expect(panel.text()).not.toContain('Fixture debug');
+    expect(ui().get('[role="dialog"]').text()).toContain('连接失败'); expect(panel.find('.connection-error').exists()).toBe(false);
+    await button(panel,'查看诊断').trigger('click'); expect(ui().text()).toContain('safe-request-id'); expect(ui().text()).not.toContain('Fixture debug');
     store.snapshots.value = { [server.id]: { ...initial, state: 'failed', error: { ...error, code: 'HOST_KEY_CHANGED' } } }; await flushPromises(); expect(button(panel,'重试连接')).toBeUndefined();
   });
   it('retains the last Core snapshot on polling failure and permits real cancellation', async () => {
@@ -125,7 +130,8 @@ describe('secure connection flow', () => {
     button(wrapper, '连接服务器').element.focus(); await button(wrapper, '连接服务器').trigger('click'); await flushPromises();
     await vi.waitFor(() => expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(true));
     await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
-    await vi.waitFor(() => expect(button(wrapper, '关闭错误')).toBeDefined());
+    await vi.waitFor(() => expect(ui().get('[role="dialog"]').text()).toContain('连接失败'));
+    await button(wrapper, '关闭').trigger('click');
     await flushPromises();
     expect(document.activeElement).toBe(button(wrapper, '关闭错误').element);
   });

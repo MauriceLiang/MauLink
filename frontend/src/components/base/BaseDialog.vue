@@ -6,7 +6,7 @@ import BaseIconButton from './BaseIconButton.vue';
 import BaseIcon from './BaseIcon.vue';
 import { dialogEscapeKey } from './dialog-context';
 const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; alert?: boolean }>(), { busy:false, closeLabel:'', panelClass:'', alert:false });
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; closed: [] }>();
 // Both modal types share the same surface and external API; Reka owns their behavior.
 const parts = computed(() => props.alert
   ? {Root:AlertDialogRoot,Portal:AlertDialogPortal,Overlay:AlertDialogOverlay,Content:AlertDialogContent,Title:AlertDialogTitle}
@@ -23,6 +23,7 @@ function openAutoFocus(event: Event) {
 function closeAutoFocus(event: Event) {
   event.preventDefault();
   if (returnFocus?.isConnected) returnFocus.focus({preventScroll:true});
+  emit('closed');
 }
 function escape(event: KeyboardEvent) { if (props.busy) event.preventDefault(); }
 function outside(event: Event) { if (props.busy) event.preventDefault(); }

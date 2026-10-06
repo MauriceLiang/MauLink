@@ -34,6 +34,8 @@ export const connectionMessages = {
   password: ["密码", "Password"],
   notConnected: ["尚未连接", "Not connected"],
   retryConnection: ["重试连接", "Retry connection"],
+  connectionFailed: ["连接失败", "Connection failed"],
+  close: ["关闭", "Close"],
   rejectConnection: ["拒绝连接", "Reject connection"],
   stage: ["阶段", "Stage"],
   connection: ["{name} 连接", "{name} connection"],
