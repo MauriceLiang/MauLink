@@ -261,10 +261,9 @@ describe("server overview", () => {
 
     expect(check).toHaveBeenCalledExactlyOnceWith({ serverId: base.id, host: "192.168.1.20", port: 22, timeoutMs: 10000 });
     expect(getStats).toHaveBeenCalledWith({ serverId: base.id });
-    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("TCP 22 端口");
-    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("端口可达");
-    expect(wrapper.text()).toContain("直连 TCP 端口，不经过代理或跳板机");
-    expect(wrapper.text()).toContain("不代表 SSH 登录成功");
+    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "success", message: "连接检测成功 · 延迟 7 ms" }]]);
+    expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
+    expect(wrapper.findAll(".server-overview-card")).toHaveLength(5);
   });
 
   it("shows a refused port from a completed preflight", async () => {
@@ -276,8 +275,8 @@ describe("server overview", () => {
     wrappers.push(wrapper);
     await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
     await flushPromises();
-    expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("目标端口拒绝了 TCP 连接");
-    expect(wrapper.findAll('[aria-label="连接检测结果"] [role="alert"]')).toHaveLength(1);
+    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "error", message: "连接检测失败 · 延迟 7 ms" }]]);
+    expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
   });
 
   it("classifies an IP locally and performs detailed lookup only after explicit action", async () => {

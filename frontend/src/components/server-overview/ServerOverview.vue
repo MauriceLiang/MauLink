@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import type { ConnectionPreflightError } from "../../../../contracts/v1/ConnectionPreflightError";
-import type { ConnectionPreflightResult } from "../../../../contracts/v1/ConnectionPreflightResult";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeStats";
 import { messages } from "../../i18n/locale";
@@ -23,20 +21,13 @@ import type { createServerRuntimeStatsApi } from "../../ipc/server-runtime-stats
 import RecentActivityCard from "./RecentActivityCard.vue";
 
 const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean; databaseRevision?: number }>();
-const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: [] }>();
+const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: []; testResult: [result: { kind: "success" | "error"; message: string }] }>();
 const t = messages(serverOverviewMessages);
 const snapshot = computed(() => props.store.snapshots.value[props.server.id]);
 const runtimeStats = ref<ServerRuntimeStats | null>(null);
 const runtimeStatsState = ref<"loading" | "ready" | "error">("loading");
 const sshCommand = computed(() => buildSshCommand(props.server));
-type PreflightState = { status: "idle" | "loading" | "requestError" } | { status: "ready"; result: ConnectionPreflightResult };
-const preflightState = ref<PreflightState>({ status: "idle" });
-const preflightErrorKeys = {
-  dnsFailed: "preflightDnsFailed",
-  timeout: "preflightTimeout",
-  connectionRefused: "preflightConnectionRefused",
-  connectionFailed: "preflightConnectionFailed",
-} as const satisfies Record<ConnectionPreflightError, keyof typeof serverOverviewMessages>;
+const preflightState = ref<"idle" | "loading">("idle");
 let preflightRequestVersion = 0;
 let runtimeStatsRequestVersion = 0;
 const menuItems = computed<MenuItem[]>(() => [
@@ -55,7 +46,7 @@ function menuAction(id: string) {
 
 async function runPreflight() {
   const requestVersion = ++preflightRequestVersion;
-  preflightState.value = { status: "loading" };
+  preflightState.value = "loading";
   try {
     const result = await props.preflightApi.check({
       serverId: props.server.id,
@@ -64,11 +55,16 @@ async function runPreflight() {
       timeoutMs: props.server.connectTimeoutMs,
     });
     if (requestVersion === preflightRequestVersion) {
-      preflightState.value = { status: "ready", result };
+      preflightState.value = "idle";
+      const success = result.tcpReachable === true && result.error === null;
+      emit("testResult", { kind: success ? "success" : "error", message: t(success ? "preflightSuccess" : "preflightFailure", { latency: result.tcpConnectDurationMs ?? "—" }) });
       await loadRuntimeStats();
     }
   } catch {
-    if (requestVersion === preflightRequestVersion) preflightState.value = { status: "requestError" };
+    if (requestVersion === preflightRequestVersion) {
+      preflightState.value = "idle";
+      emit("testResult", { kind: "error", message: t("preflightFailure", { latency: "—" }) });
+    }
   }
 }
 
@@ -91,7 +87,7 @@ async function loadRuntimeStats() {
 
 watch(() => [props.server.id, props.server.host, props.server.port, props.server.connectTimeoutMs], () => {
   preflightRequestVersion += 1;
-  preflightState.value = { status: "idle" };
+  preflightState.value = "idle";
 });
 watch(() => props.server.id, () => { runtimeStats.value = null; void loadRuntimeStats(); }, { immediate: true });
 watch(() => snapshot.value?.state, state => {
@@ -105,29 +101,11 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
     <ServerOverviewHeader :server="server" :state="snapshot?.state" :menu-items="menuItems" @back="emit('back')" @menu-action="menuAction">
       <template #connection-actions>
         <ConnectionPanel :server="server" :store="store" :read-only="readOnly" :connect-label="t('connect')">
-          <BaseButton :loading="preflightState.status === 'loading'" @click="runPreflight">{{ preflightState.status === 'loading' ? t('connectionCheckLoading') : t('connectionCheck') }}</BaseButton>
+          <BaseButton :loading="preflightState === 'loading'" @click="runPreflight">{{ preflightState === 'loading' ? t('connectionCheckLoading') : t('connectionCheck') }}</BaseButton>
         </ConnectionPanel>
       </template>
     </ServerOverviewHeader>
-    <p v-if="preflightState.status === 'requestError'" class="server-overview-preflight-error" role="alert">{{ t('preflightRequestFailed') }}</p>
     <div class="server-overview-grid">
-      <section v-if="preflightState.status === 'ready'" class="server-overview-card server-overview-preflight" :aria-label="t('connectionCheckResult')" role="status">
-        <h2>{{ t('connectionCheckResult') }}</h2>
-        <dl class="server-overview-preflight-grid">
-          <div class="server-overview-info-item"><dt>{{ t('preflightSelectedAddress') }}</dt><dd class="server-overview-mono">{{ preflightState.result.selectedAddress || preflightState.result.resolvedAddresses[0] || '—' }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('preflightTcpPort', { port: server.port }) }}</dt><dd>{{ preflightState.result.tcpReachable === true ? t('preflightTcpReachable') : preflightState.result.tcpReachable === false ? t('preflightTcpUnreachable') : t('preflightTcpNotAttempted') }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('preflightTcpDuration') }}</dt><dd>{{ preflightState.result.tcpConnectDurationMs === null ? '—' : `${preflightState.result.tcpConnectDurationMs} ${t('milliseconds')}` }}</dd></div>
-        </dl>
-        <details class="server-overview-extra">
-          <summary>{{ t('networkTechnicalDetails') }}</summary>
-          <dl class="server-overview-info-grid">
-            <div class="server-overview-info-item"><dt>{{ t('preflightResolvedAddresses') }}</dt><dd>{{ preflightState.result.resolvedAddresses.join(', ') || '—' }}</dd></div>
-            <div class="server-overview-info-item"><dt>{{ t('preflightDnsDuration') }}</dt><dd>{{ preflightState.result.dnsDurationMs }} {{ t('milliseconds') }}</dd></div>
-          </dl>
-        </details>
-        <p v-if="preflightState.result.error" class="server-overview-preflight-error" role="alert">{{ t(preflightErrorKeys[preflightState.result.error], { timeout: server.connectTimeoutMs }) }}</p>
-        <p class="server-overview-preflight-note">{{ t('preflightSshNote') }}</p>
-      </section>
       <ConnectionInfoCard :server="server" />
       <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" @open-settings="emit('openSettings')" />
       <HostIdentityCard :server="server" :api="hostKeyApi" />

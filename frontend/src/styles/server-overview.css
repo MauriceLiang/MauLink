@@ -20,7 +20,6 @@
 .server-overview-activity-empty { margin: 0; color: var(--color-text-secondary); font-size: 12.5px; }
 .server-overview-activity code { margin-left: 4px; color: var(--color-text-secondary); font-size: 11px; }
 .server-overview-card h2 { margin: 0 0 18px; font-size: 14px; font-weight: 600; }
-.server-overview-preflight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
 .server-overview-extra { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--color-border); }
 .server-overview-extra summary { color: var(--color-text-secondary); font-size: 12px; cursor: pointer; }
 .server-overview-extra summary:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
@@ -29,8 +28,6 @@
 .server-overview-network-configure { display: grid; justify-items: start; gap: 10px; }
 .server-overview-attribution { margin: 0; font-size: 11px; color: var(--color-text-secondary); }
 .server-overview-attribution a { color: inherit; }
-.server-overview-preflight-error { margin: 14px 0 0; color: var(--color-danger); font-size: 12.5px; }
-.server-overview-preflight-note { margin: 14px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
 .server-overview-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 20px; margin: 0; }
 .server-overview-info-item { display: grid; min-width: 0; gap: 5px; }
 .server-overview-info-item dt { color: var(--color-text-secondary); font-size: 11.5px; }
@@ -72,7 +69,6 @@
   .server-overview-actions .connection-panel { justify-content: flex-end; }
 }
 @media (max-width: 640px) {
-  .server-overview-preflight-grid { grid-template-columns: 1fr; }
   .server-overview-toolbar { flex-direction: column; align-items: stretch; }
   .server-overview-actions { justify-content: flex-start; }
   .server-overview-actions .connection-panel { flex-wrap: wrap; justify-content: flex-start; }
