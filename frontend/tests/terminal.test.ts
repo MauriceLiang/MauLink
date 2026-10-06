@@ -118,22 +118,18 @@ describe('terminal byte flow', () => {
     expect(renderer.options.lineHeight).toBe(1.5);expect(renderer.options.cursorBlink).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--color-terminal-bg')).toBe('#102030');expect(open).toHaveBeenCalledOnce();
   });
-  it('keeps opaque terminals intact when enabling images and makes new terminals transparent', async () => {
+  it('updates existing terminals to a transparent image theme without reopening the PTY', async () => {
     const {controller,open,close}=controllerFor(); const {renderer:existing}=await attach(controller);
-    const previousBackground=(existing.options.theme as {background:string}).background;
     controller.applySettings({...defaultSettings,terminalThemeMode:'image',terminalBackgroundImage:{...defaultSettings.terminalBackgroundImage,imageId:'00000000-0000-4000-8000-000000000001'}});
-    expect(existing.options.theme).toMatchObject({background:previousBackground});
-    expect(controller.requiresReopen.value).toBe(true);
+    expect(existing.options.theme).toMatchObject({background:'#00000000'});
     const nextId=controller.create('connection-a', 'server-a'); const host=document.createElement('div'); document.body.append(host); await controller.attach(nextId,host);
     const next=renderers.instances.at(-1)!;
     expect(next.options.allowTransparency).toBe(true);
     expect(next.options.theme).toMatchObject({background:'#00000000'});
-    expect(controller.requiresReopen.value).toBe(true);
     expect(open).toHaveBeenCalledTimes(2); expect(close).not.toHaveBeenCalled();
     controller.applySettings({...defaultSettings,terminalThemeMode:'dark'});
     expect((existing.options.theme as {background:string}).background).toBe('#111318');
     expect((next.options.theme as {background:string}).background).toBe('#111318');
-    expect(controller.requiresReopen.value).toBe(false);
     expect(open).toHaveBeenCalledTimes(2); expect(close).not.toHaveBeenCalled();
   });
   it('updates Follow App colors when the system theme changes without reopening the PTY', async () => {

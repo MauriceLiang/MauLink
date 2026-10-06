@@ -55,7 +55,6 @@ export const terminalMessages = {
   overlayOpacity: ["遮罩强度", "Overlay opacity"],
   backgroundBlur: ["背景模糊", "Background blur"],
   imageRequired: ["请先选择背景图片，再保存图片主题。", "Choose a background image before saving the image theme."],
-  imageReopenWarning: ["背景图片已保存。当前部分已打开的终端需要重新打开后才会显示图片；不会中断远程 Shell。", "The background image is saved. Some open terminals need to be reopened to show it; their remote shells will stay connected."],
   customBackground: ["背景色", "Background"],
   customForeground: ["文字颜色", "Foreground"],
   customCursor: ["光标颜色", "Cursor"],
