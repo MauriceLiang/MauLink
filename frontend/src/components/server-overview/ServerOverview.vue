@@ -109,25 +109,25 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         </ConnectionPanel>
       </template>
     </ServerOverviewHeader>
-    <section v-if="preflightState.status === 'ready'" class="server-overview-card server-overview-preflight" :aria-label="t('connectionCheckResult')" role="status">
-      <h2>{{ t('connectionCheckResult') }}</h2>
-      <dl class="server-overview-preflight-grid">
-        <div class="server-overview-info-item"><dt>{{ t('preflightSelectedAddress') }}</dt><dd class="server-overview-mono">{{ preflightState.result.selectedAddress || preflightState.result.resolvedAddresses[0] || '—' }}</dd></div>
-        <div class="server-overview-info-item"><dt>{{ t('preflightTcpPort', { port: server.port }) }}</dt><dd>{{ preflightState.result.tcpReachable === true ? t('preflightTcpReachable') : preflightState.result.tcpReachable === false ? t('preflightTcpUnreachable') : t('preflightTcpNotAttempted') }}</dd></div>
-        <div class="server-overview-info-item"><dt>{{ t('preflightTcpDuration') }}</dt><dd>{{ preflightState.result.tcpConnectDurationMs === null ? '—' : `${preflightState.result.tcpConnectDurationMs} ${t('milliseconds')}` }}</dd></div>
-      </dl>
-      <details class="server-overview-extra">
-        <summary>{{ t('networkTechnicalDetails') }}</summary>
-        <dl class="server-overview-info-grid">
-          <div class="server-overview-info-item"><dt>{{ t('preflightResolvedAddresses') }}</dt><dd>{{ preflightState.result.resolvedAddresses.join(', ') || '—' }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('preflightDnsDuration') }}</dt><dd>{{ preflightState.result.dnsDurationMs }} {{ t('milliseconds') }}</dd></div>
-        </dl>
-      </details>
-      <p v-if="preflightState.result.error" class="server-overview-preflight-error" role="alert">{{ t(preflightErrorKeys[preflightState.result.error], { timeout: server.connectTimeoutMs }) }}</p>
-      <p class="server-overview-preflight-note">{{ t('preflightSshNote') }}</p>
-    </section>
-    <p v-else-if="preflightState.status === 'requestError'" class="server-overview-preflight-error" role="alert">{{ t('preflightRequestFailed') }}</p>
+    <p v-if="preflightState.status === 'requestError'" class="server-overview-preflight-error" role="alert">{{ t('preflightRequestFailed') }}</p>
     <div class="server-overview-grid">
+      <section v-if="preflightState.status === 'ready'" class="server-overview-card server-overview-preflight" :aria-label="t('connectionCheckResult')" role="status">
+        <h2>{{ t('connectionCheckResult') }}</h2>
+        <dl class="server-overview-preflight-grid">
+          <div class="server-overview-info-item"><dt>{{ t('preflightSelectedAddress') }}</dt><dd class="server-overview-mono">{{ preflightState.result.selectedAddress || preflightState.result.resolvedAddresses[0] || '—' }}</dd></div>
+          <div class="server-overview-info-item"><dt>{{ t('preflightTcpPort', { port: server.port }) }}</dt><dd>{{ preflightState.result.tcpReachable === true ? t('preflightTcpReachable') : preflightState.result.tcpReachable === false ? t('preflightTcpUnreachable') : t('preflightTcpNotAttempted') }}</dd></div>
+          <div class="server-overview-info-item"><dt>{{ t('preflightTcpDuration') }}</dt><dd>{{ preflightState.result.tcpConnectDurationMs === null ? '—' : `${preflightState.result.tcpConnectDurationMs} ${t('milliseconds')}` }}</dd></div>
+        </dl>
+        <details class="server-overview-extra">
+          <summary>{{ t('networkTechnicalDetails') }}</summary>
+          <dl class="server-overview-info-grid">
+            <div class="server-overview-info-item"><dt>{{ t('preflightResolvedAddresses') }}</dt><dd>{{ preflightState.result.resolvedAddresses.join(', ') || '—' }}</dd></div>
+            <div class="server-overview-info-item"><dt>{{ t('preflightDnsDuration') }}</dt><dd>{{ preflightState.result.dnsDurationMs }} {{ t('milliseconds') }}</dd></div>
+          </dl>
+        </details>
+        <p v-if="preflightState.result.error" class="server-overview-preflight-error" role="alert">{{ t(preflightErrorKeys[preflightState.result.error], { timeout: server.connectTimeoutMs }) }}</p>
+        <p class="server-overview-preflight-note">{{ t('preflightSshNote') }}</p>
+      </section>
       <ConnectionInfoCard :server="server" />
       <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" @open-settings="emit('openSettings')" />
       <HostIdentityCard :server="server" :api="hostKeyApi" />
