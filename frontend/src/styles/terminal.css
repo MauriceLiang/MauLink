@@ -60,9 +60,20 @@
 .terminal-background-empty { color: var(--color-text-secondary); font-size: 12px; }
 .terminal-background-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .terminal-background-name { flex: 1 1 150px; min-width: 0; overflow: hidden; color: var(--color-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.terminal-background-range { display: grid !important; grid-template-columns: 120px minmax(0, 1fr) 48px; gap: 12px !important; color: var(--color-text-secondary); }
-.terminal-background-range input { width: 100%; accent-color: var(--color-primary); }
-.terminal-background-range output { color: var(--color-text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+.terminal-background-range { display: grid !important; grid-template-columns: 120px minmax(0, 1fr) 60px; gap: 12px !important; color: var(--color-text-secondary); }
+.terminal-background-range input[type="range"] { width: 100%; height: 24px; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; touch-action: pan-y; }
+.terminal-background-range input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--color-primary) var(--range-progress), var(--color-border) var(--range-progress)); }
+.terminal-background-range input[type="range"]::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -6px; appearance: none; -webkit-appearance: none; border: 2px solid var(--color-surface-elevated); border-radius: 50%; background: var(--color-primary); box-shadow: 0 1px 3px var(--color-shadow); transition: transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.terminal-background-range input[type="range"]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--color-border); }
+.terminal-background-range input[type="range"]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--color-primary); }
+.terminal-background-range input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid var(--color-surface-elevated); border-radius: 50%; background: var(--color-primary); box-shadow: 0 1px 3px var(--color-shadow); transition: transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.terminal-background-range input[type="range"]:focus-visible { outline: none; box-shadow: none; }
+.terminal-background-range input[type="range"]:hover::-webkit-slider-thumb, .terminal-background-range input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
+.terminal-background-range input[type="range"]:hover::-moz-range-thumb, .terminal-background-range input[type="range"]:active::-moz-range-thumb { transform: scale(1.12); }
+.terminal-background-range input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--color-focus-ring), 0 1px 3px var(--color-shadow); }
+.terminal-background-range input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--color-focus-ring), 0 1px 3px var(--color-shadow); }
+.terminal-background-range input[type="range"]:disabled { cursor: not-allowed; opacity: .56; }
+.terminal-background-range output { justify-self: end; min-width: 60px; box-sizing: border-box; padding: 3px 8px; border: 1px solid var(--color-primary-border); border-radius: 999px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
 .terminal-warning span { display: block; }
 .terminal-preview-prompt, .terminal-preview-cursor { font-weight: 600; }
 .terminal-preview-selection { border-radius: 2px; }

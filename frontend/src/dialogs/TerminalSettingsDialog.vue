@@ -87,6 +87,10 @@ async function save() {
   emit('close');
 }
 function opacityLabel(value: number) { return `${value}%`; }
+function rangeProgress(value: number, min: number, max: number) {
+  const progress = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  return `${progress}%`;
+}
 </script>
 <template>
   <BaseDialog :open="open" :title="t('terminalSettings')" :busy="preferences.busy.value || imageBusy" panel-class="terminal-settings-dialog" @close="close">
@@ -100,10 +104,10 @@ function opacityLabel(value: number) { return `${value}%`; }
           <div class="terminal-background-actions"><span class="terminal-background-name" :title="backgroundName">{{ backgroundName || t('noImageSelected') }}</span><BaseButton type="button" @click="chooseImage">{{ t('chooseImage') }}</BaseButton><BaseButton type="button" :disabled="!backgroundSettings.imageId" @click="clearImage">{{ t('clearImage') }}</BaseButton></div>
           <BaseSelect class="terminal-settings-row terminal-settings-select" v-model="backgroundSettings.fit" :label="t('imageFit')" :options="[{value:'cover',label:t('fitCover')},{value:'contain',label:t('fitContain')},{value:'stretch',label:t('fitStretch')},{value:'original',label:t('fitOriginal')},{value:'tile',label:t('fitTile')}]" />
           <BaseSelect class="terminal-settings-row terminal-settings-select" v-model="backgroundSettings.position" :label="t('imagePosition')" :options="[{value:'center',label:t('positionCenter')},{value:'top',label:t('positionTop')},{value:'bottom',label:t('positionBottom')},{value:'left',label:t('positionLeft')},{value:'right',label:t('positionRight')}]" />
-          <label class="terminal-background-range"><span>{{ t('imageOpacity') }}</span><input v-model.number="backgroundSettings.imageOpacity" type="range" min="10" max="100" step="1" /><output>{{ opacityLabel(backgroundSettings.imageOpacity) }}</output></label>
+          <label class="terminal-background-range"><span>{{ t('imageOpacity') }}</span><input v-model.number="backgroundSettings.imageOpacity" type="range" min="10" max="100" step="1" :style="{ '--range-progress': rangeProgress(backgroundSettings.imageOpacity, 10, 100) }" /><output>{{ opacityLabel(backgroundSettings.imageOpacity) }}</output></label>
           <BaseSelect class="terminal-settings-row terminal-settings-select" v-model="backgroundSettings.overlayKind" :label="t('overlayKind')" :options="[{value:'dark',label:t('overlayDark')},{value:'light',label:t('overlayLight')}]" />
-          <label class="terminal-background-range"><span>{{ t('overlayOpacity') }}</span><input v-model.number="backgroundSettings.overlayOpacity" type="range" min="0" max="90" step="1" /><output>{{ opacityLabel(backgroundSettings.overlayOpacity) }}</output></label>
-          <label class="terminal-background-range"><span>{{ t('backgroundBlur') }}</span><input v-model.number="backgroundSettings.blurPx" type="range" min="0" max="16" step="1" /><output>{{ backgroundSettings.blurPx }}px</output></label>
+          <label class="terminal-background-range"><span>{{ t('overlayOpacity') }}</span><input v-model.number="backgroundSettings.overlayOpacity" type="range" min="0" max="90" step="1" :style="{ '--range-progress': rangeProgress(backgroundSettings.overlayOpacity, 0, 90) }" /><output>{{ opacityLabel(backgroundSettings.overlayOpacity) }}</output></label>
+          <label class="terminal-background-range"><span>{{ t('backgroundBlur') }}</span><input v-model.number="backgroundSettings.blurPx" type="range" min="0" max="16" step="1" :style="{ '--range-progress': rangeProgress(backgroundSettings.blurPx, 0, 16) }" /><output>{{ backgroundSettings.blurPx }}px</output></label>
         </section>
         <div v-else class="terminal-preview" role="img" :aria-label="t('terminalPreview')" :style="{ backgroundColor: previewAppearance.theme.background, color: previewAppearance.theme.foreground, fontFamily: font, fontSize: `${size}px`, lineHeight: defaultSettings.terminalLineHeight }"><div><span class="terminal-preview-prompt" :style="{ color: previewAppearance.theme.cursor }">maurice@server:~$</span> ls -la</div><div>Documents&nbsp; Downloads&nbsp; project</div><div><span class="terminal-preview-prompt" :style="{ color: previewAppearance.theme.cursor }">maurice@server:~$</span> <span class="terminal-preview-selection" :style="{ backgroundColor: previewAppearance.theme.selectionBackground }">cat README.md</span> <span class="terminal-preview-cursor" :style="{ color: previewAppearance.theme.cursor }">█</span></div></div>
         <label class="terminal-settings-row"><span>{{ t('fontSize') }}</span><input class="base-input" v-model.number="size" type="number" min="8" max="72" step="1" required /></label>
