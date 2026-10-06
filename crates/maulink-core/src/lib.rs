@@ -5,6 +5,7 @@ pub mod connections;
 pub mod contracts;
 pub mod credentials;
 pub mod error;
+pub mod geoip;
 pub mod host_keys;
 pub mod local_files;
 pub mod monitor;
@@ -56,6 +57,10 @@ pub use host_keys::{HostKeyCandidate, HostKeyCheck, HostKeyRecord, HostKeyStore,
 pub use local_files::{
     LocalFilePurpose, LocalFileRegistry, SelectedLocalFile, TerminalBackgroundImageInfo,
     validate_terminal_background_image_bytes,
+};
+pub use geoip::{
+    GeoIpDatabase, GeoIpDatabaseConfigure, GeoIpDatabaseImport, GeoIpDatabaseInfo, GeoIpDatabaseSource,
+    GeoIpDatabaseStatus,
 };
 pub use monitor::MonitorManager;
 pub use network::NetworkInspector;

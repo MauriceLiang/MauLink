@@ -1,6 +1,7 @@
 mod app_icon;
 mod background_images;
 mod commands;
+mod geoip;
 mod server_appearance;
 mod state;
 
@@ -61,7 +62,8 @@ pub fn run() {
             let runtime_stats = ServerRuntimeStatsStore::new(database.clone());
             let connection_registry = ConnectionRegistry::default();
             let host_keys = HostKeyStore::new(database);
-            let network = NetworkInspector::default();
+            let geoip = maulink_core::GeoIpDatabase::new(app_data_directory.join("geoip"))?;
+            let network = NetworkInspector::with_geoip(geoip.clone());
             let host_key_verifier =
                 HostKeyVerifier::new(host_keys.clone(), connection_registry.clone());
             let ssh_connector = SshConnector::new(connection_registry.clone(), host_key_verifier);
@@ -80,6 +82,26 @@ pub fn run() {
             let core = AppCore::with_info(AppInfo::with_capabilities(
                 AppCapabilities::monitor_backend(true),
             ));
+            let updater = geoip.clone();
+            let cancellation = core.cancellation_token();
+            tauri::async_runtime::block_on(async {
+                core.spawn(async move {
+                    loop {
+                        tokio::select! {
+                            _ = cancellation.cancelled() => break,
+                            result = updater.update(true) => {
+                                if let Err(error) = result {
+                                    eprintln!("MauLink GeoIP update: {}", error.message_key);
+                                }
+                            }
+                        }
+                        tokio::select! {
+                            _ = cancellation.cancelled() => break,
+                            _ = tokio::time::sleep(std::time::Duration::from_secs(3600)) => {}
+                        }
+                    }
+                })
+            })?;
             app.manage(DesktopState {
                 core,
                 profiles,
@@ -90,6 +112,7 @@ pub fn run() {
                 credentials,
                 host_keys,
                 network,
+                geoip,
                 connections,
                 sftp,
                 sftp_transfers,
@@ -125,6 +148,11 @@ pub fn run() {
             host_key_respond,
             host_key_get,
             network_inspect,
+            geoip::geoip_database_get,
+            geoip::geoip_database_import,
+            geoip::geoip_database_delete,
+            geoip::geoip_database_configure,
+            geoip::geoip_database_update,
             auth_respond,
             connection_disconnect,
             terminal_open,
@@ -164,12 +192,14 @@ pub fn run() {
         .run(|app_handle, event| match event {
             tauri::RunEvent::Exit => {
                 if let Some(state) = app_handle.try_state::<DesktopState>() {
+                    let core = state.core.clone();
                     let terminals = state.terminals.clone();
                     let sftp = state.sftp.clone();
                     let sftp_transfers = state.sftp_transfers.clone();
                     let monitor = state.monitor.clone();
                     let connections = state.connections.clone();
                     tauri::async_runtime::block_on(async move {
+                        core.shutdown(std::time::Duration::from_secs(3)).await;
                         monitor.shutdown().await;
                         terminals.shutdown().await;
                         sftp_transfers.shutdown().await;

@@ -27,6 +27,7 @@ pub enum LocalFilePurpose {
     Upload,
     Download,
     TerminalBackground,
+    GeoIpDatabase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +173,10 @@ impl LocalFileRegistry {
         let path = self.consume_path(token, LocalFilePurpose::TerminalBackground)?;
         validate_terminal_background_path(&path)?;
         Ok(path)
+    }
+
+    pub fn consume_geoip_database_path(&self, token: &str) -> Result<PathBuf, AppError> {
+        self.consume_path(token, LocalFilePurpose::GeoIpDatabase)
     }
 
     fn consume_path(&self, token: &str, purpose: LocalFilePurpose) -> Result<PathBuf, AppError> {

@@ -1,3 +1,6 @@
+import type { GeoIpDatabaseStatus } from '../../../contracts/v1/GeoIpDatabaseStatus';
+import type { GeoIpDatabaseConfigure } from '../../../contracts/v1/GeoIpDatabaseConfigure';
+import type { GeoIpDatabaseImport } from '../../../contracts/v1/GeoIpDatabaseImport';
 import type { Channel } from "@tauri-apps/api/core";
 import type { BackgroundImageAsset } from "../../../contracts/v1/BackgroundImageAsset";
 import type { BackgroundImageGetResult } from "../../../contracts/v1/BackgroundImageGetResult";
@@ -76,6 +79,11 @@ import type { TerminalWriteResult } from "../../../contracts/v1/TerminalWriteRes
 import type { WorkspaceActivityPayload } from "../../../contracts/v1/WorkspaceActivityPayload";
 
 export interface CommandContracts {
+  geoip_database_get: { payload: EmptyPayload; result: GeoIpDatabaseStatus };
+  geoip_database_import: { payload: GeoIpDatabaseImport; result: GeoIpDatabaseStatus };
+  geoip_database_delete: { payload: EmptyPayload; result: GeoIpDatabaseStatus };
+  geoip_database_configure: { payload: GeoIpDatabaseConfigure; result: GeoIpDatabaseStatus };
+  geoip_database_update: { payload: EmptyPayload; result: GeoIpDatabaseStatus };
   monitor_get_snapshot: { payload: MonitorGetSnapshotPayload; result: MonitorSnapshot };
   monitor_get_history: { payload: MonitorGetHistoryPayload; result: MonitorHistoryPage };
   monitor_refresh: { payload: MonitorRefreshPayload; result: MonitorSnapshot };

@@ -17,7 +17,8 @@ const DNS_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Default)]
 pub struct NetworkInspector {
-    cache: Arc<RwLock<HashMap<(String, bool), CachedInspection>>>,
+    cache: Arc<RwLock<HashMap<(String, bool, u64), CachedInspection>>>,
+    geoip: Option<crate::GeoIpDatabase>,
 }
 
 #[derive(Clone)]
@@ -27,16 +28,39 @@ struct CachedInspection {
 }
 
 impl NetworkInspector {
+    pub fn with_geoip(geoip: crate::GeoIpDatabase) -> Self {
+        Self {
+            geoip: Some(geoip),
+            ..Self::default()
+        }
+    }
+
     pub async fn inspect(&self, host: &str, detailed: bool) -> Result<NetworkInspection, AppError> {
         let normalized_host = crate::host_keys::normalize_host(host)?;
-        let key = (normalized_host.clone(), detailed);
+        let key = (
+            normalized_host.clone(),
+            detailed,
+            self.geoip
+                .as_ref()
+                .map_or(0, crate::GeoIpDatabase::generation),
+        );
         if let Some(cached) = self.cache.read().await.get(&key)
             && cached.expires_at > Instant::now()
         {
             return Ok(cached.inspection.clone());
         }
 
-        let inspection = inspect_uncached(&normalized_host, detailed).await?;
+        let mut inspection = inspect_uncached(&normalized_host, detailed).await?;
+        if detailed
+            && inspection.scope == Some(NetworkScope::Public)
+            && let Some(database) = &self.geoip
+            && let Some(address) = inspection
+                .primary_address
+                .as_ref()
+                .and_then(|address| address.parse().ok())
+        {
+            database.enrich(address, &mut inspection)?;
+        }
         let now = Instant::now();
         let mut cache = self.cache.write().await;
         cache.retain(|_, cached| cached.expires_at > now);
@@ -126,6 +150,7 @@ async fn inspect_uncached(host: &str, detailed: bool) -> Result<NetworkInspectio
             NetworkInspectionSource::LocalAnalysis
         },
         database_updated_at_ms: None,
+        database_source: None,
     })
 }
 

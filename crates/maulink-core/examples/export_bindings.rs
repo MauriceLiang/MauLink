@@ -40,6 +40,9 @@ fn main() -> Result<(), ts_rs::ExportError> {
     let config = Config::new().with_out_dir(output);
 
     AppInfo::export_all(&config)?;
+    maulink_core::GeoIpDatabaseStatus::export_all(&config)?;
+    maulink_core::GeoIpDatabaseConfigure::export_all(&config)?;
+    maulink_core::GeoIpDatabaseImport::export_all(&config)?;
     AppError::export_all(&config)?;
     DecimalU64::export_all(&config)?;
     Group::export_all(&config)?;

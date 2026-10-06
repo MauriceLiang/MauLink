@@ -1,4 +1,6 @@
-.settings-dialog { width: min(680px, calc(100vw - 32px)); }
+.settings-dialog { display: flex; flex-direction: column; width: min(680px, calc(100vw - 32px)); overflow: hidden; }
+.settings-dialog .base-dialog-heading, .settings-dialog .base-dialog-footer { flex-shrink: 0; }
+.settings-dialog .base-dialog-content { min-height: 0; overflow-y: auto; }
 .settings-dialog .base-dialog-heading, .settings-dialog .base-dialog-footer { border: 0; }
 .settings-navigation { display: flex; align-items: center; gap: 24px; height: 44px; margin: -20px -20px 20px; padding: 0 20px; background: var(--color-surface-elevated); }
 .settings-navigation .base-button { position: relative; height: 44px; min-height: 44px; padding: 0 2px; border: 0; border-radius: 0; color: var(--color-text-secondary); background: transparent; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard); }
@@ -41,3 +43,20 @@
 .palette-results button:hover:not(:disabled) { background: var(--color-bg-hover); }
 .palette-results button[aria-selected="true"]:hover:not(:disabled) { background: var(--color-primary-soft-hover); }
 @media (prefers-reduced-motion: reduce) { .settings-navigation .base-button::after { transition-duration: 1ms !important; } }
+
+.settings-navigation { gap: 20px; overflow-x: auto; }
+.settings-navigation .base-button { flex: none; }
+.geoip-settings { display: grid; gap: 14px; }
+.geoip-settings h3, .geoip-settings p { margin: 0; }
+.geoip-intro { font-size: 13px; }
+.geoip-status { border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
+.geoip-database-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 14px; }
+.geoip-database-row + .geoip-database-row { border-top: 1px solid var(--color-border); }
+.geoip-database-row > div { display: grid; min-width: 0; gap: 5px; }
+.geoip-database-row strong { font-size: 12.5px; font-weight: 600; }
+.geoip-database-row span { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.geoip-database-date { flex: none; }
+.geoip-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.geoip-note, .geoip-attribution { font-size: 11.5px; }
+.geoip-attribution a { color: var(--color-text-secondary); }
+.geoip-settings .geoip-completed { color: var(--color-success); font-size: 12px; }

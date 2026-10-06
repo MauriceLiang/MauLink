@@ -13,13 +13,13 @@ export function networkFixture(host: string, detailed: boolean): NetworkInspecti
     resolvedAddresses: hasAddress ? [address] : [],
     primaryAddress: hasAddress ? address : null,
     ipVersion: hasAddress ? (isIpv6 ? "ipv6" : "ipv4") : null,
-    scope: hasAddress ? (address.startsWith("192.168.") ? "private" : "reserved") : null,
+    scope: hasAddress ? (address === "8.8.8.8" ? "public" : address.startsWith("192.168.") ? "private" : "reserved") : null,
     reverseDns: detailed ? "fixture.example.test" : null,
     geo: { countryCode: null, countryName: null, region: null, city: null },
     asn: null,
     organization: null,
     source: detailed ? "systemResolver" : "localAnalysis",
-    databaseUpdatedAtMs: null,
+    databaseUpdatedAtMs: null, databaseSource: null,
   };
 }
 

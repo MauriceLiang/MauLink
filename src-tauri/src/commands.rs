@@ -794,6 +794,7 @@ pub async fn local_file_select(
             .file()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
             .blocking_pick_file(),
+        LocalFilePurpose::GeoIpDatabase => app.dialog().file().add_filter("GeoIP database", &["mmdb"]).blocking_pick_file(),
     };
     let Some(selected) = selected else {
         return Ok(None);

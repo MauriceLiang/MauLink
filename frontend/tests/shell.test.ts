@@ -84,7 +84,7 @@ describe("application shell", () => {
       network_inspect: ({ host, detailed }) => ({
         inputHost: host, hostKind: "ip", resolvedAddresses: [host], primaryAddress: host, ipVersion: "ipv4", scope: "private",
         reverseDns: null, geo: { countryCode: null, countryName: null, region: null, city: null }, asn: null, organization: null,
-        source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null,
+        source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null, databaseSource: null,
       }),
       connection_preflight: ({ host }) => ({
         resolvedAddresses: [host], selectedAddress: host, dnsDurationMs: 0, tcpReachable: true,

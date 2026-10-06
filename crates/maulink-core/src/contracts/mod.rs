@@ -574,6 +574,8 @@ pub struct NetworkInspection {
     pub source: NetworkInspectionSource,
     #[ts(type = "number | null")]
     pub database_updated_at_ms: Option<i64>,
+    #[serde(default)]
+    pub database_source: Option<crate::GeoIpDatabaseSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

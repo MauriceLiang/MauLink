@@ -1,4 +1,8 @@
 export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
+  "errors.geoIpDatabaseInvalid": { "zh-CN": "数据库文件无效。请选择有效的 City、Country 或 ASN MMDB 文件（最大 256 MB）。", en: "Invalid database. Choose a valid City, Country or ASN MMDB file (up to 256 MB)." },
+  "errors.geoIpDatabaseFileFailed": { "zh-CN": "无法读取或保存数据库文件，请重新导入或检查本机存储。", en: "Could not read or save the database. Reimport it or check local storage." },
+  "errors.geoIpDatabaseDownloadFailed": { "zh-CN": "数据库下载失败。请检查网络后重试；现有数据库仍可使用。", en: "Database download failed. Check the network and retry; existing databases remain usable." },
+  "errors.geoIpUpdateIntervalInvalid": { "zh-CN": "请选择有效的数据库更新频率。", en: "Choose a valid database update frequency." },
   "errors.appIconApplyFailed": { "zh-CN": "设置已保存，但应用图标更新失败。请重新加载设置后重试，或重启应用。", en: "Settings saved, but the app icon could not be updated. Reload settings and retry, or restart the app." },
   "errors.settingsDataInvalid": { "zh-CN": "设置数据无效，请重新加载或检查本地存储。", en: "Settings data is invalid. Reload or check local storage." },
   "errors.settingsSerializeFailed": { "zh-CN": "设置未能保存，请重试。", en: "Settings could not be saved. Try again." },

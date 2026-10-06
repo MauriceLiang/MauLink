@@ -18,6 +18,8 @@ const fields = computed(() => [
   { label: t("authentication"), value: t(props.server.authType === "privateKey" ? "privateKey" : "password") },
   { label: t("privateKey"), value: t(props.server.hasPrivateKey ? "configured" : "notConfigured") },
   { label: t("savedCredential"), value: t(props.server.hasSavedCredential ? "saved" : "notSaved") },
+]);
+const advancedFields = computed(() => [
   { label: t("keepalive"), value: `${props.server.keepaliveIntervalSeconds} ${t("seconds")}` },
   { label: t("timeout"), value: `${props.server.connectTimeoutMs} ${t("milliseconds")}` },
   { label: t("created"), value: formatDate(props.server.createdAtMs) },
@@ -34,5 +36,11 @@ const fields = computed(() => [
         <dd :class="{ 'server-overview-mono': field.mono }">{{ field.value }}</dd>
       </div>
     </dl>
+    <details class="server-overview-extra">
+      <summary>{{ t('connectionMoreDetails') }}</summary>
+      <dl class="server-overview-info-grid">
+        <div v-for="field in advancedFields" :key="field.label" class="server-overview-info-item"><dt>{{ field.label }}</dt><dd>{{ field.value }}</dd></div>
+      </dl>
+    </details>
   </section>
 </template>

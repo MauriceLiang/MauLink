@@ -15,6 +15,7 @@ pub struct DesktopState {
     pub credentials: CredentialManager,
     pub host_keys: HostKeyStore,
     pub network: NetworkInspector,
+    pub geoip: maulink_core::GeoIpDatabase,
     pub connections: SshConnectionManager,
     pub sftp: SftpManager,
     pub sftp_transfers: SftpTransferManager,

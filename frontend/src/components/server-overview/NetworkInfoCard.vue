@@ -8,7 +8,8 @@ import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { createNetworkApi } from "../../ipc/network";
 import BaseButton from "../base/BaseButton.vue";
 
-const props = defineProps<{ server: ServerProfile; api: ReturnType<typeof createNetworkApi> }>();
+const props = defineProps<{ server: ServerProfile; api: ReturnType<typeof createNetworkApi>; databaseRevision?: number }>();
+const emit = defineEmits<{ openSettings: [] }>();
 type LoadState = { status: "loading" | "error"; detailed: boolean } | { status: "ready"; detailed: boolean; inspection: NetworkInspection };
 const t = messages(serverOverviewMessages);
 const state = ref<LoadState>({ status: "loading", detailed: false });
@@ -34,8 +35,8 @@ const typeLabel = computed(() => {
 });
 const geoLabel = computed(() => {
   if (!readyState.value) return "—";
-  const { countryName, region, city } = readyState.value.inspection.geo;
-  return [countryName, region, city].filter(Boolean).join(" · ") || "—";
+  const { countryName, countryCode, region, city } = readyState.value.inspection.geo;
+  return [countryName || countryCode, region, city].filter(Boolean).join(" · ") || "—";
 });
 const hasGeoData = computed(() => !!readyState.value && !!(
   readyState.value.inspection.geo.countryCode || readyState.value.inspection.geo.countryName
@@ -62,6 +63,7 @@ function formatDate(timestamp: number) {
 }
 
 watch(() => props.server.host, () => { void load(false); }, { immediate: true });
+watch(() => props.databaseRevision, () => { void load(state.value.detailed); });
 onBeforeUnmount(() => { requestVersion += 1; });
 </script>
 
@@ -81,17 +83,26 @@ onBeforeUnmount(() => { requestVersion += 1; });
           <strong v-else>{{ t('networkHostname') }}</strong>
           <span v-if="typeLabel">{{ typeLabel }}</span>
         </div>
-        <dl v-if="readyState.detailed" class="server-overview-info-grid">
-          <div class="server-overview-info-item"><dt>{{ t('networkResolvedAddresses') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.resolvedAddresses.join(', ') || '—' }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('networkReverseDns') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.reverseDns || '—' }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('networkCountryRegion') }}</dt><dd>{{ geoLabel }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('networkAsn') }}</dt><dd>{{ readyState.inspection.asn || '—' }}</dd></div>
-          <div class="server-overview-info-item"><dt>{{ t('networkOrganization') }}</dt><dd>{{ readyState.inspection.organization || '—' }}</dd></div>
-          <div v-if="readyState.inspection.databaseUpdatedAtMs !== null" class="server-overview-info-item"><dt>{{ t('networkGeoDatabaseUpdated') }}</dt><dd>{{ formatDate(readyState.inspection.databaseUpdatedAtMs) }}</dd></div>
+        <dl v-if="readyState.detailed && hasGeoData" class="server-overview-info-grid">
+          <div v-if="geoLabel !== '—'" class="server-overview-info-item"><dt>{{ t('networkCountryRegion') }}</dt><dd>{{ geoLabel }}</dd></div>
+          <div v-if="readyState.inspection.asn" class="server-overview-info-item"><dt>{{ t('networkAsn') }}</dt><dd>{{ readyState.inspection.asn }}</dd></div>
+          <div v-if="readyState.inspection.organization" class="server-overview-info-item"><dt>{{ t('networkOrganization') }}</dt><dd>{{ readyState.inspection.organization }}</dd></div>
         </dl>
-        <p v-if="readyState.detailed && readyState.inspection.scope === 'private'" class="server-overview-network-hint">{{ t('networkPrivateNoGeo') }}</p>
-        <p v-else-if="readyState.detailed && !hasGeoData" class="server-overview-network-hint">{{ t('networkGeoUnavailable') }}</p>
-        <p class="server-overview-network-source">{{ t('networkSource') }}：{{ readyState.inspection.source === 'localAnalysis' ? t('networkLocalAnalysis') : t('networkSystemResolver') }}</p>
+        <p v-if="readyState.detailed && readyState.inspection.scope !== 'public'" class="server-overview-network-hint">{{ t('networkPrivateNoGeo') }}</p>
+        <div v-else-if="readyState.detailed && !hasGeoData" class="server-overview-network-configure">
+          <span class="server-overview-network-hint">{{ t('networkGeoUnavailable') }}</span>
+          <BaseButton @click="emit('openSettings')">{{ t('configureGeoDatabase') }}</BaseButton>
+        </div>
+        <details v-if="readyState.detailed" class="server-overview-extra server-overview-network-extra">
+          <summary>{{ t('networkTechnicalDetails') }}</summary>
+          <dl class="server-overview-info-grid">
+            <div class="server-overview-info-item"><dt>{{ t('networkResolvedAddresses') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.resolvedAddresses.join(', ') || '—' }}</dd></div>
+            <div v-if="readyState.inspection.reverseDns" class="server-overview-info-item"><dt>{{ t('networkReverseDns') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.reverseDns }}</dd></div>
+            <div v-if="readyState.inspection.databaseUpdatedAtMs !== null" class="server-overview-info-item"><dt>{{ t('networkGeoDatabaseUpdated') }}</dt><dd>{{ formatDate(readyState.inspection.databaseUpdatedAtMs) }}</dd></div>
+            <div class="server-overview-info-item"><dt>{{ t('networkSource') }}</dt><dd>{{ readyState.inspection.source === 'localAnalysis' ? t('networkLocalAnalysis') : t('networkSystemResolver') }}</dd></div>
+          </dl>
+        </details>
+        <p v-if="readyState.inspection.databaseSource === 'dbIp'" class="server-overview-attribution"><a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a></p>
         <BaseButton v-if="!readyState.detailed" @click="load(true)">{{ readyState.inspection.hostKind === 'hostname' ? t('networkAnalyze') : t('networkAnalyzeDetails') }}</BaseButton>
       </template>
     </div>

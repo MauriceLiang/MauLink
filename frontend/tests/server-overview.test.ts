@@ -63,7 +63,7 @@ function networkResult(host: string, detailed: boolean): NetworkInspection {
     ipVersion: isAddress || detailed ? "ipv4" : null, scope: isAddress ? "private" : detailed ? "public" : null,
     reverseDns: detailed ? "dns.google" : null,
     geo: { countryCode: null, countryName: null, region: null, city: null }, asn: null, organization: null,
-    source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null,
+    source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null, databaseSource: null,
   };
 }
 afterEach(() => {
@@ -137,7 +137,7 @@ describe("server overview", () => {
     expect(get).toHaveBeenCalledWith({ host: "192.168.1.20", port: 22 });
     expect(wrapper.text()).toContain("已保存信任记录");
     expect(wrapper.text()).toContain("SHA256:fixture-fingerprint");
-    expect(wrapper.text()).toContain("不代表当前远程服务器已经验证");
+    expect(wrapper.text()).toContain("连接时仍需校验");
     expect(wrapper.text()).not.toContain("publicKeyBlob");
   });
 
@@ -148,7 +148,7 @@ describe("server overview", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("Security & identity");
     expect(wrapper.text()).toContain("Saved trust record");
-    expect(wrapper.text()).toContain("does not mean the current remote server has been verified");
+    expect(wrapper.text()).toContain("It is verified again when connecting");
   });
 
   it("announces a pending local trust lookup", async () => {
@@ -263,8 +263,8 @@ describe("server overview", () => {
     expect(getStats).toHaveBeenCalledWith({ serverId: base.id });
     expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("TCP 22 端口");
     expect(wrapper.get('[aria-label="连接检测结果"]').text()).toContain("端口可达");
-    expect(wrapper.text()).toContain("直连 TCP 端口（不经过代理或跳板机）");
-    expect(wrapper.text()).toContain("不代表 SSH 握手或登录成功");
+    expect(wrapper.text()).toContain("直连 TCP 端口，不经过代理或跳板机");
+    expect(wrapper.text()).toContain("不代表 SSH 登录成功");
   });
 
   it("shows a refused port from a completed preflight", async () => {
@@ -311,7 +311,7 @@ describe("server overview", () => {
     expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(wrapper.text()).toContain("反向 DNS");
-    expect(wrapper.text()).toContain("本机未配置离线 GeoIP 数据库");
+    expect(wrapper.text()).toContain("暂无位置或 ASN 数据");
   });
 
   it("keeps DNS failures in the network card and lets the user retry", async () => {

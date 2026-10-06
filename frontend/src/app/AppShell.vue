@@ -25,6 +25,7 @@ import { createTerminalPreferences } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createHostKeysApi } from "../ipc/host-keys";
+import { createGeoIpApi } from '../ipc/geoip';
 import { createNetworkApi } from "../ipc/network";
 import { createPreflightApi } from "../ipc/preflight";
 import { applyAccentColor } from "../theme/accent";
@@ -62,6 +63,10 @@ const { servers, groups, pending, error, query, filtered } = store;
 const connections = createConnectionStore(createConnectionApi(props.client));
 const hostKeys = createHostKeysApi(props.client);
 const network = createNetworkApi(props.client);
+const geoip = createGeoIpApi(props.client);
+const databaseRevision = ref(0);
+const settingsInitialSection = ref('general');
+function openSettings(section = 'general') { settingsInitialSection.value = section; settingsOpen.value = true; }
 const preflight = createPreflightApi(props.client);
 const terminals = createTerminalController(createTerminalApi(props.client), props.terminalChannelFactory);
 const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), settings => {
@@ -102,7 +107,7 @@ async function executeCommand(id: string) {
   const workspace = workspaceRefs.value.find(value => value.connectionId === activeConnection.value);
   if (id.startsWith('server:')) selectServer(id.slice(7));
   else if (id === 'add') openEditor();
-  else if (id === 'settings') settingsOpen.value = true;
+  else if (id === 'settings') openSettings();
   else if (id === 'theme' || id === 'language') { const current = terminalPreferences.record.value?.value; if (current && await terminalPreferences.save(id === 'theme' ? { theme: getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'light' : 'dark' } : { language: current.language === 'en' ? 'zh-CN' : 'en' })) toast.success(settingsText('saved')); }
   else if (id === 'clear') { new Set(transfers.snapshots.value.map(task => task.connectionId)).forEach(id => transfers.clearCompleted(id)); toast.info(paletteText('cleared')); }
   else if (workspace) await workspace.view(id === 'workspace' ? 'terminal' : id as 'monitor' | 'files');
@@ -236,7 +241,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
 
 <template>
   <div class="application-shell" :class="{ 'terminal-focused': focused }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
-    <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" :settings-enabled="!readOnly" @home="selectServer(null)" @about="about = true" @add="openEditor()" @settings="settingsOpen = true" @palette="paletteOpen = true" />
+    <TopBar v-model:query="query" :home="!selected" :shortcut="shortcut" :can-manage="canManage" :settings-enabled="!readOnly" @home="selectServer(null)" @about="about = true" @add="openEditor()" @settings="openSettings()" @palette="paletteOpen = true" />
     <div class="shell-content">
       <Sidebar v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
       <main class="shell-main" :class="{ 'has-terminal-workspace': selectedWorkspace }" :aria-busy="pending">
@@ -244,7 +249,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
         <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
           <BaseButton @click="load">{{ t('retry') }}</BaseButton>
         </BaseEmptyState>
-        <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" />
+        <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" />
         <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
         <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="about = true" @add="openEditor()" />
         <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && selectedId === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="selectServer(null)" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
@@ -259,7 +264,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
     <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
-    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
+    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :initial-section="settingsInitialSection" @database-changed="databaseRevision++" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
     <BaseToastViewport :queue="toast" />
   </div>
