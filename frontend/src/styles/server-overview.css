@@ -28,7 +28,7 @@
 .server-overview-summary-item dt { color: var(--color-text-secondary); font-size: 11.5px; }
 .server-overview-summary-item dd { min-width: 0; margin: 0; color: var(--color-text-primary); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
 .server-overview-details-heading { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
-.server-overview-accordion { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.server-overview-accordion { width: min(100%, 800px); min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .server-overview-accordion-item { min-width: 0; }
 .server-overview-accordion-item + .server-overview-accordion-item { border-top: 1px solid var(--color-border); }
 .server-overview-accordion-heading { margin: 0; }
@@ -57,10 +57,10 @@
 .server-overview-accordion-title { min-width: 0; font-size: 13px; font-weight: 600; transition: color var(--motion-fast) var(--ease-standard); }
 .server-overview-accordion-trigger[aria-expanded="true"] .server-overview-accordion-title { color: var(--color-primary); }
 .server-overview-accordion-summary { min-width: 0; color: var(--color-text-secondary); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
-.server-overview-accordion-chevron { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid transparent; border-radius: var(--radius); color: var(--color-text-secondary); background: var(--color-bg-subtle); transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
-.server-overview-accordion-chevron .base-icon { width: 16px; height: 16px; }
+.server-overview-accordion-chevron { display: grid; width: 36px; height: 36px; place-items: center; color: var(--color-text-secondary); background: transparent; transition: color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
+.server-overview-accordion-chevron .base-icon { width: 18px; height: 18px; }
 .server-overview-accordion-trigger:hover .server-overview-accordion-chevron,
-.server-overview-accordion-trigger[aria-expanded="true"] .server-overview-accordion-chevron { border-color: var(--color-border); color: var(--color-primary); background: var(--color-surface); }
+.server-overview-accordion-trigger[aria-expanded="true"] .server-overview-accordion-chevron { color: var(--color-primary); }
 .server-overview-accordion-chevron.is-expanded { transform: rotate(180deg); }
 .server-overview-accordion-panel { min-width: 0; padding: 0 18px 18px; }
 .server-overview-card { min-width: 0; height: auto; overflow: visible; padding: 20px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
