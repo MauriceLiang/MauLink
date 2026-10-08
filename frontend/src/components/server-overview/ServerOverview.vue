@@ -9,6 +9,7 @@ import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { ConnectionStore } from "../../stores/connections";
 import type { MenuItem } from "../base/menu";
 import BaseButton from "../base/BaseButton.vue";
+import BaseIcon from "../base/BaseIcon.vue";
 import ConnectionPanel from "../connection/ConnectionPanel.vue";
 import ConnectionInfoCard from "./ConnectionInfoCard.vue";
 import ConnectionRouteCard from "./ConnectionRouteCard.vue";
@@ -211,7 +212,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         <h3 class="server-overview-accordion-heading">
           <button :id="sectionButtonId('connection')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'connection'" :aria-controls="sectionPanelId('connection')" @click="toggleSection('connection')">
             <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('connectionInfo') }}</span><span class="server-overview-accordion-summary">{{ authenticationSummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'connection' }" aria-hidden="true">⌄</span>
+            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'connection' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
           </button>
         </h3>
         <div :id="sectionPanelId('connection')" v-show="activeSection === 'connection'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('connection')">
@@ -222,7 +223,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         <h3 class="server-overview-accordion-heading">
           <button :id="sectionButtonId('network')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'network'" :aria-controls="sectionPanelId('network')" @click="toggleSection('network')">
             <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('networkInformation') }}</span><span class="server-overview-accordion-summary">{{ networkSummaryText }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'network' }" aria-hidden="true">⌄</span>
+            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'network' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
           </button>
         </h3>
         <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('network')">
@@ -233,7 +234,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         <h3 class="server-overview-accordion-heading">
           <button :id="sectionButtonId('security')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'security'" :aria-controls="sectionPanelId('security')" @click="toggleSection('security')">
             <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('securityIdentity') }}</span><span class="server-overview-accordion-summary">{{ trustSummaryText }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'security' }" aria-hidden="true">⌄</span>
+            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'security' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
           </button>
         </h3>
         <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('security')">
@@ -244,7 +245,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         <h3 class="server-overview-accordion-heading">
           <button :id="sectionButtonId('route')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'route'" :aria-controls="sectionPanelId('route')" @click="toggleSection('route')">
             <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('connectionRoute') }}</span><span class="server-overview-accordion-summary">{{ routeSummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'route' }" aria-hidden="true">⌄</span>
+            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'route' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
           </button>
         </h3>
         <div :id="sectionPanelId('route')" v-show="activeSection === 'route'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('route')">
@@ -255,7 +256,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         <h3 class="server-overview-accordion-heading">
           <button :id="sectionButtonId('activity')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'activity'" :aria-controls="sectionPanelId('activity')" @click="toggleSection('activity')">
             <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('recentActivity') }}</span><span class="server-overview-accordion-summary">{{ activitySummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'activity' }" aria-hidden="true">⌄</span>
+            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'activity' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
           </button>
         </h3>
         <div :id="sectionPanelId('activity')" v-show="activeSection === 'activity'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('activity')">
