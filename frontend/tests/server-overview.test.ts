@@ -85,6 +85,32 @@ afterEach(() => {
 });
 
 describe("server overview", () => {
+  it("uses a lightweight breadcrumb, keeps the back action, and avoids a repeated endpoint subtitle", async () => {
+    const wrapper = overview(profile({ name: "root@192.168.1.20" }));
+    wrappers.push(wrapper);
+    const back = wrapper.get(".server-overview-breadcrumb-back");
+    expect(wrapper.get(".server-overview-breadcrumb-current").text()).toBe("服务器详情");
+    expect(wrapper.get(".server-overview-endpoint").text()).toBe("SSH · 端口 22 · 密码认证");
+
+    await back.trigger("click");
+    expect(wrapper.emitted("back")).toHaveLength(1);
+
+    locale.value = "en";
+    await flushPromises();
+    expect(wrapper.get(".server-overview-breadcrumb-current").text()).toBe("Server details");
+    expect(wrapper.get(".server-overview-endpoint").text()).toBe("SSH · Port 22 · Password authentication");
+  });
+
+  it("preserves the endpoint subtitle for custom names and handles IPv6 names", () => {
+    const ipv6 = overview(profile({ name: "root@[2001:db8::20]", host: "2001:db8::20", authType: "privateKey" }));
+    wrappers.push(ipv6);
+    expect(ipv6.get(".server-overview-endpoint").text()).toBe("SSH · 端口 22 · 私钥认证");
+
+    const custom = overview(profile({ name: "Production API", host: "2001:db8::20", port: 2222 }));
+    wrappers.push(custom);
+    expect(custom.get(".server-overview-endpoint").text()).toBe("root@[2001:db8::20]:2222");
+  });
+
   it("shows authentication and saved-credential status from the profile and keeps advanced details collapsed", async () => {
     const wrapper = mount(ConnectionInfoCard, { props: { server: profile({ authType: "privateKey", hasPrivateKey: true, hasSavedCredential: true }) } });
     wrappers.push(wrapper);
@@ -339,30 +365,69 @@ describe("server overview", () => {
     expect(inspect).toHaveBeenCalledTimes(2);
   });
 
-  it("starts with one accessible accordion section and keeps all five cards mounted while toggling", async () => {
+  it("starts with one selected category, keeps all five cards mounted, and never clears the detail panel", async () => {
     const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
     const getHostKey = vi.fn(() => null);
     const wrapper = overview(profile(), { inspect, getHostKey });
     wrappers.push(wrapper);
     await flushPromises();
 
-    const triggers = wrapper.findAll(".server-overview-accordion-trigger");
-    const panels = wrapper.findAll(".server-overview-accordion-panel");
-    expect(triggers).toHaveLength(5);
-    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["true", "false", "false", "false", "false"]);
+    const buttons = wrapper.findAll(".server-overview-section-button");
+    const panels = wrapper.findAll(".server-overview-section-panel");
+    expect(buttons).toHaveLength(5);
+    expect(buttons.map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
+    expect(buttons.map(button => button.attributes("aria-controls"))).toEqual(panels.map(panel => panel.attributes("id")));
     expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["", "none", "none", "none", "none"]);
+    expect(panels.map(panel => panel.isVisible())).toEqual([true, false, false, false, false]);
     expect(wrapper.findAll(".server-overview-card")).toHaveLength(5);
 
-    await triggers[1]!.trigger("click");
-    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["false", "true", "false", "false", "false"]);
+    await buttons[1]!.trigger("click");
+    expect(buttons.map(button => button.attributes("aria-current"))).toEqual([undefined, "true", undefined, undefined, undefined]);
     expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["none", "", "none", "none", "none"]);
-    await triggers[1]!.trigger("click");
-    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["false", "false", "false", "false", "false"]);
-    await triggers[2]!.trigger("click");
-    await triggers[3]!.trigger("click");
-    await triggers[4]!.trigger("click");
+    await buttons[1]!.trigger("click");
+    expect(buttons.map(button => button.attributes("aria-current"))).toEqual([undefined, "true", undefined, undefined, undefined]);
+    expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["none", "", "none", "none", "none"]);
+    await buttons[2]!.trigger("click");
+    await buttons[3]!.trigger("click");
+    await buttons[4]!.trigger("click");
     expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true });
     expect(getHostKey).toHaveBeenCalledExactlyOnceWith({ host: base.host, port: base.port });
+  });
+
+  it("keeps hidden error controls out of view and exposes them when their category is selected", async () => {
+    const wrapper = overview(profile({ host: "public.example.test" }), {
+      inspect: () => Promise.reject(new Error("resolver details")),
+    });
+    wrappers.push(wrapper);
+    document.body.appendChild(wrapper.element);
+    await flushPromises();
+
+    const networkButton = wrapper.get('.server-overview-section-button[data-section="network"]');
+    const retry = wrapper.get('[id$="-network-panel"] button');
+    expect(networkButton.element.tagName).toBe("BUTTON");
+    expect(networkButton.attributes("role")).toBeUndefined();
+    expect(retry.isVisible()).toBe(false);
+
+    await networkButton.trigger("click");
+    expect(retry.isVisible()).toBe(true);
+    expect(wrapper.get(".server-overview-detail-panel-heading h3").text()).toBe("网络信息");
+  });
+
+  it("keeps the selected category during endpoint edits and refreshes network and identity data", async () => {
+    const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
+    const getHostKey = vi.fn(({ host, port }: { host: string; port: number }) => ({ ...savedHostKey, normalizedHost: host, port }));
+    const wrapper = overview(profile({ id: "same-server" }), { inspect, getHostKey });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await wrapper.get('.server-overview-section-button[data-section="network"]').trigger("click");
+
+    await wrapper.setProps({ server: profile({ id: "same-server", host: "db.example.test", port: 2222 }) });
+    await flushPromises();
+
+    expect(wrapper.get('.server-overview-section-button[data-section="network"]').attributes("aria-current")).toBe("true");
+    expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true });
+    expect(getHostKey).toHaveBeenNthCalledWith(2, { host: "db.example.test", port: 2222 });
+    expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("SHA256:fixture-fingerprint");
   });
 
   it("resets to connection and rejects stale network and trust summaries after switching servers", async () => {
@@ -380,12 +445,12 @@ describe("server overview", () => {
     const getHostKey = vi.fn(({ host }: { host: string; port: number }) => host === "a.example.test" ? firstTrust : Promise.resolve(secondTrust));
     const wrapper = overview(profile({ id: "server-a", host: "a.example.test" }), { inspect, getHostKey });
     wrappers.push(wrapper);
-    const networkTrigger = wrapper.findAll(".server-overview-accordion-trigger")[1]!;
-    await networkTrigger.trigger("click");
+    const networkButton = wrapper.get('.server-overview-section-button[data-section="network"]');
+    await networkButton.trigger("click");
 
     await wrapper.setProps({ server: profile({ id: "server-b", host: "b.example.test" }) });
     await flushPromises();
-    expect(wrapper.findAll(".server-overview-accordion-trigger").map(trigger => trigger.attributes("aria-expanded"))).toEqual(["true", "false", "false", "false", "false"]);
+    expect(wrapper.findAll(".server-overview-section-button").map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
     expect(wrapper.text()).toContain("Region B");
     expect(wrapper.text()).toContain("SHA256:server-b");
 
@@ -408,7 +473,7 @@ describe("server overview", () => {
     expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).toContain("IPv4 · Private");
     expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).not.toContain("Hong Kong");
     expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("未保存");
-    expect(wrapper.findAll(".server-overview-accordion-trigger")[2]!.text()).toContain("未保存");
+    expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("尚无已保存的主机身份记录");
   });
 
   it("summarizes a failed network and trust lookup without inventing GeoIP data", async () => {
@@ -432,7 +497,7 @@ describe("server overview", () => {
     }, attachTo: document.body });
     wrappers.push(wrapper);
     await flushPromises();
-    await wrapper.findAll(".server-overview-accordion-trigger")[1]!.trigger("click");
+    await wrapper.get('.server-overview-section-button[data-section="network"]').trigger("click");
     await wrapper.get(".server-overview-network-configure button").trigger("click");
     expect(wrapper.emitted("openSettings")).toHaveLength(1);
 
@@ -463,11 +528,11 @@ describe("server overview", () => {
     }) });
     wrappers.push(wrapper);
     await flushPromises();
-    const routeSummary = wrapper.findAll(".server-overview-accordion-trigger")[3]!.text();
-    expect(routeSummary.indexOf("本机")).toBeLessThan(routeSummary.indexOf("代理"));
-    expect(routeSummary.indexOf("代理")).toBeLessThan(routeSummary.indexOf("跳板机"));
-    expect(routeSummary.indexOf("跳板机")).toBeLessThan(routeSummary.indexOf("服务器"));
-    expect(wrapper.findAll(".server-overview-accordion-trigger")[4]!.text()).toContain("最近连接检测 · 47 毫秒");
+    await wrapper.get('.server-overview-section-button[data-section="route"]').trigger("click");
+    const routeSteps = wrapper.get('[id$="-route-panel"]').findAll(".server-overview-route-node strong").map(node => node.text());
+    expect(routeSteps).toEqual(["本机", "代理", "跳板机", "服务器"]);
+    await wrapper.get('.server-overview-section-button[data-section="activity"]').trigger("click");
+    expect(wrapper.get('[id$="-activity-panel"]').text()).toContain("47 毫秒");
     expect(wrapper.text()).not.toContain("password");
   });
 
@@ -475,16 +540,16 @@ describe("server overview", () => {
     const empty = overview(profile(), { getStats: ({ serverId }) => runtimeStats(serverId) });
     wrappers.push(empty);
     await flushPromises();
-    expect(empty.findAll(".server-overview-accordion-trigger")[4]!.text()).toContain("暂无连接活动记录");
+    await empty.get('.server-overview-section-button[data-section="activity"]').trigger("click");
+    expect(empty.get('[id$="-activity-panel"]').text()).toContain("暂无连接活动记录");
 
     const failed = overview(profile({ id: "server-stats-error" }), { getStats: () => Promise.reject(new Error("stats unavailable")) });
     wrappers.push(failed);
     await flushPromises();
-    const activityTrigger = failed.findAll(".server-overview-accordion-trigger")[4]!;
-    expect(activityTrigger.text()).toContain("无法读取最近活动");
-    expect(activityTrigger.text()).not.toContain("暂无连接活动记录");
-    await activityTrigger.trigger("click");
-    expect(failed.findAll(".server-overview-accordion-panel")[4]!.text()).toContain("无法读取最近活动");
+    const activityButton = failed.get('.server-overview-section-button[data-section="activity"]');
+    await activityButton.trigger("click");
+    expect(failed.get('[id$="-activity-panel"]').text()).toContain("无法读取最近活动");
+    expect(failed.get('[id$="-activity-panel"]').text()).not.toContain("暂无连接活动记录");
   });
 
   it("updates all summary labels when the locale changes", async () => {
@@ -494,7 +559,9 @@ describe("server overview", () => {
     locale.value = "en";
     await flushPromises();
     expect(wrapper.get(".server-overview-summary").attributes("aria-label")).toBe("Server summary");
-    expect(wrapper.findAll(".server-overview-accordion-trigger")[0]!.text()).toContain("Connection information");
+    expect(wrapper.get('.server-overview-section-button[data-section="connection"]').text()).toContain("Connection configuration");
+    expect(wrapper.get(".server-overview-detail-panel-heading h3").text()).toBe("Connection configuration");
+    expect(wrapper.get(".server-overview-detail-panel-heading p").text()).toBe("Configuration and diagnostics");
     expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("Not saved");
   });
 });
