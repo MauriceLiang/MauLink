@@ -35,7 +35,7 @@ function connectionStore() {
 function hostKeyApi(get: (payload: { host: string; port: number }) => HostKeyRecord | null | Promise<HostKeyRecord | null>) {
   return createHostKeysApi(createIpcClient(createMockIpc({ host_key_get: get })));
 }
-function networkApi(inspect: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>) {
+function networkApi(inspect: (payload: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => NetworkInspection | Promise<NetworkInspection>) {
   return createNetworkApi(createIpcClient(createMockIpc({ network_inspect: inspect })));
 }
 function preflightResult(error: ConnectionPreflightResult["error"] = null): ConnectionPreflightResult {
@@ -68,7 +68,7 @@ function networkResult(host: string, detailed: boolean): NetworkInspection {
 }
 function overview(server = profile(), options: {
   getHostKey?: (payload: { host: string; port: number }) => HostKeyRecord | null | Promise<HostKeyRecord | null>;
-  inspect?: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>;
+  inspect?: (payload: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => NetworkInspection | Promise<NetworkInspection>;
   getStats?: (payload: { serverId: string }) => ServerRuntimeStats | Promise<ServerRuntimeStats>;
 } = {}) {
   return mount(ServerOverview, { props: {
@@ -85,6 +85,25 @@ afterEach(() => {
 });
 
 describe("server overview", () => {
+  it("shows GeoIP place names in the selected application language", async () => {
+    const inspect = vi.fn(({ host, detailed, language }: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => ({
+      ...networkResult(host, detailed),
+      scope: "public" as const,
+      geo: language === "en"
+        ? { countryCode: "HK", countryName: "Hong Kong", region: "Kowloon", city: "Hong Kong" }
+        : { countryCode: "HK", countryName: "中国香港", region: "九龙", city: "香港" },
+    }));
+    const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("中国香港 · 九龙 · 香港");
+    locale.value = "en";
+    await flushPromises();
+    expect(inspect).toHaveBeenLastCalledWith({ host: base.host, detailed: true, language: "en" });
+    expect(wrapper.text()).toContain("Hong Kong · Kowloon · Hong Kong");
+  });
+
   it("uses a lightweight back button and avoids a repeated endpoint subtitle", async () => {
     const wrapper = overview(profile({ name: "root@192.168.1.20" }));
     wrappers.push(wrapper);
@@ -325,7 +344,7 @@ describe("server overview", () => {
     const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: true });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: true, language: "zh-CN" });
     expect(wrapper.text()).toContain("192.168.1.20");
     expect(wrapper.text()).toContain("IPv4 · Private");
     expect(inspect).toHaveBeenCalledTimes(1);
@@ -343,7 +362,7 @@ describe("server overview", () => {
     const wrapper = mount(NetworkInfoCard, { props: { server: hostname, api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true, language: "zh-CN" });
     expect(wrapper.get("details").element).toHaveProperty("open", false);
     await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
@@ -362,7 +381,7 @@ describe("server overview", () => {
     await wrapper.get("button").trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("8.8.8.8");
-    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
+    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true, language: "zh-CN" });
     expect(inspect).toHaveBeenCalledTimes(2);
   });
 
@@ -394,7 +413,7 @@ describe("server overview", () => {
     await buttons[2]!.trigger("click");
     await buttons[3]!.trigger("click");
     await buttons[4]!.trigger("click");
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true, language: "zh-CN" });
     expect(getHostKey).toHaveBeenCalledExactlyOnceWith({ host: base.host, port: base.port });
   });
 
@@ -429,7 +448,7 @@ describe("server overview", () => {
     await flushPromises();
 
     expect(wrapper.get('.server-overview-tab[data-section="network"]').attributes("aria-current")).toBe("true");
-    expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true });
+    expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true, language: "zh-CN" });
     expect(getHostKey).toHaveBeenNthCalledWith(2, { host: "db.example.test", port: 2222 });
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("SHA256:fixture-fingerprint");
   });

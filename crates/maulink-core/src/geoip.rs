@@ -1,4 +1,4 @@
-use crate::{AppError, ErrorCode, NetworkInspection, storage};
+use crate::{AppError, ErrorCode, Language, NetworkInspection, storage};
 use flate2::read::GzDecoder;
 use maxminddb::Reader;
 use serde::{Deserialize, Serialize};
@@ -268,6 +268,7 @@ impl GeoIpDatabase {
     pub fn enrich(
         &self,
         address: IpAddr,
+        language: Language,
         inspection: &mut NetworkInspection,
     ) -> Result<(), AppError> {
         let state = self.state.lock().map_err(|_| file_error())?;
@@ -275,9 +276,9 @@ impl GeoIpDatabase {
         let asn = decode(state.asn.as_deref(), address)?;
         if let Some(value) = location {
             inspection.geo.country_code = string_at(&value, "/country/iso_code");
-            inspection.geo.country_name = string_at(&value, "/country/names/en");
-            inspection.geo.region = string_at(&value, "/subdivisions/0/names/en");
-            inspection.geo.city = string_at(&value, "/city/names/en");
+            inspection.geo.country_name = localized_string_at(&value, "/country/names", language);
+            inspection.geo.region = localized_string_at(&value, "/subdivisions/0/names", language);
+            inspection.geo.city = localized_string_at(&value, "/city/names", language);
         }
         if let Some(value) = asn {
             inspection.asn = value
@@ -515,6 +516,14 @@ fn string_at(value: &Value, path: &str) -> Option<String> {
         .and_then(Value::as_str)
         .map(str::to_owned)
 }
+fn localized_string_at(value: &Value, path: &str, language: Language) -> Option<String> {
+    let preferred_language = match language {
+        Language::ZhCn => "zh-CN",
+        Language::En => "en",
+    };
+    string_at(value, &format!("{path}/{preferred_language}"))
+        .or_else(|| string_at(value, &format!("{path}/en")))
+}
 fn write_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
     let mut file = fs::File::create(path).map_err(|_| file_error())?;
     file.write_all(bytes).map_err(|_| file_error())?;
@@ -573,6 +582,27 @@ async fn download(client: &reqwest::Client, url: &str) -> Result<Option<Vec<u8>>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selects_the_requested_place_name_and_falls_back_to_english() {
+        let place = serde_json::json!({
+            "names": { "en": "Hong Kong", "zh-CN": "中国香港" }
+        });
+        assert_eq!(
+            localized_string_at(&place, "/names", Language::ZhCn).as_deref(),
+            Some("中国香港")
+        );
+        assert_eq!(
+            localized_string_at(&place, "/names", Language::En).as_deref(),
+            Some("Hong Kong")
+        );
+
+        let english_only = serde_json::json!({ "names": { "en": "Kowloon" } });
+        assert_eq!(
+            localized_string_at(&english_only, "/names", Language::ZhCn).as_deref(),
+            Some("Kowloon")
+        );
+    }
 
     #[tokio::test]
     async fn persists_frequency_and_rejects_invalid_changes() {

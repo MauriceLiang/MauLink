@@ -427,7 +427,10 @@ pub async fn network_inspect(
     let (request_id, payload) = request.validate()?;
     attach_request_id(
         request_id,
-        state.network.inspect(&payload.host, payload.detailed).await,
+        state
+            .network
+            .inspect(&payload.host, payload.detailed, payload.language)
+            .await,
     )
 }
 
