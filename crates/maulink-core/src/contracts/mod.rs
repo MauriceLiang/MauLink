@@ -583,6 +583,8 @@ pub struct NetworkInspection {
 pub struct NetworkInspectPayload {
     pub host: String,
     pub detailed: bool,
+    #[serde(default)]
+    pub language: crate::Language,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -878,6 +880,16 @@ mod tests {
         assert_eq!(value["apiVersion"], API_VERSION);
         assert!(value.get("api_version").is_none());
         assert_eq!(value["capabilities"]["profileStorage"], false);
+    }
+
+    #[test]
+    fn network_inspect_payload_defaults_to_chinese_for_older_callers() {
+        let payload: NetworkInspectPayload = serde_json::from_value(serde_json::json!({
+            "host": "example.com",
+            "detailed": true
+        }))
+        .expect("deserialize an older network inspection request");
+        assert_eq!(payload.language, crate::Language::ZhCn);
     }
 
     #[test]

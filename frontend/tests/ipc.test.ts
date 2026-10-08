@@ -37,7 +37,7 @@ describe("typed IPC contract", () => {
     await createMonitorApi(client).getSnapshot({ connectionId: "connection" });
     await createSettingsApi(client).get();
     await createHostKeysApi(client).get({ host: "example.com", port: 22 });
-    await createNetworkApi(client).inspect({ host: "example.com", detailed: true });
+    await createNetworkApi(client).inspect({ host: "example.com", detailed: true, language: "zh-CN" });
     await createPreflightApi(client).check({ serverId: "server", host: "example.com", port: 22, timeoutMs: 10000 });
     await createServerRuntimeStatsApi(client).get({ serverId: "server" });
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([

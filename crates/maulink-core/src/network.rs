@@ -8,8 +8,8 @@ use std::{
 use tokio::{sync::RwLock, task::spawn_blocking, time::timeout};
 
 use crate::{
-    AppError, ErrorCode, NetworkGeo, NetworkHostKind, NetworkInspection, NetworkInspectionSource,
-    NetworkIpVersion, NetworkScope,
+    AppError, ErrorCode, Language, NetworkGeo, NetworkHostKind, NetworkInspection,
+    NetworkInspectionSource, NetworkIpVersion, NetworkScope,
 };
 
 const CACHE_TTL: Duration = Duration::from_secs(10 * 60);
@@ -17,7 +17,7 @@ const DNS_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Default)]
 pub struct NetworkInspector {
-    cache: Arc<RwLock<HashMap<(String, bool, u64), CachedInspection>>>,
+    cache: Arc<RwLock<HashMap<(String, bool, Language, u64), CachedInspection>>>,
     geoip: Option<crate::GeoIpDatabase>,
 }
 
@@ -35,11 +35,17 @@ impl NetworkInspector {
         }
     }
 
-    pub async fn inspect(&self, host: &str, detailed: bool) -> Result<NetworkInspection, AppError> {
+    pub async fn inspect(
+        &self,
+        host: &str,
+        detailed: bool,
+        language: Language,
+    ) -> Result<NetworkInspection, AppError> {
         let normalized_host = crate::host_keys::normalize_host(host)?;
         let key = (
             normalized_host.clone(),
             detailed,
+            language,
             self.geoip
                 .as_ref()
                 .map_or(0, crate::GeoIpDatabase::generation),
@@ -59,7 +65,7 @@ impl NetworkInspector {
                 .as_ref()
                 .and_then(|address| address.parse().ok())
         {
-            database.enrich(address, &mut inspection)?;
+            database.enrich(address, language, &mut inspection)?;
         }
         let now = Instant::now();
         let mut cache = self.cache.write().await;
@@ -341,7 +347,7 @@ mod tests {
     async fn classifies_ip_locally_and_does_not_resolve_domains_without_explicit_detail_request() {
         let inspector = NetworkInspector::default();
         let private = inspector
-            .inspect("192.168.1.10", false)
+            .inspect("192.168.1.10", false, Language::ZhCn)
             .await
             .expect("private IP");
         assert_eq!(private.host_kind, NetworkHostKind::Ip);
@@ -353,7 +359,7 @@ mod tests {
         assert!(private.geo.country_code.is_none());
 
         let hostname = inspector
-            .inspect("localhost", false)
+            .inspect("localhost", false, Language::ZhCn)
             .await
             .expect("hostname summary");
         assert_eq!(hostname.host_kind, NetworkHostKind::Hostname);
@@ -365,7 +371,7 @@ mod tests {
     #[tokio::test]
     async fn resolves_hostnames_only_when_detailed_inspection_is_requested() {
         let inspection = NetworkInspector::default()
-            .inspect("localhost", true)
+            .inspect("localhost", true, Language::ZhCn)
             .await
             .expect("localhost resolves through the system resolver");
         assert_eq!(inspection.host_kind, NetworkHostKind::Hostname);

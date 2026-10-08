@@ -31,7 +31,7 @@ async function load(detailed: boolean) {
   const version = ++requestVersion;
   setState({ status: "loading", detailed }, server);
   try {
-    const inspection = await props.api.inspect({ host: server.host, detailed });
+    const inspection = await props.api.inspect({ host: server.host, detailed, language: locale.value });
     if (version === requestVersion) setState({ status: "ready", detailed, inspection }, server);
   } catch {
     if (version === requestVersion) setState({ status: "error", detailed }, server);
@@ -73,7 +73,7 @@ function formatDate(timestamp: number) {
   return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-watch(() => [props.server.id, props.server.host, props.server.port] as const, () => { void load(true); }, { immediate: true });
+watch(() => [props.server.id, props.server.host, props.server.port, locale.value] as const, () => { void load(true); }, { immediate: true });
 watch(() => props.databaseRevision, () => { void load(state.value.detailed); });
 onBeforeUnmount(() => { requestVersion += 1; });
 </script>

@@ -88,10 +88,12 @@ export function createVisualMock(config: VisualConfig) {
     geoip_database_import: () => { geoip = { ...geoip, location: databaseInfo('City', 'local'), automaticUpdates: false }; return structuredClone(geoip); },
     geoip_database_delete: () => { geoip = { ...geoip, location: null, asn: null, automaticUpdates: false, lastCheckedAtMs: null, lastError: null }; return structuredClone(geoip); },
     local_file_select: ({ purpose }) => purpose === 'geoIpDatabase' ? { token: 'visual-mmdb', displayName: 'local-City.mmdb', purpose, expiresAtMs: 4102444800000 } : null,
-    network_inspect: ({ host, detailed }) => {
+    network_inspect: ({ host, detailed, language }) => {
       const result = networkFixture(host, detailed);
       if (detailed && result.scope === 'public' && geoip.location) {
-        result.geo = { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' };
+        result.geo = language === 'en'
+          ? { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' }
+          : { countryCode: 'US', countryName: '美国', region: '加利福尼亚州', city: '山景城' };
         result.asn = geoip.asn ? 'AS15169' : null; result.organization = geoip.asn ? 'Google LLC' : null;
         result.databaseUpdatedAtMs = visualEpoch; result.databaseSource = geoip.asn?.source === 'dbIp' ? 'dbIp' : geoip.location.source;
       }

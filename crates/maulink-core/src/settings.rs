@@ -167,8 +167,9 @@ pub enum SidebarWidth {
     Wide,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum Language {
+    #[default]
     #[serde(rename = "zh-CN")]
     #[ts(rename = "zh-CN")]
     ZhCn,
