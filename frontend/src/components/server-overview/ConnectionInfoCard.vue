@@ -5,7 +5,7 @@ import type { Language } from "../../../../contracts/v1/Language";
 import { locale, messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 
-const props = defineProps<{ server: ServerProfile }>();
+const props = withDefaults(defineProps<{ server: ServerProfile; embedded?: boolean }>(), { embedded: false });
 const t = messages(serverOverviewMessages);
 const language = computed<Language>(() => locale.value);
 function formatDate(timestamp: number) {
@@ -28,15 +28,15 @@ const advancedFields = computed(() => [
 </script>
 
 <template>
-  <section class="server-overview-card" :aria-label="t('connectionInfo')">
-    <h2>{{ t('connectionInfo') }}</h2>
+  <section class="server-overview-card" :class="{ 'server-overview-card--embedded': embedded }" :aria-label="t('connectionInfo')">
+    <h2 v-if="!embedded">{{ t('connectionInfo') }}</h2>
     <dl class="server-overview-info-grid">
       <div v-for="field in fields" :key="field.label" class="server-overview-info-item">
         <dt>{{ field.label }}</dt>
         <dd :class="{ 'server-overview-mono': field.mono }">{{ field.value }}</dd>
       </div>
     </dl>
-    <details :key="server.id" class="server-overview-extra" open>
+    <details :key="server.id" class="server-overview-extra">
       <summary>{{ t('connectionMoreDetails') }}</summary>
       <dl class="server-overview-info-grid">
         <div v-for="field in advancedFields" :key="field.label" class="server-overview-info-item"><dt>{{ field.label }}</dt><dd>{{ field.value }}</dd></div>
