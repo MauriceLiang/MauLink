@@ -32,6 +32,7 @@ fn server_profile_contract_uses_safe_timestamps_and_hides_private_key_path() {
         port: 22,
         username: "deploy".to_owned(),
         auth_type: AuthType::PrivateKey,
+        require_authentication: true,
         has_private_key: true,
         group_id: None,
         has_saved_credential: true,
@@ -49,6 +50,7 @@ fn server_profile_contract_uses_safe_timestamps_and_hides_private_key_path() {
     let value = serde_json::to_value(profile).expect("serialize server profile");
     assert!(value["createdAtMs"].is_number());
     assert_eq!(value["hasPrivateKey"], true);
+    assert_eq!(value["requireAuthentication"], true);
     assert!(value.get("privateKeyPath").is_none());
     assert_eq!(value["jumpPort"], 22);
     assert_eq!(value["proxyType"], serde_json::Value::Null);

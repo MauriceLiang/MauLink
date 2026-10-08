@@ -6,11 +6,12 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use maulink_core::{
-    AuthType, ConnectionMode, ConnectionState, CredentialManager, CredentialWorker, Database,
-    DecimalU64, ErrorCode, HostKeyDecision, HostKeyStore, HostKeyVerifier, PathEncoding,
-    ProfileStore, Secret, SecureStore, SecureStoreError, ServerProfileInput, SshConnectionManager,
-    SshConnector, StoredPath, TerminalAckPayload, TerminalIdPayload, TerminalManager,
-    TerminalOpenPayload, TerminalResizePayload, TerminalState, TerminalWritePayload,
+    AuthType, ConnectionMode, ConnectionState, CredentialCipher, CredentialManager,
+    CredentialWorker, Database, DecimalU64, ErrorCode, HostKeyDecision, HostKeyStore,
+    HostKeyVerifier, PathEncoding, ProfileStore, Secret, SecureStore, SecureStoreError,
+    ServerProfileInput, SshConnectionManager, SshConnector, StoredPath, TerminalAckPayload,
+    TerminalIdPayload, TerminalManager, TerminalOpenPayload, TerminalResizePayload, TerminalState,
+    TerminalWritePayload,
 };
 use support::OpenSshFixture;
 use tokio::time::{sleep, timeout};
@@ -25,6 +26,7 @@ async fn opens_two_pty_channels_and_keeps_them_isolated() {
     let credentials = CredentialManager::new(
         database.clone(),
         CredentialWorker::new(Arc::new(EmptySecureStore)).expect("credential worker"),
+        CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
     );
     let registry = maulink_core::ConnectionRegistry::default();
     let verifier = HostKeyVerifier::new(HostKeyStore::new(database), registry.clone());
@@ -321,6 +323,7 @@ fn profile_input(fixture: &OpenSshFixture) -> ServerProfileInput {
         port: fixture.port,
         username: fixture.username.clone(),
         auth_type: AuthType::PrivateKey,
+        require_authentication: true,
         private_key_path: Some(StoredPath {
             bytes: Path::new(&fixture.private_key)
                 .as_os_str()

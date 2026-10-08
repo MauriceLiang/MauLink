@@ -14,14 +14,15 @@ use std::{
 };
 
 use maulink_core::{
-    AuthType, ConnectionMode, ConnectionState, CredentialManager, CredentialWorker, Database,
-    ErrorCode, HostKeyDecision, HostKeyStore, HostKeyVerifier, LocalFilePurpose, LocalFileRegistry,
-    MonitorManager, MonitorQualityStatus, MonitorRefreshPayload, PathEncoding, ProfileStore,
-    RemoteFileType, Secret, SecureStore, SecureStoreError, ServerProfileInput, SftpCursorPayload,
-    SftpDeletePayload, SftpDownloadPayload, SftpListStartPayload, SftpManager, SftpMkdirPayload,
-    SftpRenamePayload, SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload,
-    SftpTransferManager, SftpTransferState, SftpUploadPayload, SshConnectionManager, SshConnector,
-    StoredPath, TerminalIdPayload, TerminalManager, TerminalOpenPayload,
+    AuthType, ConnectionMode, ConnectionState, CredentialCipher, CredentialManager,
+    CredentialWorker, Database, ErrorCode, HostKeyDecision, HostKeyStore, HostKeyVerifier,
+    LocalFilePurpose, LocalFileRegistry, MonitorManager, MonitorQualityStatus,
+    MonitorRefreshPayload, PathEncoding, ProfileStore, RemoteFileType, Secret, SecureStore,
+    SecureStoreError, ServerProfileInput, SftpCursorPayload, SftpDeletePayload,
+    SftpDownloadPayload, SftpListStartPayload, SftpManager, SftpMkdirPayload, SftpRenamePayload,
+    SftpStatPayload, SftpTransferDirection, SftpTransferIdPayload, SftpTransferManager,
+    SftpTransferState, SftpUploadPayload, SshConnectionManager, SshConnector, StoredPath,
+    TerminalIdPayload, TerminalManager, TerminalOpenPayload,
 };
 use sha2::{Digest, Sha256};
 use support::OpenSshFixture;
@@ -863,6 +864,7 @@ async fn connect(fixture: &OpenSshFixture) -> (SshConnectionManager, String, tem
     let credentials = CredentialManager::new(
         database.clone(),
         CredentialWorker::new(Arc::new(EmptySecureStore)).expect("credential worker"),
+        CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
     );
     let registry = maulink_core::ConnectionRegistry::default();
     let verifier = HostKeyVerifier::new(HostKeyStore::new(database), registry.clone());
@@ -895,6 +897,7 @@ fn profile_input(fixture: &OpenSshFixture) -> ServerProfileInput {
         port: fixture.port,
         username: fixture.username.clone(),
         auth_type: AuthType::PrivateKey,
+        require_authentication: true,
         private_key_path: Some(StoredPath {
             bytes: Path::new(&fixture.private_key)
                 .as_os_str()

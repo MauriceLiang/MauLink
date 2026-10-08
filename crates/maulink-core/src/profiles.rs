@@ -124,6 +124,8 @@ pub struct ServerProfileInput {
     pub port: u16,
     pub username: String,
     pub auth_type: AuthType,
+    #[serde(default)]
+    pub require_authentication: bool,
     pub private_key_path: Option<StoredPath>,
     pub group_id: Option<String>,
     pub connect_timeout_ms: u32,
@@ -149,6 +151,7 @@ pub struct ServerProfile {
     pub port: u16,
     pub username: String,
     pub auth_type: AuthType,
+    pub require_authentication: bool,
     pub has_private_key: bool,
     pub group_id: Option<String>,
     pub has_saved_credential: bool,
@@ -361,12 +364,12 @@ impl ProfileStore {
                 transaction
                     .execute(
                         "INSERT INTO servers
-                         (id, name, host, port, username, auth_type, private_key_path,
+                         (id, name, host, port, username, auth_type, require_authentication, private_key_path,
                           private_key_path_encoding, group_id, connect_timeout_ms,
                           keepalive_interval_s, jump_host, jump_port, proxy_type, proxy_host,
                           proxy_port, revision, created_at_ms, updated_at_ms)
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
-                                 ?14, ?15, ?16, 1, ?17, ?17)",
+                                 ?14, ?15, ?16, ?17, 1, ?18, ?18)",
                         params![
                             server_id,
                             input.name.as_deref().expect("validated name"),
@@ -374,6 +377,7 @@ impl ProfileStore {
                             input.port,
                             input.username,
                             input.auth_type.as_database_value(),
+                            input.require_authentication,
                             input
                                 .private_key_path
                                 .as_ref()
@@ -510,7 +514,8 @@ impl ProfileStore {
                 let mut statement = connection
                     .prepare(
                         "SELECT s.id, s.name, s.host, s.port, s.username, s.auth_type,
-                                s.private_key_path, s.private_key_path_encoding, s.group_id,
+                                s.private_key_path, s.require_authentication,
+                                s.private_key_path_encoding, s.group_id,
                                 s.credential_ref_id IS NOT NULL, s.connect_timeout_ms,
                                 s.keepalive_interval_s, s.jump_host, s.jump_port, s.proxy_type,
                                 s.proxy_host, s.proxy_port, s.revision, s.created_at_ms, s.updated_at_ms
@@ -953,7 +958,7 @@ pub(crate) fn get_server(
     let raw = connection
         .query_row(
             "SELECT id, name, host, port, username, auth_type, private_key_path,
-                    private_key_path_encoding, group_id, credential_ref_id IS NOT NULL,
+                    require_authentication, private_key_path_encoding, group_id, credential_ref_id IS NOT NULL,
                     connect_timeout_ms, keepalive_interval_s, jump_host, jump_port, proxy_type,
                     proxy_host, proxy_port, revision, created_at_ms, updated_at_ms
              FROM servers WHERE id = ?1",
@@ -974,6 +979,7 @@ type RawServerRow = (
     String,
     String,
     Option<Vec<u8>>,
+    bool,
     Option<String>,
     Option<String>,
     bool,
@@ -1011,6 +1017,7 @@ fn map_server_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawServerRow> {
         row.get(17)?,
         row.get(18)?,
         row.get(19)?,
+        row.get(20)?,
     ))
 }
 
@@ -1018,7 +1025,7 @@ impl TryFrom<RawServerRow> for ServerProfile {
     type Error = AppError;
 
     fn try_from(raw: RawServerRow) -> Result<Self, Self::Error> {
-        let has_private_key = match (raw.6, raw.7) {
+        let has_private_key = match (raw.6, raw.8) {
             (Some(_), Some(encoding)) => {
                 PathEncoding::from_database_value(&encoding)?;
                 Some(())
@@ -1034,22 +1041,23 @@ impl TryFrom<RawServerRow> for ServerProfile {
             port: raw.3,
             username: raw.4,
             auth_type: AuthType::from_database_value(&raw.5)?,
+            require_authentication: raw.7,
             has_private_key,
-            group_id: raw.8,
-            has_saved_credential: raw.9,
-            connect_timeout_ms: raw.10,
-            keepalive_interval_seconds: raw.11,
-            jump_host: raw.12,
-            jump_port: raw.13,
+            group_id: raw.9,
+            has_saved_credential: raw.10,
+            connect_timeout_ms: raw.11,
+            keepalive_interval_seconds: raw.12,
+            jump_host: raw.13,
+            jump_port: raw.14,
             proxy_type: raw
-                .14
+                .15
                 .map(|value| ProxyType::from_database_value(&value))
                 .transpose()?,
-            proxy_host: raw.15,
-            proxy_port: raw.16,
-            revision: raw.17,
-            created_at_ms: raw.18,
-            updated_at_ms: raw.19,
+            proxy_host: raw.16,
+            proxy_port: raw.17,
+            revision: raw.18,
+            created_at_ms: raw.19,
+            updated_at_ms: raw.20,
         })
     }
 }
@@ -1109,6 +1117,7 @@ mod tests {
             port: 22,
             username: "deploy".to_owned(),
             auth_type: AuthType::Password,
+            require_authentication: false,
             private_key_path: None,
             group_id,
             connect_timeout_ms: 15_000,

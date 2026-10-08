@@ -13,7 +13,7 @@ export const shellGroups: Group[] = [
   { id: "development", name: "Development", sortOrder: 1, revision: 1, createdAtMs: 0, updatedAtMs: 0 },
 ];
 const defaults = {
-  port: 22, username: "root", authType: "password", hasPrivateKey: false, hasSavedCredential: false,
+  port: 22, username: "root", authType: "password", requireAuthentication: false, hasPrivateKey: false, hasSavedCredential: false,
   connectTimeoutMs: 10000, keepaliveIntervalSeconds: 30, jumpHost: null, jumpPort: 22,
   proxyType: null, proxyHost: null, proxyPort: null, revision: 1, createdAtMs: 0, updatedAtMs: 0,
 } satisfies Omit<ServerProfile, "id" | "name" | "host" | "groupId">;

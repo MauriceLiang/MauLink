@@ -797,7 +797,11 @@ pub async fn local_file_select(
             .file()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
             .blocking_pick_file(),
-        LocalFilePurpose::GeoIpDatabase => app.dialog().file().add_filter("GeoIP database", &["mmdb"]).blocking_pick_file(),
+        LocalFilePurpose::GeoIpDatabase => app
+            .dialog()
+            .file()
+            .add_filter("GeoIP database", &["mmdb"])
+            .blocking_pick_file(),
     };
     let Some(selected) = selected else {
         return Ok(None);
@@ -903,6 +907,7 @@ fn profile_input_with_path(
         port: profile.port,
         username: profile.username,
         auth_type: profile.auth_type,
+        require_authentication: profile.require_authentication,
         private_key_path,
         group_id: profile.group_id,
         connect_timeout_ms: profile.connect_timeout_ms,

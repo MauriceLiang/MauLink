@@ -48,19 +48,19 @@ pub use contracts::{
     TerminalResizePayload, TerminalWritePayload, WorkspaceActivityPayload,
 };
 pub use credentials::{
-    CredentialDeleteResult, CredentialKind, CredentialManager, CredentialReplaceResult,
-    CredentialUpdate, CredentialWorker, NativeSecureStore, RetainedCredential, Secret, SecureStore,
-    SecureStoreError, ServerMutationResult,
+    CredentialCipher, CredentialDeleteResult, CredentialKind, CredentialManager,
+    CredentialReplaceResult, CredentialUpdate, CredentialWorker, NativeSecureStore,
+    RetainedCredential, Secret, SecureStore, SecureStoreError, ServerMutationResult,
 };
 pub use error::{AppError, ErrorAction, ErrorCode};
+pub use geoip::{
+    GeoIpDatabase, GeoIpDatabaseConfigure, GeoIpDatabaseImport, GeoIpDatabaseInfo,
+    GeoIpDatabaseSource, GeoIpDatabaseStatus,
+};
 pub use host_keys::{HostKeyCandidate, HostKeyCheck, HostKeyRecord, HostKeyStore, HostKeyVerifier};
 pub use local_files::{
     LocalFilePurpose, LocalFileRegistry, SelectedLocalFile, TerminalBackgroundImageInfo,
     validate_terminal_background_image_bytes,
-};
-pub use geoip::{
-    GeoIpDatabase, GeoIpDatabaseConfigure, GeoIpDatabaseImport, GeoIpDatabaseInfo, GeoIpDatabaseSource,
-    GeoIpDatabaseStatus,
 };
 pub use monitor::MonitorManager;
 pub use network::NetworkInspector;

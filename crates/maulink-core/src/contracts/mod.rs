@@ -636,6 +636,8 @@ pub struct ServerProfileDraft {
     pub port: u16,
     pub username: String,
     pub auth_type: crate::AuthType,
+    #[serde(default)]
+    pub require_authentication: bool,
     pub private_key_token: Option<String>,
     pub group_id: Option<String>,
     pub connect_timeout_ms: u32,

@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 
 use crate::{AppError, ErrorCode};
 
-const CURRENT_SCHEMA_VERSION: i64 = 5;
+const CURRENT_SCHEMA_VERSION: i64 = 6;
 const REQUEST_QUEUE_CAPACITY: usize = 32;
 const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
 const PROFILE_LIST_REVISION_MIGRATION: &str =
@@ -20,6 +20,8 @@ const ADVANCED_SSH_MIGRATION: &str = include_str!("../migrations/0003_advanced_s
 const SERVER_APPEARANCE_MIGRATION: &str = include_str!("../migrations/0004_server_appearance.sql");
 const SERVER_RUNTIME_STATS_MIGRATION: &str =
     include_str!("../migrations/0005_server_runtime_stats.sql");
+const PER_SERVER_CREDENTIAL_STORAGE_MIGRATION: &str =
+    include_str!("../migrations/0006_per_server_credential_storage.sql");
 
 type Job = Box<dyn FnOnce(&mut Connection) + Send + 'static>;
 
@@ -207,6 +209,11 @@ fn migrate(connection: &mut Connection, from_version: i64) -> Result<(), AppErro
     if from_version < 5 {
         transaction
             .execute_batch(SERVER_RUNTIME_STATS_MIGRATION)
+            .map_err(|_| migration_error("errors.migrationFailed"))?;
+    }
+    if from_version < 6 {
+        transaction
+            .execute_batch(PER_SERVER_CREDENTIAL_STORAGE_MIGRATION)
             .map_err(|_| migration_error("errors.migrationFailed"))?;
     }
     transaction

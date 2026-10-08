@@ -2,4 +2,4 @@
 import type { AuthType } from "./AuthType";
 import type { ProxyType } from "./ProxyType";
 
-export type ServerProfileDraft = { name: string | null, host: string, port: number, username: string, authType: AuthType, privateKeyToken: string | null, groupId: string | null, connectTimeoutMs: number, keepaliveIntervalSeconds: number, jumpHost: string | null, jumpPort: number, proxyType: ProxyType | null, proxyHost: string | null, proxyPort: number | null, };
+export type ServerProfileDraft = { name: string | null, host: string, port: number, username: string, authType: AuthType, requireAuthentication: boolean, privateKeyToken: string | null, groupId: string | null, connectTimeoutMs: number, keepaliveIntervalSeconds: number, jumpHost: string | null, jumpPort: number, proxyType: ProxyType | null, proxyHost: string | null, proxyPort: number | null, };

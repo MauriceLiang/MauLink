@@ -29,6 +29,7 @@ import { credentialValidation, newServerDraft, normalizeServerDraft, validateSer
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
+import BaseSwitch from "../components/base/BaseSwitch.vue";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
 const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: { kind: "success" | "error"; message: string }] }>();
@@ -354,6 +355,7 @@ async function save() {
               <BaseButton :aria-pressed="draft.authType === 'password'" @click="draft.authType = 'password'">{{ t('password') }}</BaseButton>
               <BaseButton :aria-pressed="draft.authType === 'privateKey'" @click="draft.authType = 'privateKey'">{{ t('key') }}</BaseButton>
             </div></div>
+            <div class="server-field-full"><BaseSwitch v-model="draft.requireAuthentication" :label="t('requireAuthenticationOnConnect')" :disabled="busy" /><p class="server-form-note">{{ t('credentialStorageModeNote') }}</p></div>
             <BaseSelect v-if="current" v-model="mode" class="server-field-full" :label="t('credential')" :disabled="busy" :options="[{value:'keep',label:t('keep')},{value:'replace',label:t('replace')},{value:'clear',label:t('clear')}]" />
             <div v-if="!current || mode === 'replace'" class="server-field-full server-secret-field">
               <BaseInput v-model="secret" :label="t(draft.authType === 'privateKey' ? 'passphrase' : 'password')" :type="visible ? 'text' : 'password'" autocomplete="new-password" />
