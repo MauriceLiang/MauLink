@@ -85,11 +85,12 @@ afterEach(() => {
 });
 
 describe("server overview", () => {
-  it("uses a lightweight breadcrumb, keeps the back action, and avoids a repeated endpoint subtitle", async () => {
+  it("uses a lightweight back button and avoids a repeated endpoint subtitle", async () => {
     const wrapper = overview(profile({ name: "root@192.168.1.20" }));
     wrappers.push(wrapper);
-    const back = wrapper.get(".server-overview-breadcrumb-back");
-    expect(wrapper.get(".server-overview-breadcrumb-current").text()).toBe("服务器详情");
+    const back = wrapper.get(".server-overview-back-button");
+    expect(back.text()).toBe("返回服务器列表");
+    expect(wrapper.get(".server-overview-back-row").text()).not.toContain("/");
     expect(wrapper.get(".server-overview-endpoint").text()).toBe("SSH · 端口 22 · 密码认证");
 
     await back.trigger("click");
@@ -97,7 +98,7 @@ describe("server overview", () => {
 
     locale.value = "en";
     await flushPromises();
-    expect(wrapper.get(".server-overview-breadcrumb-current").text()).toBe("Server details");
+    expect(back.text()).toBe("Back to servers");
     expect(wrapper.get(".server-overview-endpoint").text()).toBe("SSH · Port 22 · Password authentication");
   });
 
@@ -372,11 +373,14 @@ describe("server overview", () => {
     wrappers.push(wrapper);
     await flushPromises();
 
-    const buttons = wrapper.findAll(".server-overview-section-button");
+    const buttons = wrapper.findAll(".server-overview-tab");
     const panels = wrapper.findAll(".server-overview-section-panel");
     expect(buttons).toHaveLength(5);
+    expect(wrapper.find(".server-overview-section-nav").exists()).toBe(false);
+    expect(wrapper.find(".server-overview-detail-panel").exists()).toBe(false);
     expect(buttons.map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
     expect(buttons.map(button => button.attributes("aria-controls"))).toEqual(panels.map(panel => panel.attributes("id")));
+    expect(panels.map(panel => panel.attributes("aria-labelledby"))).toEqual(buttons.map(button => button.attributes("id")));
     expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["", "none", "none", "none", "none"]);
     expect(panels.map(panel => panel.isVisible())).toEqual([true, false, false, false, false]);
     expect(wrapper.findAll(".server-overview-card")).toHaveLength(5);
@@ -402,7 +406,7 @@ describe("server overview", () => {
     document.body.appendChild(wrapper.element);
     await flushPromises();
 
-    const networkButton = wrapper.get('.server-overview-section-button[data-section="network"]');
+    const networkButton = wrapper.get('.server-overview-tab[data-section="network"]');
     const retry = wrapper.get('[id$="-network-panel"] button');
     expect(networkButton.element.tagName).toBe("BUTTON");
     expect(networkButton.attributes("role")).toBeUndefined();
@@ -410,7 +414,7 @@ describe("server overview", () => {
 
     await networkButton.trigger("click");
     expect(retry.isVisible()).toBe(true);
-    expect(wrapper.get(".server-overview-detail-panel-heading h3").text()).toBe("网络信息");
+    expect(wrapper.get(".server-overview-detail-heading").text()).toBe("网络信息");
   });
 
   it("keeps the selected category during endpoint edits and refreshes network and identity data", async () => {
@@ -419,12 +423,12 @@ describe("server overview", () => {
     const wrapper = overview(profile({ id: "same-server" }), { inspect, getHostKey });
     wrappers.push(wrapper);
     await flushPromises();
-    await wrapper.get('.server-overview-section-button[data-section="network"]').trigger("click");
+    await wrapper.get('.server-overview-tab[data-section="network"]').trigger("click");
 
     await wrapper.setProps({ server: profile({ id: "same-server", host: "db.example.test", port: 2222 }) });
     await flushPromises();
 
-    expect(wrapper.get('.server-overview-section-button[data-section="network"]').attributes("aria-current")).toBe("true");
+    expect(wrapper.get('.server-overview-tab[data-section="network"]').attributes("aria-current")).toBe("true");
     expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true });
     expect(getHostKey).toHaveBeenNthCalledWith(2, { host: "db.example.test", port: 2222 });
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("SHA256:fixture-fingerprint");
@@ -445,12 +449,12 @@ describe("server overview", () => {
     const getHostKey = vi.fn(({ host }: { host: string; port: number }) => host === "a.example.test" ? firstTrust : Promise.resolve(secondTrust));
     const wrapper = overview(profile({ id: "server-a", host: "a.example.test" }), { inspect, getHostKey });
     wrappers.push(wrapper);
-    const networkButton = wrapper.get('.server-overview-section-button[data-section="network"]');
+    const networkButton = wrapper.get('.server-overview-tab[data-section="network"]');
     await networkButton.trigger("click");
 
     await wrapper.setProps({ server: profile({ id: "server-b", host: "b.example.test" }) });
     await flushPromises();
-    expect(wrapper.findAll(".server-overview-section-button").map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
+    expect(wrapper.findAll(".server-overview-tab").map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
     expect(wrapper.text()).toContain("Region B");
     expect(wrapper.text()).toContain("SHA256:server-b");
 
@@ -463,16 +467,19 @@ describe("server overview", () => {
     expect(wrapper.text()).not.toContain("SHA256:stale-a");
   });
 
-  it("shows real network classifications and trust read states in the overview summary", async () => {
+  it("shows real network classifications and trust read states in the lightweight status strip", async () => {
     const wrapper = overview(profile(), {
       inspect: () => networkResult("192.168.1.20", true),
       getHostKey: () => null,
     });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).toContain("IPv4 · Private");
-    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).not.toContain("Hong Kong");
-    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("未保存");
+    expect(wrapper.get(".server-overview-status-strip").findAll("dt").map(term => term.text())).toEqual(["网络信息", "主机信任", "最近 TCP 检测"]);
+    expect(wrapper.get(".server-overview-status-strip").text()).not.toContain("认证方式");
+    expect(wrapper.get('[data-summary="network"]').text()).toContain("IPv4 · Private");
+    expect(wrapper.get('[data-summary="network"]').text()).not.toContain("Hong Kong");
+    expect(wrapper.get('[data-summary="trust"]').text()).toContain("未保存");
+    expect(wrapper.get('[data-summary="preflight"]').text()).toContain("尚无检测记录");
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("尚无已保存的主机身份记录");
   });
 
@@ -483,10 +490,49 @@ describe("server overview", () => {
     });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).toContain("分析失败");
-    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).not.toContain("地区");
-    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("读取失败");
+    expect(wrapper.get('[data-summary="network"]').text()).toContain("分析失败");
+    expect(wrapper.get('[data-summary="network"]').text()).not.toContain("地区");
+    expect(wrapper.get('[data-summary="trust"]').text()).toContain("读取失败");
     expect(wrapper.text()).not.toContain("local storage failure");
+  });
+
+  it("shows recent TCP check time and latency from current runtime stats", async () => {
+    const checkedAt = 1_800_000_120_000;
+    const wrapper = overview(profile(), { getStats: ({ serverId }) => ({
+      ...runtimeStats(serverId), lastPreflightAtMs: checkedAt, lastPreflightLatencyMs: 47,
+    }) });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    const summary = wrapper.get('[data-summary="preflight"]');
+    const zhDate = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(checkedAt));
+    expect(summary.get("dt").text()).toBe("最近 TCP 检测");
+    expect(summary.get("dd").text()).toBe(`47 毫秒 · ${zhDate}`);
+
+    locale.value = "en";
+    await flushPromises();
+    const enDate = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(checkedAt));
+    expect(summary.get("dt").text()).toBe("Recent TCP check");
+    expect(summary.get("dd").text()).toBe(`47 ms · ${enDate}`);
+  });
+
+  it("shows a check time without inventing latency and distinguishes loading or unavailable stats", async () => {
+    const checkedAt = 1_800_000_120_000;
+    let resolveStats!: (stats: ServerRuntimeStats) => void;
+    const loading = overview(profile({ id: "preflight-loading" }), {
+      getStats: () => new Promise(resolve => { resolveStats = resolve; }),
+    });
+    wrappers.push(loading);
+    expect(loading.get('[data-summary="preflight"] dd').text()).toBe("记录读取中");
+    resolveStats({ ...runtimeStats("preflight-loading"), lastPreflightAtMs: checkedAt, lastPreflightLatencyMs: null });
+    await flushPromises();
+    const date = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(checkedAt));
+    expect(loading.get('[data-summary="preflight"] dd').text()).toBe(date);
+
+    const failed = overview(profile({ id: "preflight-error" }), { getStats: () => Promise.reject(new Error("stats unavailable")) });
+    wrappers.push(failed);
+    await flushPromises();
+    expect(failed.get('[data-summary="preflight"] dd').text()).toBe("记录不可用");
   });
 
   it("keeps the existing offline GeoIP settings and address-copy actions available", async () => {
@@ -497,7 +543,7 @@ describe("server overview", () => {
     }, attachTo: document.body });
     wrappers.push(wrapper);
     await flushPromises();
-    await wrapper.get('.server-overview-section-button[data-section="network"]').trigger("click");
+    await wrapper.get('.server-overview-tab[data-section="network"]').trigger("click");
     await wrapper.get(".server-overview-network-configure button").trigger("click");
     expect(wrapper.emitted("openSettings")).toHaveLength(1);
 
@@ -528,10 +574,11 @@ describe("server overview", () => {
     }) });
     wrappers.push(wrapper);
     await flushPromises();
-    await wrapper.get('.server-overview-section-button[data-section="route"]').trigger("click");
+    await wrapper.get('.server-overview-tab[data-section="route"]').trigger("click");
     const routeSteps = wrapper.get('[id$="-route-panel"]').findAll(".server-overview-route-node strong").map(node => node.text());
     expect(routeSteps).toEqual(["本机", "代理", "跳板机", "服务器"]);
-    await wrapper.get('.server-overview-section-button[data-section="activity"]').trigger("click");
+    await wrapper.get('.server-overview-tab[data-section="activity"]').trigger("click");
+    expect(wrapper.get('[data-summary="preflight"] dd').text()).toContain("47 毫秒");
     expect(wrapper.get('[id$="-activity-panel"]').text()).toContain("47 毫秒");
     expect(wrapper.text()).not.toContain("password");
   });
@@ -540,13 +587,13 @@ describe("server overview", () => {
     const empty = overview(profile(), { getStats: ({ serverId }) => runtimeStats(serverId) });
     wrappers.push(empty);
     await flushPromises();
-    await empty.get('.server-overview-section-button[data-section="activity"]').trigger("click");
+    await empty.get('.server-overview-tab[data-section="activity"]').trigger("click");
     expect(empty.get('[id$="-activity-panel"]').text()).toContain("暂无连接活动记录");
 
     const failed = overview(profile({ id: "server-stats-error" }), { getStats: () => Promise.reject(new Error("stats unavailable")) });
     wrappers.push(failed);
     await flushPromises();
-    const activityButton = failed.get('.server-overview-section-button[data-section="activity"]');
+    const activityButton = failed.get('.server-overview-tab[data-section="activity"]');
     await activityButton.trigger("click");
     expect(failed.get('[id$="-activity-panel"]').text()).toContain("无法读取最近活动");
     expect(failed.get('[id$="-activity-panel"]').text()).not.toContain("暂无连接活动记录");
@@ -558,10 +605,9 @@ describe("server overview", () => {
     await flushPromises();
     locale.value = "en";
     await flushPromises();
-    expect(wrapper.get(".server-overview-summary").attributes("aria-label")).toBe("Server summary");
-    expect(wrapper.get('.server-overview-section-button[data-section="connection"]').text()).toContain("Connection configuration");
-    expect(wrapper.get(".server-overview-detail-panel-heading h3").text()).toBe("Connection configuration");
-    expect(wrapper.get(".server-overview-detail-panel-heading p").text()).toBe("Configuration and diagnostics");
-    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("Not saved");
+    expect(wrapper.get(".server-overview-status-strip").attributes("aria-label")).toBe("Server summary");
+    expect(wrapper.get('.server-overview-tab[data-section="connection"]').text()).toContain("Connection configuration");
+    expect(wrapper.get(".server-overview-detail-heading").text()).toBe("Connection configuration");
+    expect(wrapper.get('[data-summary="trust"]').text()).toContain("Not saved");
   });
 });

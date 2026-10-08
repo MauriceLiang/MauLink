@@ -31,14 +31,12 @@ const endpointLabel = computed(() => {
 
 <template>
   <header class="server-overview-header">
-    <nav class="server-overview-breadcrumb" :aria-label="t('serverBreadcrumbNavigation')">
-      <button class="server-overview-breadcrumb-back" type="button" @click="emit('back')">
+    <div class="server-overview-back-row">
+      <button class="server-overview-back-button" type="button" @click="emit('back')">
         <BaseIcon name="arrow-left" />
         <span>{{ t('backToServers') }}</span>
       </button>
-      <span class="server-overview-breadcrumb-separator" aria-hidden="true">/</span>
-      <span class="server-overview-breadcrumb-current" aria-current="page">{{ t('serverDetails') }}</span>
-    </nav>
+    </div>
     <div class="server-overview-identity-actions">
       <div class="server-overview-identity">
         <div class="server-overview-title-line">
