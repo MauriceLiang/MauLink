@@ -4,7 +4,7 @@ import type { NetworkInspection } from "../../../../contracts/v1/NetworkInspecti
 import type { NetworkScope } from "../../../../contracts/v1/NetworkScope";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeStats";
-import { messages } from "../../i18n/locale";
+import { locale, messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { ConnectionStore } from "../../stores/connections";
 import type { MenuItem } from "../base/menu";
@@ -37,7 +37,6 @@ const sectionTitleKeys = {
   activity: "recentActivity",
 } as const satisfies Record<OverviewSection, keyof typeof serverOverviewMessages>;
 const overviewId = useId();
-const sectionHeadingId = `${overviewId}-section-heading`;
 const activeSection = ref<OverviewSection>("connection");
 const networkSummary = ref<NetworkSummary>({ serverId: props.server.id, host: props.server.host, port: props.server.port, status: "loading" });
 const trustSummary = ref<TrustSummary>({ serverId: props.server.id, host: props.server.host, port: props.server.port, status: "loading" });
@@ -45,7 +44,15 @@ const snapshot = computed(() => props.store.snapshots.value[props.server.id]);
 const runtimeStats = ref<ServerRuntimeStats | null>(null);
 const runtimeStatsState = ref<"loading" | "ready" | "error">("loading");
 const sshCommand = computed(() => buildSshCommand(props.server));
-const authenticationSummary = computed(() => `${props.server.username} · ${t(props.server.authType === "privateKey" ? "privateKey" : "password")} · ${props.server.port}`);
+const lastPreflightSummary = computed(() => {
+  if (runtimeStatsState.value === "loading") return t("preflightSummaryLoading");
+  if (runtimeStatsState.value === "error") return t("preflightSummaryUnavailable");
+  const stats = runtimeStats.value;
+  if (!stats || stats.serverId !== props.server.id || stats.lastPreflightAtMs === null) return t("noRecentPreflight");
+  const checkedAt = new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(stats.lastPreflightAtMs));
+  const latency = stats.lastPreflightLatencyMs === null ? null : `${stats.lastPreflightLatencyMs} ${t("milliseconds")}`;
+  return [latency, checkedAt].filter(Boolean).join(" · ");
+});
 const scopeKeys = {
   public: "networkScopePublic",
   private: "networkScopePrivate",
@@ -170,28 +177,27 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
         </ConnectionPanel>
       </template>
     </ServerOverviewHeader>
-    <dl class="server-overview-summary" :aria-label="t('overviewSummary')">
-      <div class="server-overview-summary-item">
-        <dt>{{ t('authentication') }}</dt>
-        <dd>{{ authenticationSummary }}</dd>
-      </div>
-      <div class="server-overview-summary-item">
+    <dl class="server-overview-status-strip" :aria-label="t('overviewSummary')">
+      <div class="server-overview-status-item" data-summary="network">
         <dt>{{ t('networkInformation') }}</dt>
         <dd>{{ networkSummaryText }}</dd>
       </div>
-      <div class="server-overview-summary-item">
-        <dt>{{ t('securityIdentity') }}</dt>
+      <div class="server-overview-status-item" data-summary="trust">
+        <dt>{{ t('hostTrust') }}</dt>
         <dd>{{ trustSummaryText }}</dd>
       </div>
+      <div class="server-overview-status-item" data-summary="preflight">
+        <dt>{{ t('lastPreflightStatus') }}</dt>
+        <dd>{{ lastPreflightSummary }}</dd>
+      </div>
     </dl>
-    <h2 class="server-overview-details-heading">{{ t('overviewDetails') }}</h2>
-    <div class="server-overview-detail-layout">
-      <nav class="server-overview-section-nav" :aria-label="t('overviewSectionNavigation')">
+    <div class="server-overview-workbench">
+      <nav class="server-overview-tabs" :aria-label="t('overviewSectionNavigation')">
         <button
           v-for="section in overviewSections"
           :id="sectionButtonId(section)"
           :key="section"
-          class="server-overview-section-button"
+          class="server-overview-tab"
           :class="{ 'is-active': activeSection === section }"
           :data-section="section"
           type="button"
@@ -202,29 +208,24 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
           {{ sectionTitle(section) }}
         </button>
       </nav>
-      <section class="server-overview-detail-panel" :aria-label="t('overviewDetails')">
-        <header class="server-overview-detail-panel-heading">
-          <div>
-            <p>{{ t('overviewPanelContext') }}</p>
-            <h3 :id="sectionHeadingId">{{ sectionTitle(activeSection) }}</h3>
-          </div>
-        </header>
-        <div :id="sectionPanelId('connection')" v-show="activeSection === 'connection'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
+      <div class="server-overview-detail-content">
+        <h2 class="server-overview-detail-heading">{{ sectionTitle(activeSection) }}</h2>
+        <div :id="sectionPanelId('connection')" v-show="activeSection === 'connection'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('connection')">
           <ConnectionInfoCard :server="server" embedded />
         </div>
-        <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
+        <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('network')">
           <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" embedded @open-settings="emit('openSettings')" @summary-change="onNetworkSummary" />
         </div>
-        <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
+        <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('security')">
           <HostIdentityCard :server="server" :api="hostKeyApi" embedded @summary-change="onTrustSummary" />
         </div>
-        <div :id="sectionPanelId('route')" v-show="activeSection === 'route'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
+        <div :id="sectionPanelId('route')" v-show="activeSection === 'route'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('route')">
           <ConnectionRouteCard :server="server" embedded />
         </div>
-        <div :id="sectionPanelId('activity')" v-show="activeSection === 'activity'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
+        <div :id="sectionPanelId('activity')" v-show="activeSection === 'activity'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('activity')">
           <RecentActivityCard :stats="runtimeStats" :snapshot="snapshot" :state="runtimeStatsState" embedded />
         </div>
-      </section>
+      </div>
     </div>
   </section>
 </template>
