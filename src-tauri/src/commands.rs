@@ -321,9 +321,16 @@ pub async fn connection_start(
             server_id,
             expected_revision,
         } => {
+            let use_saved_credential = payload.mode != maulink_core::ConnectionMode::Workspace
+                || !state.settings.current().value.always_prompt_for_credentials;
             state
                 .connections
-                .start(server_id, expected_revision, payload.mode)
+                .start_with_saved_credential(
+                    server_id,
+                    expected_revision,
+                    payload.mode,
+                    use_saved_credential,
+                )
                 .await
         }
         maulink_core::ConnectionStartSource::Draft {
