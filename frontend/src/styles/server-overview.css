@@ -62,7 +62,7 @@
 .server-overview-accordion-trigger:hover .server-overview-accordion-chevron,
 .server-overview-accordion-trigger[aria-expanded="true"] .server-overview-accordion-chevron { color: var(--color-primary); }
 .server-overview-accordion-chevron.is-expanded { transform: rotate(180deg); }
-.server-overview-accordion-panel { min-width: 0; padding: 0 18px 18px; }
+.server-overview-accordion-panel { min-width: 0; padding: 16px 18px 18px; }
 .server-overview-card { min-width: 0; height: auto; overflow: visible; padding: 20px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
 .server-overview-card--embedded { padding: 0; border: 0; border-radius: 0; background: transparent; }
 :root[data-density="compact"] .server-overview-card:not(.server-overview-card--embedded) { padding: 16px; }
@@ -130,7 +130,7 @@
   .server-overview-actions .connection-panel { flex-wrap: wrap; justify-content: flex-start; }
   .server-overview-info-grid { gap: 15px 12px; }
   .server-overview-accordion-trigger { padding: 10px 14px; }
-  .server-overview-accordion-panel { padding: 0 14px 14px; }
+  .server-overview-accordion-panel { padding: 12px 14px 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .server-overview { animation: none; }
