@@ -28,7 +28,7 @@
 .server-overview-summary-item dt { color: var(--color-text-secondary); font-size: 11.5px; }
 .server-overview-summary-item dd { min-width: 0; margin: 0; color: var(--color-text-primary); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
 .server-overview-details-heading { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
-.server-overview-accordion { width: min(100%, 800px); min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.server-overview-accordion { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .server-overview-accordion-item { min-width: 0; }
 .server-overview-accordion-item + .server-overview-accordion-item { border-top: 1px solid var(--color-border); }
 .server-overview-accordion-heading { margin: 0; }
@@ -36,11 +36,11 @@
   display: grid;
   width: 100%;
   min-width: 0;
-  min-height: 72px;
+  min-height: 56px;
   grid-template-columns: minmax(0, 1fr) 36px;
   align-items: center;
   gap: 16px;
-  padding: 12px 18px;
+  padding: 8px 18px;
   border: 0;
   border-radius: 0;
   color: var(--color-text-primary);
@@ -115,7 +115,7 @@
 @container server-overview (max-width: 480px) {
   .server-overview-summary { grid-template-columns: minmax(0, 1fr); }
   .server-overview-accordion-copy { grid-template-columns: minmax(0, 1fr); gap: 3px; }
-  .server-overview-accordion-trigger { min-height: 64px; }
+  .server-overview-accordion-trigger { min-height: 56px; }
 }
 @media (max-width: 900px) {
   .server-overview { padding: 20px; }
