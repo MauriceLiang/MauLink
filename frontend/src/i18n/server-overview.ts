@@ -1,5 +1,13 @@
 export const serverOverviewMessages = {
   backToServers: ["返回服务器", "Back to servers"],
+  serverBreadcrumbNavigation: ["服务器导航", "Server navigation"],
+  serverDetails: ["服务器详情", "Server details"],
+  overviewSectionNavigation: ["服务器信息分类", "Server information categories"],
+  overviewPanelContext: ["配置与诊断", "Configuration and diagnostics"],
+  connectionConfiguration: ["连接配置", "Connection configuration"],
+  serverConnectionMetadata: ["SSH · 端口 {port} · {authentication}", "SSH · Port {port} · {authentication}"],
+  passwordAuthentication: ["密码认证", "Password authentication"],
+  privateKeyAuthentication: ["私钥认证", "Private key authentication"],
   connect: ["连接服务器", "Connect server"],
   connectionCheck: ["连接检测", "Connection check"],
   preflightSuccess: ["连接检测成功 · 延迟 {latency} ms", "Connection check succeeded · Latency {latency} ms"],

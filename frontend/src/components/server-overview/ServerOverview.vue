@@ -4,19 +4,18 @@ import type { NetworkInspection } from "../../../../contracts/v1/NetworkInspecti
 import type { NetworkScope } from "../../../../contracts/v1/NetworkScope";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeStats";
-import { locale, messages } from "../../i18n/locale";
+import { messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { ConnectionStore } from "../../stores/connections";
 import type { MenuItem } from "../base/menu";
 import BaseButton from "../base/BaseButton.vue";
-import BaseIcon from "../base/BaseIcon.vue";
 import ConnectionPanel from "../connection/ConnectionPanel.vue";
 import ConnectionInfoCard from "./ConnectionInfoCard.vue";
 import ConnectionRouteCard from "./ConnectionRouteCard.vue";
 import HostIdentityCard from "./HostIdentityCard.vue";
 import NetworkInfoCard from "./NetworkInfoCard.vue";
 import ServerOverviewHeader from "./ServerOverviewHeader.vue";
-import { buildSshCommand, connectionRoute, formatServerEndpoint } from "./server-details";
+import { buildSshCommand, formatServerEndpoint } from "./server-details";
 import type { createHostKeysApi } from "../../ipc/host-keys";
 import type { createNetworkApi } from "../../ipc/network";
 import type { createPreflightApi } from "../../ipc/preflight";
@@ -26,11 +25,20 @@ import RecentActivityCard from "./RecentActivityCard.vue";
 const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean; databaseRevision?: number }>();
 const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: []; testResult: [result: { kind: "success" | "error"; message: string }] }>();
 const t = messages(serverOverviewMessages);
-type OverviewSection = "connection" | "network" | "security" | "route" | "activity";
+const overviewSections = ["connection", "network", "security", "route", "activity"] as const;
+type OverviewSection = (typeof overviewSections)[number];
 type NetworkSummary = { serverId: string; host: string; port: number; status: "loading" } | { serverId: string; host: string; port: number; status: "error" } | { serverId: string; host: string; port: number; status: "ready"; inspection: NetworkInspection };
 type TrustSummary = { serverId: string; host: string; port: number; status: "loading" | "empty" | "error" | "available" };
+const sectionTitleKeys = {
+  connection: "connectionConfiguration",
+  network: "networkInformation",
+  security: "securityIdentity",
+  route: "connectionRoute",
+  activity: "recentActivity",
+} as const satisfies Record<OverviewSection, keyof typeof serverOverviewMessages>;
 const overviewId = useId();
-const activeSection = ref<OverviewSection | null>("connection");
+const sectionHeadingId = `${overviewId}-section-heading`;
+const activeSection = ref<OverviewSection>("connection");
 const networkSummary = ref<NetworkSummary>({ serverId: props.server.id, host: props.server.host, port: props.server.port, status: "loading" });
 const trustSummary = ref<TrustSummary>({ serverId: props.server.id, host: props.server.host, port: props.server.port, status: "loading" });
 const snapshot = computed(() => props.store.snapshots.value[props.server.id]);
@@ -66,38 +74,8 @@ const trustSummaryText = computed(() => {
   if (result.status === "empty") return t("trustSummaryEmpty");
   return t("trustSummaryError");
 });
-const routeSteps = computed(() => connectionRoute(props.server, {
-  local: t("localMachine"), proxy: t("proxy"), jumpHost: t("jumpHost"), server: t("server"),
-  socks5: t("proxySocks5"), httpConnect: t("proxyHttpConnect"),
-}));
-const routeSummary = computed(() => routeSteps.value.map(step => step.label).join(" → "));
-function formatSummaryDate(timestamp: number) {
-  return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(timestamp));
-}
-const activitySummary = computed(() => {
-  const current = snapshot.value?.mode === "workspace" ? snapshot.value : null;
-  const candidates: Array<{ kind: "success" | "failure" | "preflight"; timestamp: number; detail?: string }> = [];
-  const lastSuccessAtMs = current?.state === "ready" && current.updatedAtMs > (runtimeStats.value?.lastSuccessAtMs ?? 0)
-    ? current.updatedAtMs : runtimeStats.value?.lastSuccessAtMs ?? null;
-  const lastFailureAtMs = current?.state === "failed" && current.updatedAtMs > (runtimeStats.value?.lastFailureAtMs ?? 0)
-    ? current.updatedAtMs : runtimeStats.value?.lastFailureAtMs ?? null;
-  const lastFailureCode = current?.state === "failed" && current.updatedAtMs === lastFailureAtMs
-    ? current.error?.code ?? null : runtimeStats.value?.lastFailureCode ?? null;
-  if (lastSuccessAtMs !== null) candidates.push({ kind: "success", timestamp: lastSuccessAtMs });
-  if (lastFailureAtMs !== null) candidates.push({ kind: "failure", timestamp: lastFailureAtMs, detail: lastFailureCode ?? undefined });
-  if (runtimeStats.value?.lastPreflightAtMs !== null && runtimeStats.value?.lastPreflightAtMs !== undefined) candidates.push({ kind: "preflight", timestamp: runtimeStats.value.lastPreflightAtMs, detail: runtimeStats.value.lastPreflightLatencyMs === null ? undefined : `${runtimeStats.value.lastPreflightLatencyMs} ${t("milliseconds")}` });
-  const latest = candidates.sort((a, b) => b.timestamp - a.timestamp)[0];
-  if (latest) {
-    const label = t(latest.kind === "success" ? "lastSuccessfulConnection" : latest.kind === "failure" ? "lastFailedConnection" : "lastPreflight");
-    return [label, latest.detail, formatSummaryDate(latest.timestamp)].filter(Boolean).join(" · ");
-  }
-  if (runtimeStatsState.value === "loading") return t("activitySummaryLoading");
-  if (runtimeStatsState.value === "error") return t("activityUnavailable");
-  return t("noRecentActivity");
-});
-function toggleSection(section: OverviewSection) {
-  activeSection.value = activeSection.value === section ? null : section;
-}
+function sectionTitle(section: OverviewSection) { return t(sectionTitleKeys[section]); }
+function selectSection(section: OverviewSection) { activeSection.value = section; }
 function sectionButtonId(section: OverviewSection) { return `${overviewId}-${section}-button`; }
 function sectionPanelId(section: OverviewSection) { return `${overviewId}-${section}-panel`; }
 function isCurrentEndpoint(endpoint: { serverId: string; host: string; port: number }) {
@@ -207,59 +185,43 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
       </div>
     </dl>
     <h2 class="server-overview-details-heading">{{ t('overviewDetails') }}</h2>
-    <div class="server-overview-accordion">
-      <section class="server-overview-accordion-item">
-        <h3 class="server-overview-accordion-heading">
-          <button :id="sectionButtonId('connection')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'connection'" :aria-controls="sectionPanelId('connection')" @click="toggleSection('connection')">
-            <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('connectionInfo') }}</span><span class="server-overview-accordion-summary">{{ authenticationSummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'connection' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
-          </button>
-        </h3>
-        <div :id="sectionPanelId('connection')" v-show="activeSection === 'connection'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('connection')">
+    <div class="server-overview-detail-layout">
+      <nav class="server-overview-section-nav" :aria-label="t('overviewSectionNavigation')">
+        <button
+          v-for="section in overviewSections"
+          :id="sectionButtonId(section)"
+          :key="section"
+          class="server-overview-section-button"
+          :class="{ 'is-active': activeSection === section }"
+          :data-section="section"
+          type="button"
+          :aria-current="activeSection === section ? 'true' : undefined"
+          :aria-controls="sectionPanelId(section)"
+          @click="selectSection(section)"
+        >
+          {{ sectionTitle(section) }}
+        </button>
+      </nav>
+      <section class="server-overview-detail-panel" :aria-label="t('overviewDetails')">
+        <header class="server-overview-detail-panel-heading">
+          <div>
+            <p>{{ t('overviewPanelContext') }}</p>
+            <h3 :id="sectionHeadingId">{{ sectionTitle(activeSection) }}</h3>
+          </div>
+        </header>
+        <div :id="sectionPanelId('connection')" v-show="activeSection === 'connection'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
           <ConnectionInfoCard :server="server" embedded />
         </div>
-      </section>
-      <section class="server-overview-accordion-item">
-        <h3 class="server-overview-accordion-heading">
-          <button :id="sectionButtonId('network')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'network'" :aria-controls="sectionPanelId('network')" @click="toggleSection('network')">
-            <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('networkInformation') }}</span><span class="server-overview-accordion-summary">{{ networkSummaryText }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'network' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
-          </button>
-        </h3>
-        <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('network')">
+        <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
           <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" embedded @open-settings="emit('openSettings')" @summary-change="onNetworkSummary" />
         </div>
-      </section>
-      <section class="server-overview-accordion-item">
-        <h3 class="server-overview-accordion-heading">
-          <button :id="sectionButtonId('security')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'security'" :aria-controls="sectionPanelId('security')" @click="toggleSection('security')">
-            <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('securityIdentity') }}</span><span class="server-overview-accordion-summary">{{ trustSummaryText }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'security' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
-          </button>
-        </h3>
-        <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('security')">
+        <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
           <HostIdentityCard :server="server" :api="hostKeyApi" embedded @summary-change="onTrustSummary" />
         </div>
-      </section>
-      <section class="server-overview-accordion-item">
-        <h3 class="server-overview-accordion-heading">
-          <button :id="sectionButtonId('route')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'route'" :aria-controls="sectionPanelId('route')" @click="toggleSection('route')">
-            <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('connectionRoute') }}</span><span class="server-overview-accordion-summary">{{ routeSummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'route' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
-          </button>
-        </h3>
-        <div :id="sectionPanelId('route')" v-show="activeSection === 'route'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('route')">
+        <div :id="sectionPanelId('route')" v-show="activeSection === 'route'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
           <ConnectionRouteCard :server="server" embedded />
         </div>
-      </section>
-      <section class="server-overview-accordion-item">
-        <h3 class="server-overview-accordion-heading">
-          <button :id="sectionButtonId('activity')" class="server-overview-accordion-trigger" type="button" :aria-expanded="activeSection === 'activity'" :aria-controls="sectionPanelId('activity')" @click="toggleSection('activity')">
-            <span class="server-overview-accordion-copy"><span class="server-overview-accordion-title">{{ t('recentActivity') }}</span><span class="server-overview-accordion-summary">{{ activitySummary }}</span></span>
-            <span class="server-overview-accordion-chevron" :class="{ 'is-expanded': activeSection === 'activity' }" aria-hidden="true"><BaseIcon name="chevron-down" /></span>
-          </button>
-        </h3>
-        <div :id="sectionPanelId('activity')" v-show="activeSection === 'activity'" class="server-overview-accordion-panel" role="region" :aria-labelledby="sectionButtonId('activity')">
+        <div :id="sectionPanelId('activity')" v-show="activeSection === 'activity'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionHeadingId">
           <RecentActivityCard :stats="runtimeStats" :snapshot="snapshot" :state="runtimeStatsState" embedded />
         </div>
       </section>
