@@ -5,7 +5,7 @@ import { messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 import { connectionRoute } from "./server-details";
 
-const props = defineProps<{ server: ServerProfile }>();
+const props = withDefaults(defineProps<{ server: ServerProfile; embedded?: boolean }>(), { embedded: false });
 const t = messages(serverOverviewMessages);
 const steps = computed(() => connectionRoute(props.server, {
   local: t("localMachine"),
@@ -18,8 +18,8 @@ const steps = computed(() => connectionRoute(props.server, {
 </script>
 
 <template>
-  <section class="server-overview-card" :aria-label="t('connectionRoute')">
-    <h2>{{ t('connectionRoute') }}</h2>
+  <section class="server-overview-card" :class="{ 'server-overview-card--embedded': embedded }" :aria-label="t('connectionRoute')">
+    <h2 v-if="!embedded">{{ t('connectionRoute') }}</h2>
     <ol class="server-overview-route">
       <li v-for="(step, index) in steps" :key="`${step.label}-${index}`" class="server-overview-route-step">
         <span v-if="index" class="server-overview-route-arrow" aria-hidden="true">→</span>

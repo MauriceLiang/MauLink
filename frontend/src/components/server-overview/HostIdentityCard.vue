@@ -7,20 +7,27 @@ import type { createHostKeysApi } from "../../ipc/host-keys";
 import BaseButton from "../base/BaseButton.vue";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 
-const props = defineProps<{ server: ServerProfile; api: ReturnType<typeof createHostKeysApi> }>();
+const props = withDefaults(defineProps<{ server: ServerProfile; api: ReturnType<typeof createHostKeysApi>; embedded?: boolean }>(), { embedded: false });
+const emit = defineEmits<{ summaryChange: [summary: { serverId: string; host: string; port: number; status: "loading" | "empty" | "error" | "available" }] }>();
 type LoadState = { status: "loading" | "empty" | "error" } | { status: "available"; record: HostKeyRecord };
 const t = messages(serverOverviewMessages);
 const state = ref<LoadState>({ status: "loading" });
 let requestVersion = 0;
 
+function setState(next: LoadState, server: ServerProfile) {
+  state.value = next;
+  emit("summaryChange", { serverId: server.id, host: server.host, port: server.port, status: next.status });
+}
+
 async function load() {
+  const server = props.server;
   const version = ++requestVersion;
-  state.value = { status: "loading" };
+  setState({ status: "loading" }, server);
   try {
-    const record = await props.api.get({ host: props.server.host, port: props.server.port });
-    if (version === requestVersion) state.value = record ? { status: "available", record } : { status: "empty" };
+    const record = await props.api.get({ host: server.host, port: server.port });
+    if (version === requestVersion) setState(record ? { status: "available", record } : { status: "empty" }, server);
   } catch {
-    if (version === requestVersion) state.value = { status: "error" };
+    if (version === requestVersion) setState({ status: "error" }, server);
   }
 }
 
@@ -28,13 +35,13 @@ function formatDate(timestamp: number) {
   return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(timestamp));
 }
 
-watch(() => [props.server.host, props.server.port] as const, () => { void load(); }, { immediate: true });
+watch(() => [props.server.id, props.server.host, props.server.port] as const, () => { void load(); }, { immediate: true });
 onBeforeUnmount(() => { requestVersion += 1; });
 </script>
 
 <template>
-  <section class="server-overview-card server-overview-host-identity" :aria-label="t('securityIdentity')">
-    <h2>{{ t('securityIdentity') }}</h2>
+  <section class="server-overview-card server-overview-host-identity" :class="{ 'server-overview-card--embedded': embedded }" :aria-label="t('securityIdentity')">
+    <h2 v-if="!embedded">{{ t('securityIdentity') }}</h2>
     <p class="server-overview-host-identity-note">{{ t('trustRecordNotice') }}</p>
     <div class="server-overview-trust-state" :aria-live="state.status === 'loading' ? 'polite' : 'off'">
       <p v-if="state.status === 'loading'">{{ t('loadingTrustRecord') }}</p>

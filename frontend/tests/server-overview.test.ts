@@ -66,6 +66,17 @@ function networkResult(host: string, detailed: boolean): NetworkInspection {
     source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null, databaseSource: null,
   };
 }
+function overview(server = profile(), options: {
+  getHostKey?: (payload: { host: string; port: number }) => HostKeyRecord | null | Promise<HostKeyRecord | null>;
+  inspect?: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>;
+  getStats?: (payload: { serverId: string }) => ServerRuntimeStats | Promise<ServerRuntimeStats>;
+} = {}) {
+  return mount(ServerOverview, { props: {
+    server, store: connectionStore(), hostKeyApi: hostKeyApi(options.getHostKey ?? (() => null)),
+    networkApi: networkApi(options.inspect ?? (({ host, detailed }) => networkResult(host, detailed))),
+    preflightApi: preflightApi(), runtimeStatsApi: runtimeStatsApi(options.getStats), readOnly: false,
+  } });
+}
 afterEach(() => {
   wrappers.splice(0).forEach(wrapper => wrapper.unmount());
   stores.splice(0).forEach(store => store.dispose());
@@ -74,12 +85,14 @@ afterEach(() => {
 });
 
 describe("server overview", () => {
-  it("shows authentication and saved-credential status from the profile", () => {
+  it("shows authentication and saved-credential status from the profile and keeps advanced details collapsed", async () => {
     const wrapper = mount(ConnectionInfoCard, { props: { server: profile({ authType: "privateKey", hasPrivateKey: true, hasSavedCredential: true }) } });
     wrappers.push(wrapper);
     expect(wrapper.text()).toContain("私钥");
     expect(wrapper.text()).toContain("已配置");
     expect(wrapper.text()).toContain("已保存");
+    expect(wrapper.get("details").element).toHaveProperty("open", false);
+    await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
   });
 
@@ -280,7 +293,7 @@ describe("server overview", () => {
     expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
   });
 
-  it("automatically analyzes an IP and expands its technical details", async () => {
+  it("automatically analyzes an IP while keeping technical details collapsed until requested", async () => {
     const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
     const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
     wrappers.push(wrapper);
@@ -290,6 +303,8 @@ describe("server overview", () => {
     expect(wrapper.text()).toContain("IPv4 · Private");
     expect(inspect).toHaveBeenCalledTimes(1);
 
+    expect(wrapper.get("details").element).toHaveProperty("open", false);
+    await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("dns.google");
     expect(wrapper.text()).toContain("私有网络地址不提供公网 GeoIP 信息");
@@ -302,6 +317,8 @@ describe("server overview", () => {
     wrappers.push(wrapper);
     await flushPromises();
     expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true });
+    expect(wrapper.get("details").element).toHaveProperty("open", false);
+    await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(wrapper.text()).toContain("反向 DNS");
@@ -320,5 +337,164 @@ describe("server overview", () => {
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
     expect(inspect).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts with one accessible accordion section and keeps all five cards mounted while toggling", async () => {
+    const inspect = vi.fn(({ host, detailed }: { host: string; detailed: boolean }) => networkResult(host, detailed));
+    const getHostKey = vi.fn(() => null);
+    const wrapper = overview(profile(), { inspect, getHostKey });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    const triggers = wrapper.findAll(".server-overview-accordion-trigger");
+    const panels = wrapper.findAll(".server-overview-accordion-panel");
+    expect(triggers).toHaveLength(5);
+    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["true", "false", "false", "false", "false"]);
+    expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["", "none", "none", "none", "none"]);
+    expect(wrapper.findAll(".server-overview-card")).toHaveLength(5);
+
+    await triggers[1]!.trigger("click");
+    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["false", "true", "false", "false", "false"]);
+    expect(panels.map(panel => (panel.element as HTMLElement).style.display)).toEqual(["none", "", "none", "none", "none"]);
+    await triggers[1]!.trigger("click");
+    expect(triggers.map(trigger => trigger.attributes("aria-expanded"))).toEqual(["false", "false", "false", "false", "false"]);
+    await triggers[2]!.trigger("click");
+    await triggers[3]!.trigger("click");
+    await triggers[4]!.trigger("click");
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true });
+    expect(getHostKey).toHaveBeenCalledExactlyOnceWith({ host: base.host, port: base.port });
+  });
+
+  it("resets to connection and rejects stale network and trust summaries after switching servers", async () => {
+    let resolveFirstNetwork!: (inspection: NetworkInspection) => void;
+    let resolveFirstTrust!: (record: HostKeyRecord | null) => void;
+    const firstNetwork = new Promise<NetworkInspection>(resolve => { resolveFirstNetwork = resolve; });
+    const firstTrust = new Promise<HostKeyRecord | null>(resolve => { resolveFirstTrust = resolve; });
+    const secondNetwork: NetworkInspection = {
+      ...networkResult("b.example.test", true),
+      primaryAddress: "203.0.113.10",
+      geo: { countryCode: "ZZ", countryName: "Region B", region: null, city: null },
+    };
+    const secondTrust = { ...savedHostKey, normalizedHost: "b.example.test", fingerprintSha256: "SHA256:server-b" };
+    const inspect = vi.fn(({ host }: { host: string; detailed: boolean }) => host === "a.example.test" ? firstNetwork : Promise.resolve(secondNetwork));
+    const getHostKey = vi.fn(({ host }: { host: string; port: number }) => host === "a.example.test" ? firstTrust : Promise.resolve(secondTrust));
+    const wrapper = overview(profile({ id: "server-a", host: "a.example.test" }), { inspect, getHostKey });
+    wrappers.push(wrapper);
+    const networkTrigger = wrapper.findAll(".server-overview-accordion-trigger")[1]!;
+    await networkTrigger.trigger("click");
+
+    await wrapper.setProps({ server: profile({ id: "server-b", host: "b.example.test" }) });
+    await flushPromises();
+    expect(wrapper.findAll(".server-overview-accordion-trigger").map(trigger => trigger.attributes("aria-expanded"))).toEqual(["true", "false", "false", "false", "false"]);
+    expect(wrapper.text()).toContain("Region B");
+    expect(wrapper.text()).toContain("SHA256:server-b");
+
+    resolveFirstNetwork({ ...networkResult("a.example.test", true), geo: { countryCode: "AA", countryName: "Stale A", region: null, city: null } });
+    resolveFirstTrust({ ...savedHostKey, fingerprintSha256: "SHA256:stale-a" });
+    await flushPromises();
+    expect(wrapper.text()).toContain("Region B");
+    expect(wrapper.text()).not.toContain("Stale A");
+    expect(wrapper.text()).toContain("SHA256:server-b");
+    expect(wrapper.text()).not.toContain("SHA256:stale-a");
+  });
+
+  it("shows real network classifications and trust read states in the overview summary", async () => {
+    const wrapper = overview(profile(), {
+      inspect: () => networkResult("192.168.1.20", true),
+      getHostKey: () => null,
+    });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).toContain("IPv4 · Private");
+    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).not.toContain("Hong Kong");
+    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("未保存");
+    expect(wrapper.findAll(".server-overview-accordion-trigger")[2]!.text()).toContain("未保存");
+  });
+
+  it("summarizes a failed network and trust lookup without inventing GeoIP data", async () => {
+    const wrapper = overview(profile(), {
+      inspect: () => Promise.reject(new Error("network failure")),
+      getHostKey: () => Promise.reject(new Error("local storage failure")),
+    });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).toContain("分析失败");
+    expect(wrapper.findAll(".server-overview-summary-item")[1]!.text()).not.toContain("地区");
+    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("读取失败");
+    expect(wrapper.text()).not.toContain("local storage failure");
+  });
+
+  it("keeps the existing offline GeoIP settings and address-copy actions available", async () => {
+    const server = profile({ host: "public.example.test" });
+    const wrapper = mount(ServerOverview, { props: {
+      server, store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)), preflightApi: preflightApi(), runtimeStatsApi: runtimeStatsApi(), readOnly: false,
+    }, attachTo: document.body });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await wrapper.findAll(".server-overview-accordion-trigger")[1]!.trigger("click");
+    await wrapper.get(".server-overview-network-configure button").trigger("click");
+    expect(wrapper.emitted("openSettings")).toHaveLength(1);
+
+    await wrapper.get('[aria-label^="更多服务器操作"]').trigger("click");
+    const actions = new DOMWrapper(document.body);
+    await actions.get('[data-action="copy-address"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.emitted("copy")).toEqual([["address", "root@public.example.test:22"]]);
+  });
+
+  it("keeps long host and fingerprint values available without truncating their text", async () => {
+    const host = `${"long-host-".repeat(9)}example.test`;
+    const fingerprint = `SHA256:${"long-fingerprint-".repeat(8)}`;
+    const wrapper = overview(profile({ host }), {
+      getHostKey: () => ({ ...savedHostKey, normalizedHost: host, fingerprintSha256: fingerprint }),
+    });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.get(".server-overview-fingerprint").text()).toBe(fingerprint);
+    expect(wrapper.text()).toContain(host);
+    expect(wrapper.get(".server-overview-fingerprint").text()).not.toContain("…");
+  });
+
+  it("uses the existing route helper order and summarizes the latest real activity", async () => {
+    const server = profile({ proxyType: "socks5", proxyHost: "proxy.example.test", proxyPort: 1080, jumpHost: "deploy@bastion.example.test", jumpPort: 2222 });
+    const wrapper = overview(server, { getStats: () => ({
+      ...runtimeStats(server.id), lastSuccessAtMs: 1_800_000_000_000, lastPreflightAtMs: 1_800_000_120_000, lastPreflightLatencyMs: 47,
+    }) });
+    wrappers.push(wrapper);
+    await flushPromises();
+    const routeSummary = wrapper.findAll(".server-overview-accordion-trigger")[3]!.text();
+    expect(routeSummary.indexOf("本机")).toBeLessThan(routeSummary.indexOf("代理"));
+    expect(routeSummary.indexOf("代理")).toBeLessThan(routeSummary.indexOf("跳板机"));
+    expect(routeSummary.indexOf("跳板机")).toBeLessThan(routeSummary.indexOf("服务器"));
+    expect(wrapper.findAll(".server-overview-accordion-trigger")[4]!.text()).toContain("最近连接检测 · 47 毫秒");
+    expect(wrapper.text()).not.toContain("password");
+  });
+
+  it("distinguishes empty recent activity from a failed activity read", async () => {
+    const empty = overview(profile(), { getStats: ({ serverId }) => runtimeStats(serverId) });
+    wrappers.push(empty);
+    await flushPromises();
+    expect(empty.findAll(".server-overview-accordion-trigger")[4]!.text()).toContain("暂无连接活动记录");
+
+    const failed = overview(profile({ id: "server-stats-error" }), { getStats: () => Promise.reject(new Error("stats unavailable")) });
+    wrappers.push(failed);
+    await flushPromises();
+    const activityTrigger = failed.findAll(".server-overview-accordion-trigger")[4]!;
+    expect(activityTrigger.text()).toContain("无法读取最近活动");
+    expect(activityTrigger.text()).not.toContain("暂无连接活动记录");
+    await activityTrigger.trigger("click");
+    expect(failed.findAll(".server-overview-accordion-panel")[4]!.text()).toContain("无法读取最近活动");
+  });
+
+  it("updates all summary labels when the locale changes", async () => {
+    const wrapper = overview();
+    wrappers.push(wrapper);
+    await flushPromises();
+    locale.value = "en";
+    await flushPromises();
+    expect(wrapper.get(".server-overview-summary").attributes("aria-label")).toBe("Server summary");
+    expect(wrapper.findAll(".server-overview-accordion-trigger")[0]!.text()).toContain("Connection information");
+    expect(wrapper.findAll(".server-overview-summary-item")[2]!.text()).toContain("Not saved");
   });
 });

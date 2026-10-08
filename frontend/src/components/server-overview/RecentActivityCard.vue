@@ -5,7 +5,7 @@ import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeS
 import { locale, messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 
-const props = defineProps<{ stats: ServerRuntimeStats | null; snapshot?: ConnectionSnapshot; state: "loading" | "ready" | "error" }>();
+const props = withDefaults(defineProps<{ stats: ServerRuntimeStats | null; snapshot?: ConnectionSnapshot; state: "loading" | "ready" | "error"; embedded?: boolean }>(), { embedded: false });
 const t = messages(serverOverviewMessages);
 const currentWorkspace = computed(() => props.snapshot?.mode === "workspace" ? props.snapshot : null);
 const lastSuccessAtMs = computed(() => {
@@ -37,8 +37,8 @@ function formatDate(timestamp: number) {
 </script>
 
 <template>
-  <section class="server-overview-card server-overview-activity" :aria-label="t('recentActivity')">
-    <h2>{{ t('recentActivity') }}</h2>
+  <section class="server-overview-card server-overview-activity" :class="{ 'server-overview-card--embedded': embedded }" :aria-label="t('recentActivity')">
+    <h2 v-if="!embedded">{{ t('recentActivity') }}</h2>
     <p v-if="state === 'loading' && !hasActivity" class="server-overview-activity-empty" role="status">{{ t('activityLoading') }}</p>
     <p v-else-if="state === 'error' && !hasActivity" class="server-overview-activity-empty" role="alert">{{ t('activityUnavailable') }}</p>
     <p v-else-if="!hasActivity" class="server-overview-activity-empty">{{ t('noRecentActivity') }}</p>
