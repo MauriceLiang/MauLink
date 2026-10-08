@@ -217,8 +217,6 @@ pub struct AppSettings {
     pub terminal_cursor_blink: bool,
     pub download_directory_token: Option<String>,
     pub confirm_before_disconnect: bool,
-    #[serde(default)]
-    pub always_prompt_for_credentials: bool,
     #[serde(default = "default_true")]
     pub show_size_column: bool,
     #[serde(default = "default_true")]
@@ -248,7 +246,6 @@ impl Default for AppSettings {
             terminal_cursor_blink: true,
             download_directory_token: None,
             confirm_before_disconnect: true,
-            always_prompt_for_credentials: false,
             show_size_column: true,
             show_file_sizes: true,
             show_folder_sizes: false,
@@ -562,7 +559,6 @@ mod tests {
                 overlay_opacity: 28,
                 blur_px: 3,
             },
-            always_prompt_for_credentials: true,
             ..AppSettings::default()
         };
         let stored = service
@@ -653,7 +649,6 @@ mod tests {
         object.remove("terminalBackgroundImage");
         object.remove("terminalLineHeight");
         object.remove("terminalCursorBlink");
-        object.remove("alwaysPromptForCredentials");
         let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
         assert_eq!(old.app_icon_style, AppIconStyle::Light);
         assert_eq!(old.accent_color, AccentColor::Blue);
@@ -668,7 +663,6 @@ mod tests {
         );
         assert_eq!(old.terminal_line_height, 1.35);
         assert!(old.terminal_cursor_blink);
-        assert!(!old.always_prompt_for_credentials);
         value["appIconStyle"] = serde_json::json!("system");
         assert!(serde_json::from_value::<AppSettings>(value).is_err());
     }

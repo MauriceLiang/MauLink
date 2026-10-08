@@ -219,6 +219,7 @@ mod tests {
             port: 22,
             username: "fixture".to_owned(),
             auth_type: AuthType::Password,
+            require_authentication: false,
             private_key_path: None,
             group_id: None,
             connect_timeout_ms: 15_000,

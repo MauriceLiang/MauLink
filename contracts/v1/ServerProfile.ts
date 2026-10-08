@@ -2,4 +2,4 @@
 import type { AuthType } from "./AuthType";
 import type { ProxyType } from "./ProxyType";
 
-export type ServerProfile = { id: string, name: string, host: string, port: number, username: string, authType: AuthType, hasPrivateKey: boolean, groupId: string | null, hasSavedCredential: boolean, connectTimeoutMs: number, keepaliveIntervalSeconds: number, jumpHost: string | null, jumpPort: number, proxyType: ProxyType | null, proxyHost: string | null, proxyPort: number | null, revision: number, createdAtMs: number, updatedAtMs: number, };
+export type ServerProfile = { id: string, name: string, host: string, port: number, username: string, authType: AuthType, requireAuthentication: boolean, hasPrivateKey: boolean, groupId: string | null, hasSavedCredential: boolean, connectTimeoutMs: number, keepaliveIntervalSeconds: number, jumpHost: string | null, jumpPort: number, proxyType: ProxyType | null, proxyHost: string | null, proxyPort: number | null, revision: number, createdAtMs: number, updatedAtMs: number, };

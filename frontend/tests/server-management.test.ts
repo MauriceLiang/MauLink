@@ -152,6 +152,11 @@ describe("server management contracts", () => {
     expect(normalizeServerDraft({ ...draft, proxyType: null, proxyHost: "stale", proxyPort: 1080 }, null)).toMatchObject({ proxyHost: null, proxyPort: null, privateKeyToken: null });
   });
 
+  it("defaults new servers to encrypted local storage and carries each server's storage choice", () => {
+    expect(newServerDraft().requireAuthentication).toBe(false);
+    expect(newServerDraft({ ...profile, requireAuthentication: true }).requireAuthentication).toBe(true);
+  });
+
   it("validates before creating and clears transient credentials when the dialog closes", async () => {
     const create = vi.fn(() => ({ server: profile, credentialCleanupPending: false }));
     const wrapper = mountEditor(makeStore(createMockIpc({ server_create: create })));
@@ -160,10 +165,11 @@ describe("server management contracts", () => {
     expect(create).not.toHaveBeenCalled();
     expect(ui().get('[role="alert"]').text()).toContain("主机地址");
     await enterRequired(wrapper);
+    await ui().get('[role="switch"]').trigger("click");
     await ui().get('input[type="password"]').setValue("test-transient-secret");
     await ui().get("form").trigger("submit");
     await flushPromises();
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "replace", secret: "test-transient-secret" }, profile: expect.objectContaining({ host: "test.example.com", privateKeyToken: null }) }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "replace", secret: "test-transient-secret" }, profile: expect.objectContaining({ host: "test.example.com", requireAuthentication: true, privateKeyToken: null }) }));
     expect(wrapper.emitted("saved")?.[0]).toEqual(["服务器已添加。"]);
     await wrapper.setProps({ open: false });
     await wrapper.setProps({ open: true });

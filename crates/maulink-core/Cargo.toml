@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 base64.workspace = true
+aes-gcm.workspace = true
 dns-lookup.workspace = true
 idna.workspace = true
 flate2 = "1.1"

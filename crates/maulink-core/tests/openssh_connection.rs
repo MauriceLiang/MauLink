@@ -8,10 +8,10 @@ use std::{
 };
 
 use maulink_core::{
-    AuthType, ConnectionMode, ConnectionRegistry, ConnectionState, CredentialManager,
-    CredentialWorker, Database, ErrorCode, HostKeyCandidate, HostKeyDecision, HostKeyStore,
-    HostKeyVerifier, PathEncoding, ProfileStore, Secret, SecureStore, SecureStoreError,
-    ServerProfileInput, SshConnectionManager, SshConnector, StoredPath,
+    AuthType, ConnectionMode, ConnectionRegistry, ConnectionState, CredentialCipher,
+    CredentialManager, CredentialWorker, Database, ErrorCode, HostKeyCandidate, HostKeyDecision,
+    HostKeyStore, HostKeyVerifier, PathEncoding, ProfileStore, Secret, SecureStore,
+    SecureStoreError, ServerProfileInput, SshConnectionManager, SshConnector, StoredPath,
 };
 mod support;
 use support::OpenSshFixture;
@@ -179,6 +179,7 @@ async fn manager_authenticates_the_destination_through_a_jump_host() {
     let credentials = CredentialManager::new(
         database.clone(),
         CredentialWorker::new(Arc::new(EmptySecureStore)).expect("credential worker"),
+        CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
     );
     let registry = ConnectionRegistry::default();
     let verifier = HostKeyVerifier::new(HostKeyStore::new(database), registry.clone());
@@ -380,6 +381,7 @@ async fn verify_manager_test_mode(host: &str, port: u16, username: &str, private
     let credentials = CredentialManager::new(
         database.clone(),
         CredentialWorker::new(Arc::new(EmptySecureStore)).expect("credential worker"),
+        CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
     );
     let registry = ConnectionRegistry::default();
     let verifier = HostKeyVerifier::new(HostKeyStore::new(database), registry.clone());
@@ -425,6 +427,7 @@ fn profile_input(host: &str, port: u16, username: &str, private_key: &Path) -> S
         port,
         username: username.to_owned(),
         auth_type: AuthType::PrivateKey,
+        require_authentication: true,
         private_key_path: Some(StoredPath {
             bytes: private_key.as_os_str().as_bytes().to_vec(),
             encoding: PathEncoding::UnixBytes,

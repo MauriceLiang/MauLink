@@ -7,7 +7,8 @@ import type { ServerMessage } from "../i18n/servers";
 export function newServerDraft(profile: ServerProfile | null = null, groupId: string | null = null): ServerProfileDraft {
   return {
     name: profile?.name ?? "", host: profile?.host ?? "", port: profile?.port ?? 22,
-    username: profile?.username ?? "", authType: profile?.authType ?? "password", privateKeyToken: null,
+    username: profile?.username ?? "", authType: profile?.authType ?? "password",
+    requireAuthentication: profile?.requireAuthentication ?? false, privateKeyToken: null,
     groupId: profile?.groupId ?? groupId, connectTimeoutMs: profile?.connectTimeoutMs ?? 15000,
     keepaliveIntervalSeconds: profile?.keepaliveIntervalSeconds ?? 30, jumpHost: profile?.jumpHost ?? "",
     jumpPort: profile?.jumpPort ?? 22, proxyType: profile?.proxyType ?? null,

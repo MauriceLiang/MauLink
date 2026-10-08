@@ -588,17 +588,6 @@ impl SshConnectionManager {
         expected_revision: u32,
         mode: ConnectionMode,
     ) -> Result<ConnectionSnapshot, AppError> {
-        self.start_with_saved_credential(server_id, expected_revision, mode, true)
-            .await
-    }
-
-    pub async fn start_with_saved_credential(
-        &self,
-        server_id: String,
-        expected_revision: u32,
-        mode: ConnectionMode,
-        use_saved_credential: bool,
-    ) -> Result<ConnectionSnapshot, AppError> {
         let _operation_guard = self.operations_lock.lock().await;
         let profile = self.profiles.get_server(server_id.clone()).await?;
         if profile.revision != expected_revision {
@@ -632,7 +621,7 @@ impl SshConnectionManager {
                 proxy_host: profile.proxy_host,
                 proxy_port: profile.proxy_port,
             },
-            credential_server_id: use_saved_credential.then(|| server_id.clone()),
+            credential_server_id: Some(server_id.clone()),
             credential: None,
         };
         self.reserve_start(Some(&server_id)).await?;

@@ -1,9 +1,16 @@
 use std::{
     fmt,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::Path,
     sync::{Arc, Mutex, mpsc},
     thread,
 };
 
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, Payload},
+};
 use keyring_core::Entry;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -112,6 +119,102 @@ pub trait SecureStore: Send + Sync + 'static {
     fn save(&self, credential_id: &str, secret: &Secret) -> Result<(), SecureStoreError>;
     fn load(&self, credential_id: &str) -> Result<Secret, SecureStoreError>;
     fn delete(&self, credential_id: &str) -> Result<(), SecureStoreError>;
+}
+
+/// Encrypts credentials stored in SQLite with a device-local key file.
+pub struct CredentialCipher {
+    key: Zeroizing<[u8; 32]>,
+}
+
+impl CredentialCipher {
+    pub fn open(key_path: impl AsRef<Path>) -> Result<Self, AppError> {
+        let key_path = key_path.as_ref();
+        if let Some(parent) = key_path.parent() {
+            fs::create_dir_all(parent).map_err(|_| internal("errors.credentialKeyCreateFailed"))?;
+        }
+
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+
+        match options.open(key_path) {
+            Ok(mut file) => {
+                let mut key = Zeroizing::new([0; 32]);
+                key[..16].copy_from_slice(Uuid::new_v4().as_bytes());
+                key[16..].copy_from_slice(Uuid::new_v4().as_bytes());
+                if file.write_all(&*key).is_err() || file.sync_all().is_err() {
+                    let _ = fs::remove_file(key_path);
+                    return Err(internal("errors.credentialKeyCreateFailed"));
+                }
+                Ok(Self { key })
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                let bytes =
+                    fs::read(key_path).map_err(|_| internal("errors.credentialKeyReadFailed"))?;
+                let key: [u8; 32] = bytes
+                    .try_into()
+                    .map_err(|_| internal("errors.credentialKeyInvalid"))?;
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(key_path, fs::Permissions::from_mode(0o600))
+                        .map_err(|_| internal("errors.credentialKeyPermissionsFailed"))?;
+                }
+                Ok(Self {
+                    key: Zeroizing::new(key),
+                })
+            }
+            Err(_) => Err(internal("errors.credentialKeyCreateFailed")),
+        }
+    }
+
+    fn encrypt(&self, credential_id: &str, secret: &Secret) -> Result<Vec<u8>, AppError> {
+        let cipher = Aes256Gcm::new_from_slice(&self.key[..])
+            .map_err(|_| internal("errors.credentialEncryptionFailed"))?;
+        let nonce_uuid = Uuid::new_v4();
+        let nonce_bytes = &nonce_uuid.as_bytes()[..12];
+        let nonce = Nonce::<aes_gcm::aead::consts::U12>::try_from(nonce_bytes)
+            .map_err(|_| internal("errors.credentialEncryptionFailed"))?;
+        let encrypted = cipher
+            .encrypt(
+                &nonce,
+                Payload {
+                    msg: secret.expose(),
+                    aad: credential_id.as_bytes(),
+                },
+            )
+            .map_err(|_| internal("errors.credentialEncryptionFailed"))?;
+        let mut sealed = Vec::with_capacity(1 + nonce_bytes.len() + encrypted.len());
+        sealed.push(1);
+        sealed.extend_from_slice(nonce_bytes);
+        sealed.extend_from_slice(&encrypted);
+        Ok(sealed)
+    }
+
+    fn decrypt(&self, credential_id: &str, sealed: &[u8]) -> Result<Secret, AppError> {
+        if sealed.len() < 1 + 12 + 16 || sealed[0] != 1 {
+            return Err(storage_corrupt());
+        }
+        let cipher = Aes256Gcm::new_from_slice(&self.key[..]).map_err(|_| storage_corrupt())?;
+        let nonce = Nonce::<aes_gcm::aead::consts::U12>::try_from(&sealed[1..13])
+            .map_err(|_| storage_corrupt())?;
+        let mut plaintext = Zeroizing::new(
+            cipher
+                .decrypt(
+                    &nonce,
+                    Payload {
+                        msg: &sealed[13..],
+                        aad: credential_id.as_bytes(),
+                    },
+                )
+                .map_err(|_| storage_corrupt())?,
+        );
+        Secret::new(std::mem::take(&mut *plaintext)).map_err(|_| storage_corrupt())
+    }
 }
 
 pub struct NativeSecureStore {
@@ -348,15 +451,51 @@ pub struct RetainedCredential {
     pub updated_at_ms: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CredentialBackend {
+    Native,
+    Database,
+}
+
+impl CredentialBackend {
+    fn for_authentication(require_authentication: bool) -> Self {
+        if require_authentication {
+            Self::Native
+        } else {
+            Self::Database
+        }
+    }
+
+    fn as_database_value(self) -> &'static str {
+        match self {
+            Self::Native => "native",
+            Self::Database => "database",
+        }
+    }
+
+    fn from_database_value(value: &str) -> Result<Self, AppError> {
+        match value {
+            "native" => Ok(Self::Native),
+            "database" => Ok(Self::Database),
+            _ => Err(storage_corrupt()),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct CredentialManager {
     database: Database,
     worker: CredentialWorker,
+    cipher: Arc<CredentialCipher>,
 }
 
 impl CredentialManager {
-    pub fn new(database: Database, worker: CredentialWorker) -> Self {
-        Self { database, worker }
+    pub fn new(database: Database, worker: CredentialWorker, cipher: CredentialCipher) -> Self {
+        Self {
+            database,
+            worker,
+            cipher: Arc::new(cipher),
+        }
     }
 
     pub async fn replace_for_server(
@@ -364,6 +503,21 @@ impl CredentialManager {
         server_id: String,
         kind: CredentialKind,
         secret: Secret,
+    ) -> Result<CredentialReplaceResult, AppError> {
+        let profile = ProfileStore::new(self.database.clone())
+            .get_server(server_id.clone())
+            .await?;
+        let backend = CredentialBackend::for_authentication(profile.require_authentication);
+        self.replace_for_server_with_backend(server_id, kind, secret, backend)
+            .await
+    }
+
+    async fn replace_for_server_with_backend(
+        &self,
+        server_id: String,
+        kind: CredentialKind,
+        secret: Secret,
+        backend: CredentialBackend,
     ) -> Result<CredentialReplaceResult, AppError> {
         validate_uuid(&server_id, "serverId")?;
         let credential_id = Uuid::new_v4().to_string();
@@ -373,11 +527,15 @@ impl CredentialManager {
             credential_id.clone(),
             server_id.clone(),
             kind,
+            backend,
             now,
         )
         .await?;
 
-        if let Err(error) = self.worker.save(credential_id.clone(), secret).await {
+        if let Err(error) = self
+            .store_secret(credential_id.clone(), secret, backend)
+            .await
+        {
             let _ = delete_credential_metadata(&self.database, credential_id).await;
             return Err(error);
         }
@@ -388,7 +546,11 @@ impl CredentialManager {
             {
                 Ok(old) => old,
                 Err(error) => {
-                    if self.worker.delete(credential_id.clone()).await.is_ok() {
+                    if self
+                        .delete_secret(credential_id.clone(), backend)
+                        .await
+                        .is_ok()
+                    {
                         let _ = delete_credential_metadata(&self.database, credential_id).await;
                     }
                     return Err(error);
@@ -396,7 +558,7 @@ impl CredentialManager {
             };
 
         let cleanup_pending = if let Some(old_id) = old_credential {
-            if self.worker.delete(old_id.clone()).await.is_ok() {
+            if self.delete_registered_secret(old_id.clone()).await.is_ok() {
                 delete_credential_metadata(&self.database, old_id).await?;
                 false
             } else {
@@ -423,6 +585,7 @@ impl CredentialManager {
             ));
         }
         let profile_store = ProfileStore::new(self.database.clone());
+        let backend = CredentialBackend::for_authentication(input.require_authentication);
         let server = profile_store.create_server(input).await?;
         match credential {
             CredentialUpdate::Keep => unreachable!("handled above"),
@@ -433,7 +596,7 @@ impl CredentialManager {
             CredentialUpdate::Replace { secret } => {
                 let kind = credential_kind_for_auth(server.auth_type);
                 match self
-                    .replace_for_server(server.id.clone(), kind, secret)
+                    .replace_for_server_with_backend(server.id.clone(), kind, secret, backend)
                     .await
                 {
                     Ok(result) => Ok(ServerMutationResult {
@@ -460,6 +623,23 @@ impl CredentialManager {
     ) -> Result<ServerMutationResult, AppError> {
         validate_uuid(&server_id, "serverId")?;
         let input = profiles::validate_server_input(input)?;
+        let profile_store = ProfileStore::new(self.database.clone());
+        let current = profile_store.get_server(server_id.clone()).await?;
+        if current.revision != expected_revision {
+            return Err(revision_conflict(expected_revision, current.revision));
+        }
+        let target_backend = CredentialBackend::for_authentication(input.require_authentication);
+        let credential = match (credential, current.has_saved_credential) {
+            (CredentialUpdate::Keep, true)
+                if active_credential_backend(&self.database, server_id.clone()).await?
+                    != target_backend =>
+            {
+                CredentialUpdate::Replace {
+                    secret: self.load_for_authentication(server_id.clone()).await?,
+                }
+            }
+            (credential, _) => credential,
+        };
         let now = storage::now_ms()?;
         let mode = match &credential {
             CredentialUpdate::Keep => UpdateCredentialMode::Keep,
@@ -475,10 +655,14 @@ impl CredentialManager {
                     credential_id.clone(),
                     server_id.clone(),
                     kind,
+                    target_backend,
                     now,
                 )
                 .await?;
-                if let Err(error) = self.worker.save(credential_id.clone(), secret).await {
+                if let Err(error) = self
+                    .store_secret(credential_id.clone(), secret, target_backend)
+                    .await
+                {
                     let _ = delete_credential_metadata(&self.database, credential_id).await;
                     return Err(error);
                 }
@@ -500,7 +684,10 @@ impl CredentialManager {
             Ok(value) => value,
             Err(error) => {
                 if let Some((credential_id, _)) = pending
-                    && self.worker.delete(credential_id.clone()).await.is_ok()
+                    && self
+                        .delete_secret(credential_id.clone(), target_backend)
+                        .await
+                        .is_ok()
                 {
                     let _ = delete_credential_metadata(&self.database, credential_id).await;
                 }
@@ -516,8 +703,15 @@ impl CredentialManager {
 
     pub async fn load_for_authentication(&self, server_id: String) -> Result<Secret, AppError> {
         validate_uuid(&server_id, "serverId")?;
-        let credential_id = active_credential_for_server(&self.database, server_id).await?;
-        self.worker.load(credential_id).await
+        let (credential_id, backend, ciphertext) =
+            active_credential_for_server(&self.database, server_id).await?;
+        match backend {
+            CredentialBackend::Native => self.worker.load(credential_id).await,
+            CredentialBackend::Database => self.cipher.decrypt(
+                &credential_id,
+                ciphertext.as_deref().ok_or_else(storage_corrupt)?,
+            ),
+        }
     }
 
     pub async fn delete_server(
@@ -601,7 +795,7 @@ impl CredentialManager {
     ) -> Result<CredentialDeleteResult, AppError> {
         validate_uuid(&credential_id, "credentialRefId")?;
         ensure_pending_cleanup(&self.database, credential_id.clone()).await?;
-        self.worker.delete(credential_id.clone()).await?;
+        self.delete_registered_secret(credential_id.clone()).await?;
         delete_credential_metadata(&self.database, credential_id).await?;
         Ok(CredentialDeleteResult {
             credential_cleanup_pending: false,
@@ -612,7 +806,7 @@ impl CredentialManager {
         let pending = pending_cleanup_ids(&self.database).await?;
         let mut cleaned = 0;
         for credential_id in pending {
-            self.worker.delete(credential_id.clone()).await?;
+            self.delete_registered_secret(credential_id.clone()).await?;
             delete_credential_metadata(&self.database, credential_id).await?;
             cleaned += 1;
         }
@@ -623,11 +817,46 @@ impl CredentialManager {
         let Some(credential_id) = credential_id else {
             return Ok(false);
         };
-        if self.worker.delete(credential_id.clone()).await.is_err() {
+        if self
+            .delete_registered_secret(credential_id.clone())
+            .await
+            .is_err()
+        {
             return Ok(true);
         }
         delete_credential_metadata(&self.database, credential_id).await?;
         Ok(false)
+    }
+
+    async fn store_secret(
+        &self,
+        credential_id: String,
+        secret: Secret,
+        backend: CredentialBackend,
+    ) -> Result<(), AppError> {
+        match backend {
+            CredentialBackend::Native => self.worker.save(credential_id, secret).await,
+            CredentialBackend::Database => {
+                let ciphertext = self.cipher.encrypt(&credential_id, &secret)?;
+                save_database_ciphertext(&self.database, credential_id, ciphertext).await
+            }
+        }
+    }
+
+    async fn delete_secret(
+        &self,
+        credential_id: String,
+        backend: CredentialBackend,
+    ) -> Result<(), AppError> {
+        match backend {
+            CredentialBackend::Native => self.worker.delete(credential_id).await,
+            CredentialBackend::Database => Ok(()),
+        }
+    }
+
+    async fn delete_registered_secret(&self, credential_id: String) -> Result<(), AppError> {
+        let backend = credential_backend_for_id(&self.database, credential_id.clone()).await?;
+        self.delete_secret(credential_id, backend).await
     }
 }
 
@@ -746,18 +975,20 @@ async fn update_server_transaction(
                 .execute(
                     "UPDATE servers
                      SET name = ?1, host = ?2, port = ?3, username = ?4, auth_type = ?5,
-                         private_key_path = ?6, private_key_path_encoding = ?7, group_id = ?8,
-                         connect_timeout_ms = ?9, keepalive_interval_s = ?10,
-                         jump_host = ?11, jump_port = ?12, proxy_type = ?13,
-                         proxy_host = ?14, proxy_port = ?15, credential_ref_id = ?16,
-                         revision = revision + 1, updated_at_ms = ?17
-                     WHERE id = ?18 AND revision = ?19",
+                         require_authentication = ?6, private_key_path = ?7,
+                         private_key_path_encoding = ?8, group_id = ?9,
+                         connect_timeout_ms = ?10, keepalive_interval_s = ?11,
+                         jump_host = ?12, jump_port = ?13, proxy_type = ?14,
+                         proxy_host = ?15, proxy_port = ?16, credential_ref_id = ?17,
+                         revision = revision + 1, updated_at_ms = ?18
+                     WHERE id = ?19 AND revision = ?20",
                     params![
                         input.name.as_deref().expect("validated name"),
                         input.host,
                         input.port,
                         input.username,
                         input.auth_type.as_database_value(),
+                        input.require_authentication,
                         input
                             .private_key_path
                             .as_ref()
@@ -925,6 +1156,7 @@ async fn register_pending_write(
     credential_id: String,
     server_id: String,
     kind: CredentialKind,
+    backend: CredentialBackend,
     now: i64,
 ) -> Result<(), AppError> {
     database
@@ -945,9 +1177,16 @@ async fn register_pending_write(
             connection
                 .execute(
                     "INSERT INTO credential_refs
-                     (id, owner_server_id, kind, state, created_at_ms, updated_at_ms)
-                     VALUES (?1, ?2, ?3, 'pending_write', ?4, ?4)",
-                    params![credential_id, server_id, kind.as_database_value(), now],
+                     (id, owner_server_id, kind, state, created_at_ms, updated_at_ms,
+                      storage_backend, secret_ciphertext)
+                     VALUES (?1, ?2, ?3, 'pending_write', ?4, ?4, ?5, NULL)",
+                    params![
+                        credential_id,
+                        server_id,
+                        kind.as_database_value(),
+                        now,
+                        backend.as_database_value(),
+                    ],
                 )
                 .map_err(storage::map_sqlite_error)?;
             Ok(())
@@ -1029,22 +1268,91 @@ async fn activate_credential(
 async fn active_credential_for_server(
     database: &Database,
     server_id: String,
-) -> Result<String, AppError> {
+) -> Result<(String, CredentialBackend, Option<Vec<u8>>), AppError> {
     database
         .execute(move |connection| {
             connection
                 .query_row(
-                    "SELECT c.id FROM servers s
+                    "SELECT c.id, c.storage_backend, c.secret_ciphertext FROM servers s
                      JOIN credential_refs c ON c.id = s.credential_ref_id
                      WHERE s.id = ?1 AND c.state = 'active'",
                     [server_id],
-                    |row| row.get(0),
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Option<Vec<u8>>>(2)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(storage::map_sqlite_error)?
+                .map(|(id, backend, ciphertext)| {
+                    Ok((
+                        id,
+                        CredentialBackend::from_database_value(&backend)?,
+                        ciphertext,
+                    ))
+                })
+                .transpose()?
+                .ok_or_else(|| {
+                    AppError::new(ErrorCode::CredentialNotFound, "errors.credentialNotFound")
+                })
+        })
+        .await
+}
+
+async fn active_credential_backend(
+    database: &Database,
+    server_id: String,
+) -> Result<CredentialBackend, AppError> {
+    active_credential_for_server(database, server_id)
+        .await
+        .map(|(_, backend, _)| backend)
+}
+
+async fn credential_backend_for_id(
+    database: &Database,
+    credential_id: String,
+) -> Result<CredentialBackend, AppError> {
+    database
+        .execute(move |connection| {
+            let backend = connection
+                .query_row(
+                    "SELECT storage_backend FROM credential_refs WHERE id = ?1",
+                    [credential_id],
+                    |row| row.get::<_, String>(0),
                 )
                 .optional()
                 .map_err(storage::map_sqlite_error)?
                 .ok_or_else(|| {
                     AppError::new(ErrorCode::CredentialNotFound, "errors.credentialNotFound")
-                })
+                })?;
+            CredentialBackend::from_database_value(&backend)
+        })
+        .await
+}
+
+async fn save_database_ciphertext(
+    database: &Database,
+    credential_id: String,
+    ciphertext: Vec<u8>,
+) -> Result<(), AppError> {
+    database
+        .execute(move |connection| {
+            let changed = connection
+                .execute(
+                    "UPDATE credential_refs SET secret_ciphertext = ?2
+                     WHERE id = ?1 AND storage_backend = 'database'
+                       AND state = 'pending_write'",
+                    params![credential_id, ciphertext],
+                )
+                .map_err(storage::map_sqlite_error)?;
+            if changed == 1 {
+                Ok(())
+            } else {
+                Err(internal("errors.credentialStateInvalid"))
+            }
         })
         .await
 }
@@ -1177,6 +1485,7 @@ mod tests {
             port: 22,
             username: "deploy".to_owned(),
             auth_type: AuthType::Password,
+            require_authentication: true,
             private_key_path: None,
             group_id: None,
             connect_timeout_ms: 15_000,
@@ -1187,6 +1496,141 @@ mod tests {
             proxy_host: None,
             proxy_port: None,
         }
+    }
+
+    #[test]
+    fn database_cipher_authenticates_ciphertext_and_credential_identity() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let cipher = CredentialCipher::open(directory.path().join("credential.key"))
+            .expect("credential cipher");
+        let secret = Secret::new(b"database-secret".to_vec()).expect("secret");
+        let sealed = cipher
+            .encrypt("credential-a", &secret)
+            .expect("encrypt secret");
+
+        assert_ne!(sealed, secret.to_vec());
+        assert_eq!(
+            cipher
+                .decrypt("credential-a", &sealed)
+                .expect("decrypt secret")
+                .to_vec(),
+            secret.to_vec()
+        );
+        assert!(cipher.decrypt("credential-b", &sealed).is_err());
+
+        let mut tampered = sealed;
+        *tampered.last_mut().expect("ciphertext tag") ^= 1;
+        assert!(cipher.decrypt("credential-a", &tampered).is_err());
+    }
+
+    #[tokio::test]
+    async fn server_policy_selects_credential_storage_and_migrates_saved_secrets() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = Database::open(directory.path().join("test.sqlite3")).expect("database");
+        let store = Arc::new(MockSecureStore::default());
+        let worker = CredentialWorker::new(store.clone()).expect("credential worker");
+        let manager = CredentialManager::new(
+            database.clone(),
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
+        let mut input = password_input();
+        input.require_authentication = false;
+        let created = manager
+            .create_server(
+                input.clone(),
+                CredentialUpdate::Replace {
+                    secret: Secret::new(b"database-secret".to_vec()).expect("secret"),
+                },
+            )
+            .await
+            .expect("create server with local database credential");
+        assert!(!created.server.require_authentication);
+        assert!(store.values.lock().expect("mock values lock").is_empty());
+        let first_id = created.server.id.clone();
+        let query_id = first_id.clone();
+        let stored = database
+            .execute(move |connection| {
+                connection
+                    .query_row(
+                        "SELECT storage_backend, secret_ciphertext FROM credential_refs
+                         WHERE owner_server_id = ?1 AND state = 'active'",
+                        [&query_id],
+                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<Vec<u8>>>(1)?)),
+                    )
+                    .map_err(crate::storage::map_sqlite_error)
+            })
+            .await
+            .expect("read credential metadata");
+        assert_eq!(stored.0, "database");
+        let ciphertext = stored.1.expect("database ciphertext");
+        assert!(
+            !ciphertext
+                .windows(b"database-secret".len())
+                .any(|window| window == b"database-secret")
+        );
+        assert_eq!(
+            manager
+                .load_for_authentication(first_id.clone())
+                .await
+                .expect("load local database credential")
+                .to_vec(),
+            b"database-secret"
+        );
+
+        input.require_authentication = true;
+        let system_stored = manager
+            .update_server(
+                first_id.clone(),
+                created.server.revision,
+                input.clone(),
+                CredentialUpdate::Keep,
+            )
+            .await
+            .expect("switch to system credential store");
+        assert!(system_stored.server.require_authentication);
+        assert_eq!(store.values.lock().expect("mock values lock").len(), 1);
+        let query_id = first_id.clone();
+        let system_metadata = database
+            .execute(move |connection| {
+                connection
+                    .query_row(
+                        "SELECT storage_backend, secret_ciphertext FROM credential_refs
+                         WHERE owner_server_id = ?1 AND state = 'active'",
+                        [&query_id],
+                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<Vec<u8>>>(1)?)),
+                    )
+                    .map_err(crate::storage::map_sqlite_error)
+            })
+            .await
+            .expect("read system credential metadata");
+        assert_eq!(system_metadata, ("native".to_owned(), None));
+
+        input.require_authentication = false;
+        let local_stored = manager
+            .update_server(
+                first_id.clone(),
+                system_stored.server.revision,
+                input,
+                CredentialUpdate::Keep,
+            )
+            .await
+            .expect("switch back to encrypted local database");
+        assert!(!local_stored.server.require_authentication);
+        assert!(store.values.lock().expect("mock values lock").is_empty());
+        assert_eq!(
+            manager
+                .load_for_authentication(first_id.clone())
+                .await
+                .expect("load migrated database credential")
+                .to_vec(),
+            b"database-secret"
+        );
+        let listed = ProfileStore::new(database)
+            .list_servers(crate::ServerListQuery::default())
+            .await
+            .expect("list servers after policy update");
+        assert!(!listed.items[0].require_authentication);
     }
 
     async fn password_server(database: &Database) -> String {
@@ -1204,7 +1648,11 @@ mod tests {
         let server_id = password_server(&database).await;
         let store = Arc::new(MockSecureStore::default());
         let worker = CredentialWorker::new(store.clone()).expect("credential worker");
-        let manager = CredentialManager::new(database, worker);
+        let manager = CredentialManager::new(
+            database,
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
 
         let first = manager
             .replace_for_server(
@@ -1243,7 +1691,11 @@ mod tests {
         let server_id = password_server(&database).await;
         let store = Arc::new(MockSecureStore::default());
         let worker = CredentialWorker::new(store.clone()).expect("credential worker");
-        let manager = CredentialManager::new(database.clone(), worker);
+        let manager = CredentialManager::new(
+            database.clone(),
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
         let saved = manager
             .replace_for_server(
                 server_id.clone(),
@@ -1296,7 +1748,11 @@ mod tests {
         let server_id = password_server(&database).await;
         let store = Arc::new(MockSecureStore::default());
         let worker = CredentialWorker::new(store.clone()).expect("credential worker");
-        let manager = CredentialManager::new(database, worker);
+        let manager = CredentialManager::new(
+            database,
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
         let saved = manager
             .replace_for_server(
                 server_id.clone(),
@@ -1326,7 +1782,11 @@ mod tests {
         let database = Database::open(directory.path().join("test.sqlite3")).expect("database");
         let store = Arc::new(MockSecureStore::default());
         let worker = CredentialWorker::new(store.clone()).expect("credential worker");
-        let manager = CredentialManager::new(database.clone(), worker);
+        let manager = CredentialManager::new(
+            database.clone(),
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
 
         let error = manager
             .create_server(password_input(), CredentialUpdate::Keep)
@@ -1391,7 +1851,11 @@ mod tests {
         let server_id = password_server(&database).await;
         let store = Arc::new(MockSecureStore::default());
         let worker = CredentialWorker::new(store.clone()).expect("credential worker");
-        let manager = CredentialManager::new(database.clone(), worker);
+        let manager = CredentialManager::new(
+            database.clone(),
+            worker,
+            CredentialCipher::open(directory.path().join("credential.key")).expect("cipher"),
+        );
         let saved = manager
             .replace_for_server(
                 server_id.clone(),

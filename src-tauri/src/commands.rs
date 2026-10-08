@@ -321,16 +321,9 @@ pub async fn connection_start(
             server_id,
             expected_revision,
         } => {
-            let use_saved_credential = payload.mode != maulink_core::ConnectionMode::Workspace
-                || !state.settings.current().value.always_prompt_for_credentials;
             state
                 .connections
-                .start_with_saved_credential(
-                    server_id,
-                    expected_revision,
-                    payload.mode,
-                    use_saved_credential,
-                )
+                .start(server_id, expected_revision, payload.mode)
                 .await
         }
         maulink_core::ConnectionStartSource::Draft {
@@ -804,7 +797,11 @@ pub async fn local_file_select(
             .file()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
             .blocking_pick_file(),
-        LocalFilePurpose::GeoIpDatabase => app.dialog().file().add_filter("GeoIP database", &["mmdb"]).blocking_pick_file(),
+        LocalFilePurpose::GeoIpDatabase => app
+            .dialog()
+            .file()
+            .add_filter("GeoIP database", &["mmdb"])
+            .blocking_pick_file(),
     };
     let Some(selected) = selected else {
         return Ok(None);
@@ -910,6 +907,7 @@ fn profile_input_with_path(
         port: profile.port,
         username: profile.username,
         auth_type: profile.auth_type,
+        require_authentication: profile.require_authentication,
         private_key_path,
         group_id: profile.group_id,
         connect_timeout_ms: profile.connect_timeout_ms,

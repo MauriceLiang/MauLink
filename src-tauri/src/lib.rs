@@ -21,10 +21,11 @@ use commands::{
     terminal_get, terminal_open, terminal_resize, terminal_write, workspace_set_activity,
 };
 use maulink_core::{
-    AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialManager, CredentialWorker,
-    Database, HostKeyStore, HostKeyVerifier, LocalFileRegistry, MonitorManager, NetworkInspector,
-    ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore, SettingsService, SftpManager,
-    SftpTransferManager, SshConnectionManager, SshConnector, TerminalManager,
+    AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialCipher, CredentialManager,
+    CredentialWorker, Database, HostKeyStore, HostKeyVerifier, LocalFileRegistry, MonitorManager,
+    NetworkInspector, ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore,
+    SettingsService, SftpManager, SftpTransferManager, SshConnectionManager, SshConnector,
+    TerminalManager,
 };
 use server_appearance::{server_appearance_get, server_appearance_list, server_appearance_update};
 use state::DesktopState;
@@ -50,7 +51,10 @@ pub fn run() {
             let settings = tauri::async_runtime::block_on(SettingsService::load(database.clone()))?;
             app_icon::apply_on_main(app.handle(), settings.current().value.app_icon_style)?;
             let credential_worker = CredentialWorker::native()?;
-            let credentials = CredentialManager::new(database.clone(), credential_worker);
+            let credential_cipher =
+                CredentialCipher::open(app_data_directory.join("credential-encryption.key"))?;
+            let credentials =
+                CredentialManager::new(database.clone(), credential_worker, credential_cipher);
             if let Err(error) = tauri::async_runtime::block_on(credentials.recover_pending()) {
                 eprintln!(
                     "MauLink deferred credential cleanup: {}",
