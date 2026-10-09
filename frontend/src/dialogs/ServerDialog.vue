@@ -349,8 +349,10 @@ async function save() {
         <TabsContent value="basic" class="server-dialog-panel">
           <fieldset :disabled="formBusy || (!!serverId && !current)" class="server-form-grid">
             <div class="server-field-full"><BaseInput v-model="draft.name!" :label="t('name')" maxlength="128" placeholder="Production Web" /></div>
-            <BaseInput v-model="draft.host" :label="t('host')" autocomplete="off" placeholder="192.168.1.10" />
-            <label class="base-field"><span>{{ t('port') }}</span><input v-model.number="draft.port" class="base-input" type="number" min="1" max="65535" required /></label>
+            <div class="server-field-full server-host-port-row">
+              <BaseInput v-model="draft.host" :label="t('host')" autocomplete="off" placeholder="192.168.1.10" />
+              <label class="base-field server-port-field"><span>{{ t('port') }}</span><input v-model.number="draft.port" class="base-input" type="number" min="1" max="65535" required /></label>
+            </div>
             <div class="server-field-full"><BaseInput v-model="draft.username" :label="t('username')" autocomplete="username" placeholder="root" /></div>
             <div class="server-field-full base-field"><span>{{ t('auth') }}</span><div class="server-auth-options" role="group" :aria-label="t('auth')">
               <BaseButton :aria-pressed="draft.authType === 'password'" @click="draft.authType = 'password'">{{ t('password') }}</BaseButton>
@@ -381,7 +383,7 @@ async function save() {
               <header class="server-advanced-section-heading"><h3>{{ t('jumpRouting') }}</h3></header>
               <div class="server-advanced-row">
                 <BaseInput v-model="draft.jumpHost!" :label="t('jumpHost')" placeholder="user@bastion.example.com" />
-                <label class="base-field"><span>{{ t('jumpPort') }}</span><input v-model.number="draft.jumpPort" class="base-input" type="number" min="1" max="65535" /></label>
+                <label class="base-field server-port-field"><span>{{ t('jumpPort') }}</span><input v-model.number="draft.jumpPort" class="base-input" type="number" min="1" max="65535" /></label>
               </div>
             </section>
             <section class="server-advanced-section">
@@ -389,7 +391,7 @@ async function save() {
               <BaseSelect v-model="draft.proxyType" :label="t('proxy')" :disabled="busy || (!!serverId && !current)" :options="[{value:null,label:t('none')},{value:'socks5',label:'SOCKS5'},{value:'httpConnect',label:'HTTP CONNECT'}]" />
               <div v-if="draft.proxyType" class="server-advanced-row server-dependent-fields">
                 <BaseInput v-model="draft.proxyHost!" :label="t('proxyHost')" />
-                <label class="base-field"><span>{{ t('proxyPort') }}</span><input v-model.number="draft.proxyPort" class="base-input" type="number" min="1" max="65535" /></label>
+                <label class="base-field server-port-field"><span>{{ t('proxyPort') }}</span><input v-model.number="draft.proxyPort" class="base-input" type="number" min="1" max="65535" /></label>
               </div>
             </section>
             <section class="server-advanced-section">
