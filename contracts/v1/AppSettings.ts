@@ -8,6 +8,7 @@ import type { TerminalBackgroundImageSettings } from "./TerminalBackgroundImageS
 import type { TerminalCustomColors } from "./TerminalCustomColors";
 import type { TerminalThemeMode } from "./TerminalThemeMode";
 import type { Theme } from "./Theme";
+import type { ToastPosition } from "./ToastPosition";
 import type { UiDensity } from "./UiDensity";
 
-export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, uiDensity: UiDensity, sidebarWidth: SidebarWidth, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, terminalThemeMode: TerminalThemeMode, terminalCustomColors: TerminalCustomColors, terminalBackgroundImage: TerminalBackgroundImageSettings, terminalLineHeight: number, terminalCursorBlink: boolean, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };
+export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, uiDensity: UiDensity, sidebarWidth: SidebarWidth, toastPosition: ToastPosition, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, terminalThemeMode: TerminalThemeMode, terminalCustomColors: TerminalCustomColors, terminalBackgroundImage: TerminalBackgroundImageSettings, terminalLineHeight: number, terminalCursorBlink: boolean, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };

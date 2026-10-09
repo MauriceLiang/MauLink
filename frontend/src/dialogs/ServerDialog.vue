@@ -30,9 +30,10 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import BaseSwitch from "../components/base/BaseSwitch.vue";
+import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
-const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: { kind: "success" | "error"; message: string }] }>();
+const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
 const current = ref<ServerProfile | null>(null);
@@ -192,11 +193,11 @@ watch(() => {
   }
   if (snapshot.state === "closed") {
     const latency = Math.max(0, Math.round(now - testStartedAt - challengeDurationMs));
-    emit("testResult", { kind: "success", message: t("testConnectionSucceeded").replace("{latency}", String(latency)) });
+    emit("testResult", { kind: "success", title: t("testConnectionSuccessTitle"), description: t("testConnectionSucceeded").replace("{latency}", String(latency)) });
     finishTest();
   } else if (snapshot.state === "failed") {
     const reason = snapshot.error ? presentError(snapshot.error, props.language).message : t("testConnectionFailedUnknown");
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${reason}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: reason });
     finishTest();
   } else if (snapshot.state === "cancelled") finishTest();
 }, { flush: "sync" });
@@ -237,7 +238,7 @@ async function testConnection() {
     section.value = "basic";
     errorSection.value = "basic";
     error.value = t(invalid);
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${t(invalid)}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: t(invalid) });
     return;
   }
   error.value = "";
@@ -263,7 +264,7 @@ async function testConnection() {
       if (generation === testRunGeneration) {
         error.value = t("testConnectionUnavailable");
         testRunning.value = false;
-        emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${error.value}` });
+        emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: error.value });
       }
       return;
     }
@@ -280,7 +281,7 @@ async function testConnection() {
     error.value = presentError(failure.value, props.language).message;
     errorSection.value = "basic";
     testRunning.value = false;
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${error.value}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: error.value });
   }
 }
 

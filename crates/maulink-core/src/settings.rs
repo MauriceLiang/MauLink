@@ -167,6 +167,18 @@ pub enum SidebarWidth {
     Wide,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ToastPosition {
+    TopLeft,
+    TopCenter,
+    #[default]
+    TopRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum Language {
     #[default]
@@ -200,6 +212,8 @@ pub struct AppSettings {
     pub ui_density: UiDensity,
     #[serde(default)]
     pub sidebar_width: SidebarWidth,
+    #[serde(default)]
+    pub toast_position: ToastPosition,
     pub language: Language,
     pub terminal_font_family: String,
     pub terminal_font_size: f32,
@@ -234,6 +248,7 @@ impl Default for AppSettings {
             custom_accent_color: None,
             ui_density: UiDensity::Standard,
             sidebar_width: SidebarWidth::Standard,
+            toast_position: ToastPosition::TopRight,
             language: Language::ZhCn,
             terminal_font_family: "monospace".to_owned(),
             terminal_font_size: 14.0,
@@ -543,6 +558,7 @@ mod tests {
             app_icon_style: AppIconStyle::Dark,
             accent_color: AccentColor::Custom,
             custom_accent_color: Some("#12AbEf".to_owned()),
+            toast_position: ToastPosition::BottomLeft,
             terminal_theme_mode: TerminalThemeMode::CustomColor,
             terminal_custom_colors: TerminalCustomColors {
                 background: "#102030".to_owned(),
@@ -644,6 +660,7 @@ mod tests {
         object.remove("customAccentColor");
         object.remove("uiDensity");
         object.remove("sidebarWidth");
+        object.remove("toastPosition");
         object.remove("terminalThemeMode");
         object.remove("terminalCustomColors");
         object.remove("terminalBackgroundImage");
@@ -655,6 +672,7 @@ mod tests {
         assert_eq!(old.custom_accent_color, None);
         assert_eq!(old.ui_density, UiDensity::Standard);
         assert_eq!(old.sidebar_width, SidebarWidth::Standard);
+        assert_eq!(old.toast_position, ToastPosition::TopRight);
         assert_eq!(old.terminal_theme_mode, TerminalThemeMode::FollowApp);
         assert_eq!(old.terminal_custom_colors, TerminalCustomColors::default());
         assert_eq!(
@@ -665,6 +683,132 @@ mod tests {
         assert!(old.terminal_cursor_blink);
         value["appIconStyle"] = serde_json::json!("system");
         assert!(serde_json::from_value::<AppSettings>(value).is_err());
+    }
+
+    #[test]
+    fn toast_position_defaults_serializes_and_accepts_only_six_anchors() {
+        assert_eq!(
+            AppSettings::default().toast_position,
+            ToastPosition::TopRight
+        );
+
+        let settings_json = serde_json::to_value(AppSettings::default()).expect("settings JSON");
+        assert_eq!(settings_json["toastPosition"], "topRight");
+
+        let mut old_settings_json = settings_json;
+        old_settings_json
+            .as_object_mut()
+            .expect("settings object")
+            .remove("toastPosition");
+        let old_settings: AppSettings =
+            serde_json::from_value(old_settings_json).expect("old settings without toast position");
+        assert_eq!(old_settings.toast_position, ToastPosition::TopRight);
+
+        for (position, expected) in [
+            (ToastPosition::TopLeft, "topLeft"),
+            (ToastPosition::TopCenter, "topCenter"),
+            (ToastPosition::TopRight, "topRight"),
+            (ToastPosition::BottomLeft, "bottomLeft"),
+            (ToastPosition::BottomCenter, "bottomCenter"),
+            (ToastPosition::BottomRight, "bottomRight"),
+        ] {
+            let serialized = serde_json::to_value(position).expect("toast position JSON");
+            assert_eq!(serialized, expected);
+            assert_eq!(
+                serde_json::from_value::<ToastPosition>(serialized).expect("valid position"),
+                position
+            );
+        }
+
+        for invalid in [
+            serde_json::json!("freeDrag"),
+            serde_json::json!("bottomMiddle"),
+            serde_json::Value::Null,
+        ] {
+            assert!(serde_json::from_value::<ToastPosition>(invalid).is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn persists_toast_position_across_settings_service_reload() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("settings.sqlite3");
+        let service = SettingsService::load(Database::open(&path).expect("database"))
+            .await
+            .expect("settings service");
+        let stored = service
+            .update(SettingsUpdate {
+                expected_revision: 0,
+                value: AppSettings {
+                    toast_position: ToastPosition::BottomLeft,
+                    ..AppSettings::default()
+                },
+            })
+            .await
+            .expect("save toast position");
+        assert_eq!(stored.value.toast_position, ToastPosition::BottomLeft);
+        drop(service);
+
+        let reloaded = SettingsService::load(Database::open(&path).expect("reopen database"))
+            .await
+            .expect("reload settings");
+        assert_eq!(
+            reloaded.current().value.toast_position,
+            ToastPosition::BottomLeft
+        );
+    }
+
+    #[tokio::test]
+    async fn saving_legacy_settings_preserves_existing_values_with_default_toast_position() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = Database::open(directory.path().join("settings.sqlite3")).expect("database");
+        let mut legacy = serde_json::to_value(AppSettings {
+            theme: Theme::Dark,
+            language: Language::En,
+            terminal_theme_mode: TerminalThemeMode::Dark,
+            download_directory_token: Some("opaque-directory-token".to_owned()),
+            ..AppSettings::default()
+        })
+        .expect("legacy settings JSON");
+        legacy
+            .as_object_mut()
+            .expect("settings object")
+            .remove("toastPosition");
+        let legacy_json = serde_json::to_string(&legacy).expect("legacy JSON string");
+        database
+            .execute(move |connection| {
+                connection
+                    .execute(
+                        "INSERT INTO settings (key, value_json, revision, updated_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                        params![SETTINGS_KEY, legacy_json, 4u32, 1i64],
+                    )
+                    .map_err(storage::map_sqlite_error)?;
+                Ok(())
+            })
+            .await
+            .expect("write legacy settings");
+
+        let service = SettingsService::load(database)
+            .await
+            .expect("load legacy settings");
+        let mut value = service.current().value;
+        assert_eq!(value.toast_position, ToastPosition::TopRight);
+        value.toast_position = ToastPosition::BottomRight;
+        let saved = service
+            .update(SettingsUpdate {
+                expected_revision: 4,
+                value,
+            })
+            .await
+            .expect("save upgraded settings");
+        assert_eq!(saved.value.toast_position, ToastPosition::BottomRight);
+        assert_eq!(saved.value.theme, Theme::Dark);
+        assert_eq!(saved.value.language, Language::En);
+        assert_eq!(saved.value.terminal_theme_mode, TerminalThemeMode::Dark);
+        assert_eq!(
+            saved.value.download_directory_token.as_deref(),
+            Some("opaque-directory-token")
+        );
     }
 
     #[tokio::test]
