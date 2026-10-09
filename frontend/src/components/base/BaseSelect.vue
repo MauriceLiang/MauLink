@@ -15,7 +15,10 @@ function update(next: unknown) {
 </script>
 <template>
   <div class="base-field">
-    <label :for="fieldId">{{ label }}</label>
+    <div class="base-field-label">
+      <label :for="fieldId">{{ label }}</label>
+      <slot name="label-suffix" />
+    </div>
     <SelectRoot :model-value="value" :disabled="disabled" @update:model-value="update">
       <SelectTrigger :id="fieldId" class="base-select-trigger" :aria-invalid="!!error" :aria-describedby="error ? `${fieldId}-error` : undefined">
         <SelectValue :placeholder="placeholder" /><SelectIcon><BaseIcon name="chevron-down" /></SelectIcon>
