@@ -1,23 +1,26 @@
 use maulink_core::{
     ApiRequest, AppError, AppInfo, AuthenticationRespondPayload, BackgroundImageAsset,
     BackgroundImageGetResult, BackgroundImageImportPayload, BackgroundImagePayload,
-    ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionPreflightPayload,
-    ConnectionPreflightResult, ConnectionSnapshot, ConnectionStartPayload, CredentialDeleteResult,
-    CredentialUpdate, EmptyPayload, ErrorCode, Group, GroupCreate, GroupUpdatePayload,
-    HostKeyGetPayload, HostKeyRecord, HostKeyRespondPayload, LocalFilePurpose,
-    LocalFileSelectPayload, MonitorGetHistoryPayload, MonitorGetSnapshotPayload,
-    MonitorHistoryPage, MonitorRefreshPayload, MonitorSnapshot, NetworkInspectPayload,
-    NetworkInspection, RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload,
-    SelectedLocalFile, ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
+    ChangeSecondaryPasswordPayload, ConnectionDisconnectPayload, ConnectionIdPayload,
+    ConnectionPreflightPayload, ConnectionPreflightResult, ConnectionSnapshot,
+    ConnectionStartPayload, CredentialDeleteResult, CredentialRevealPolicy, CredentialRevealResult,
+    CredentialRevealTarget, CredentialUpdate, EmptyPayload, EnableDirectPayload,
+    EnableProtectedPayload, ErrorCode, Group, GroupCreate, GroupUpdatePayload, HostKeyGetPayload,
+    HostKeyRecord, HostKeyRespondPayload, LocalFilePurpose, LocalFileSelectPayload,
+    MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryPage, MonitorRefreshPayload,
+    MonitorSnapshot, NetworkInspectPayload, NetworkInspection, RecoverRevealPolicyPayload,
+    RemoteFileEntry, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
+    ServerCreatePayload, ServerDeletePayload, ServerListPage, ServerListQuery,
     ServerMutationResult, ServerProfile, ServerProfileDraft, ServerProfileInput,
-    ServerRuntimeStats, ServerRuntimeStatsPayload, ServerUpdatePayload, SettingsRecord,
-    SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage, SftpDownloadPayload,
-    SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload, SftpReadTextResult,
-    SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload, SftpTransferListPayload,
-    SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalWritePayload, TerminalWriteResult, WorkspaceActivityPayload,
+    ServerRuntimeStats, ServerRuntimeStatsPayload, ServerUpdatePayload, SetDenyPayload,
+    SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage,
+    SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload,
+    SftpReadTextResult, SftpRenamePayload, SftpStatPayload, SftpTransferIdPayload,
+    SftpTransferListPayload, SftpTransferSnapshot, SftpUploadPayload, SftpWriteTextPayload,
+    SftpWriteTextResult, SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalChunk,
+    TerminalIdPayload, TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload,
+    TerminalSize, TerminalSnapshot, TerminalWritePayload, TerminalWriteResult,
+    WorkspaceActivityPayload,
 };
 use tauri::{AppHandle, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -308,6 +311,115 @@ pub async fn credential_cleanup_retry(
         request_id,
         state.credentials.retry_cleanup(payload.id).await,
     )
+}
+
+#[tauri::command]
+pub async fn reveal_policy_get(
+    request: ApiRequest<EmptyPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, _) = request.validate()?;
+    attach_request_id(request_id, state.credential_reveal.policy_get().await)
+}
+
+#[tauri::command]
+pub async fn reveal_policy_enable_protected(
+    request: ApiRequest<EnableProtectedPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state
+            .credential_reveal
+            .enable_protected(
+                payload.expected_revision,
+                payload.current_password,
+                payload.password,
+                payload.confirm_password,
+            )
+            .await,
+    )
+}
+
+#[tauri::command]
+pub async fn reveal_policy_enable_direct(
+    request: ApiRequest<EnableDirectPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state
+            .credential_reveal
+            .enable_direct(
+                payload.expected_revision,
+                payload.current_password,
+                payload.confirm_first_risk,
+                payload.confirm_second_risk,
+                payload.confirmation_text,
+            )
+            .await,
+    )
+}
+
+#[tauri::command]
+pub async fn reveal_policy_set_deny(
+    request: ApiRequest<SetDenyPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state
+            .credential_reveal
+            .set_deny(payload.expected_revision)
+            .await,
+    )
+}
+
+#[tauri::command]
+pub async fn reveal_policy_change_password(
+    request: ApiRequest<ChangeSecondaryPasswordPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state
+            .credential_reveal
+            .change_secondary_password(
+                payload.expected_revision,
+                payload.current_password,
+                payload.password,
+                payload.confirm_password,
+            )
+            .await,
+    )
+}
+
+#[tauri::command]
+pub async fn reveal_policy_recover(
+    request: ApiRequest<RecoverRevealPolicyPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealPolicy, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state
+            .credential_reveal
+            .recover_to_deny(payload.expected_revision)
+            .await,
+    )
+}
+
+#[tauri::command]
+pub async fn credential_reveal(
+    request: ApiRequest<CredentialRevealTarget>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<CredentialRevealResult, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(request_id, state.credential_reveal.reveal(payload).await)
 }
 
 #[tauri::command]

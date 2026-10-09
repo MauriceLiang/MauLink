@@ -15,9 +15,11 @@ use crate::{
 const CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 const DNS_TIMEOUT: Duration = Duration::from_secs(5);
 
+type InspectionCache = Arc<RwLock<HashMap<(String, bool, Language, u64), CachedInspection>>>;
+
 #[derive(Clone, Default)]
 pub struct NetworkInspector {
-    cache: Arc<RwLock<HashMap<(String, bool, Language, u64), CachedInspection>>>,
+    cache: InspectionCache,
     geoip: Option<crate::GeoIpDatabase>,
 }
 

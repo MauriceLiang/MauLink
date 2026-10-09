@@ -10,6 +10,7 @@ import { settingsMessages } from '../i18n/settings';
 import { paletteMessages } from '../i18n/palette';
 import { isTerminalTarget } from './palette';
 import SettingsDialog from '../dialogs/SettingsDialog.vue';
+import CredentialRevealDialog from '../dialogs/CredentialRevealDialog.vue';
 import CommandPalette from '../components/base/CommandPalette.vue';
 import { createMonitorApi } from "../ipc/monitor";
 import { createMonitorStore } from "../stores/monitor";
@@ -17,6 +18,7 @@ import { createSftpApi } from "../ipc/sftp";
 import { createTransferStore, transferFinished, type TransferChannelFactory } from "../stores/transfers";
 import { createTerminalApi } from "../ipc/terminal";
 import { createSettingsApi } from "../ipc/settings";
+import { createCredentialRevealApi } from "../ipc/credential-reveal";
 import { createBackgroundImagesApi } from "../ipc/background-images";
 import { createServerAppearanceApi } from "../ipc/server-appearance";
 import { createServerRuntimeStatsApi } from "../ipc/server-runtime-stats";
@@ -68,6 +70,24 @@ const geoip = createGeoIpApi(props.client);
 const databaseRevision = ref(0);
 const settingsInitialSection = ref('general');
 function openSettings(section = 'general') { settingsInitialSection.value = section; settingsOpen.value = true; }
+const credentialReveal = createCredentialRevealApi(props.client);
+type RevealServer = { id: string; name: string; authType: 'password' | 'privateKey'; hasSavedCredential: boolean };
+const revealServer = ref<RevealServer | null>(null);
+const revealDialogOpen = ref(false);
+async function openCredentialReveal(serverId: string) {
+  const server = servers.value.find(item => item.id === serverId);
+  if (!server?.hasSavedCredential) return;
+  revealServer.value = { id: server.id, name: server.name, authType: server.authType, hasSavedCredential: server.hasSavedCredential };
+  await nextTick();
+  revealDialogOpen.value = true;
+}
+async function openSecurityFromReveal() {
+  revealDialogOpen.value = false;
+  revealServer.value = null;
+  editor.value = false;
+  await nextTick();
+  openSettings('security');
+}
 const preflight = createPreflightApi(props.client);
 const terminals = createTerminalController(createTerminalApi(props.client), props.terminalChannelFactory);
 const terminalPreferences = createTerminalPreferences(createSettingsApi(props.client), settings => {
@@ -261,11 +281,12 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" @close="editor = false" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
+    <CredentialRevealDialog :open="revealDialogOpen" :server="revealServer" :api="credentialReveal" @close="revealDialogOpen = false" @open-security="openSecurityFromReveal" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />
-    <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
-    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :initial-section="settingsInitialSection" @database-changed="databaseRevision++" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
+    <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || revealDialogOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
+    <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" :initial-section="settingsInitialSection" @database-changed="databaseRevision++" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
     <BaseToastViewport :queue="toast" :position="terminalPreferences.record.value?.value.toastPosition ?? 'topRight'" />
   </div>

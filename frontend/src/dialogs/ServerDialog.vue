@@ -3,6 +3,9 @@ import BaseTooltip from "../components/base/BaseTooltip.vue";
 import BaseInfoPopover from "../components/base/BaseInfoPopover.vue";
 import BaseIcon from "../components/base/BaseIcon.vue";
 import BaseSelect from "../components/base/BaseSelect.vue";
+import BaseDropdownMenu from "../components/base/BaseDropdownMenu.vue";
+import BaseAlertDialog from "../components/base/BaseAlertDialog.vue";
+import type { MenuItem } from "../components/base/menu";
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
 import { computed, reactive, ref, useId, watch } from "vue";
 import type { Language } from "../../../contracts/v1/Language";
@@ -26,14 +29,26 @@ import { isFinished } from "../stores/connections";
 import { serverText, type ServerMessage } from "../i18n/servers";
 import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
-import { credentialValidation, newServerDraft, normalizeServerDraft, validateServerDraft } from "./server-form";
+import {
+  cancelReplace,
+  credentialValidation,
+  enterReplace,
+  initialCredentialEditAction,
+  markPendingClear,
+  newServerDraft,
+  normalizeServerDraft,
+  resolveCredentialUpdate,
+  undoPendingClear,
+  validateServerDraft,
+  type CredentialEditAction,
+} from "./server-form";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
-const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult] }>();
+const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult]; revealCredential: [serverId: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
 const current = ref<ServerProfile | null>(null);
@@ -56,7 +71,9 @@ const privateKeyUiState = computed<PrivateKeyUiState>(() => {
 });
 const privateKeyButtonText = computed(() => privateKeyUiState.value === "empty" ? t("browseKey") : privateKeyUiState.value === "expired" ? t("reselectKey") : t("replaceKey"));
 const privateKeyDisplayText = computed(() => key.value?.displayName ?? (privateKeyUiState.value === "existing" ? t("configuredKey") : t("noKey")));
-const mode = ref<CredentialUpdate["mode"]>("keep");
+const credentialAction = ref<CredentialEditAction>(initialCredentialEditAction(!props.serverId));
+const credentialStorageEditing = ref(false);
+const removeCredentialOpen = ref(false);
 type ServerDialogSection = "basic" | "advanced" | "appearance";
 const section = ref<ServerDialogSection>("basic");
 const errorSection = ref<ServerDialogSection>("basic");
@@ -83,6 +100,17 @@ const appearanceDraft = reactive({
 const groups = props.store.groups;
 const busy = computed(() => phase.value === "loading" || phase.value === "saving" || selectingKey.value || appearanceBusy.value);
 const formBusy = computed(() => busy.value || testRunning.value);
+const credentialStorageSummary = computed(() => t(draft.requireAuthentication ? "credentialStorageSystem" : "credentialStorageLocal"));
+const credentialIdentityChanged = computed(() => {
+  if (!current.value?.hasSavedCredential) return false;
+  const profile = normalizeServerDraft(draft, key.value);
+  return credentialValidation(current.value, profile, { mode: "keep" }) === "identityChanged";
+});
+const credentialMenuItems = computed<MenuItem[]>(() => [
+  { id: "reveal", label: t(current.value?.authType === "privateKey" ? "credentialRevealPassphrase" : "credentialRevealPassword") },
+  { id: "change-storage", label: t("credentialChangeStorage") },
+  { id: "remove", label: t("credentialRemove"), danger: true, separatorBefore: true },
+]);
 let testStartedAt = 0;
 let challengeStartedAt: number | null = null;
 let challengeDurationMs = 0;
@@ -99,10 +127,12 @@ async function initialize() {
   secret.value = "";
   key.value = null;
   visible.value = false;
+  credentialAction.value = initialCredentialEditAction(!props.serverId);
+  credentialStorageEditing.value = false;
+  removeCredentialOpen.value = false;
   section.value = "basic";
   errorSection.value = "basic";
   current.value = null;
-  mode.value = "keep";
   Object.assign(draft, newServerDraft(null, props.groupId));
   if (!props.serverId) { phase.value = "editing"; return; }
   phase.value = "loading";
@@ -111,6 +141,7 @@ async function initialize() {
     if (!props.open) return;
     current.value = profile;
     Object.assign(draft, newServerDraft(profile));
+    credentialAction.value = initialCredentialEditAction(false);
     const appearance = await props.appearanceStore.get(profile.id);
     if (!props.open) return;
     loadAppearanceDraft(appearance);
@@ -193,7 +224,7 @@ watch(() => props.open, open => {
   }
 }, { immediate: true });
 watch(() => draft.authType, () => { key.value = null; secret.value = ""; visible.value = false; });
-watch(mode, () => { secret.value = ""; visible.value = false; });
+watch(credentialAction, () => { secret.value = ""; visible.value = false; });
 
 watch(() => {
   const id = testConnectionId.value;
@@ -241,6 +272,7 @@ async function cancelTest() {
 function closeDialog() {
   cancelTestRequested = true;
   testRunGeneration++;
+  removeCredentialOpen.value = false;
   void cancelTest();
   emit("close");
 }
@@ -249,8 +281,13 @@ async function testConnection() {
   if (!props.connectionStore || formBusy.value) return;
   refreshKeyStatus();
   const profile = normalizeServerDraft(draft, key.value);
+  const credentialUpdate = resolveCredentialUpdate(
+    credentialAction.value,
+    secret.value,
+    current.value?.hasSavedCredential ?? false,
+  );
   const invalid = validateServerDraft(profile, current.value, key.value)
-    ?? (current.value && mode.value === "keep" ? credentialValidation(current.value, profile, { mode: "keep" }) : null);
+    ?? credentialValidation(current.value, profile, credentialUpdate);
   if (invalid) {
     section.value = "basic";
     errorSection.value = "basic";
@@ -268,15 +305,15 @@ async function testConnection() {
   testRunning.value = true;
   try {
     const savedProfile = current.value && !key.value
-      && (current.value.hasPrivateKey || (mode.value === "keep" && current.value.hasSavedCredential))
+      && (current.value.hasPrivateKey || (credentialAction.value === "unchanged" && current.value.hasSavedCredential))
       ? {
           serverId: current.value.id,
           expectedRevision: current.value.revision,
-          useSavedCredential: mode.value === "keep" && current.value.hasSavedCredential,
+          useSavedCredential: credentialAction.value === "unchanged" && current.value.hasSavedCredential,
         }
       : undefined;
-    const credential = !current.value || mode.value === "replace" ? secret.value || null : null;
-    const snapshot = await props.connectionStore.startDraftTest(profile, credential, savedProfile);
+    const draftCredential = !current.value || credentialAction.value === "editing" ? secret.value || null : null;
+    const snapshot = await props.connectionStore.startDraftTest(profile, draftCredential, savedProfile);
     if (!snapshot) {
       if (generation === testRunGeneration) {
         error.value = t("testConnectionUnavailable");
@@ -300,6 +337,37 @@ async function testConnection() {
     testRunning.value = false;
     emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: error.value });
   }
+}
+
+function beginCredentialEdit() {
+  credentialAction.value = enterReplace();
+  credentialStorageEditing.value = false;
+}
+
+function cancelCredentialEdit() {
+  credentialAction.value = cancelReplace(credentialAction.value);
+  secret.value = "";
+  visible.value = false;
+}
+
+function openCredentialMenuAction(action: string) {
+  if (action === "reveal" && current.value?.hasSavedCredential) emit("revealCredential", current.value.id);
+  if (action === "change-storage") credentialStorageEditing.value = true;
+  if (action === "remove") removeCredentialOpen.value = true;
+}
+
+function confirmCredentialRemoval() {
+  credentialAction.value = markPendingClear(credentialAction.value);
+  removeCredentialOpen.value = false;
+}
+
+function cancelCredentialStorageEdit() {
+  draft.requireAuthentication = current.value?.requireAuthentication ?? false;
+  credentialStorageEditing.value = false;
+}
+
+function keepCredentialStorageChoice() {
+  credentialStorageEditing.value = false;
 }
 
 async function selectKey() {
@@ -327,9 +395,11 @@ async function save() {
   failure.value = null;
   error.value = "";
   const profile = normalizeServerDraft(draft, key.value);
-  const credential: CredentialUpdate = current.value
-    ? mode.value === "replace" ? { mode: "replace", secret: secret.value } : { mode: mode.value }
-    : secret.value ? { mode: "replace", secret: secret.value } : { mode: "clear" };
+  const credential: CredentialUpdate = resolveCredentialUpdate(
+    credentialAction.value,
+    secret.value,
+    current.value?.hasSavedCredential ?? false,
+  );
   const invalid = validateServerDraft(profile, current.value, key.value) ?? credentialValidation(current.value, profile, credential);
   if (invalid) {
     section.value = validationSection(invalid);
@@ -395,17 +465,38 @@ async function save() {
                 </p>
               </div>
             </div>
-            <BaseSelect v-if="current" v-model="mode" class="server-field-full" :label="t('credential')" :disabled="busy" :options="[{value:'keep',label:t('keep')},{value:'replace',label:t('replace')},{value:'clear',label:t('clear')}]">
-              <template v-if="draft.authType === 'privateKey'" #label-suffix><BaseInfoPopover :title="t('credentialHelp')" :description="t('credentialNote')" :trigger-label="t('credentialHelp')" side="right" :disabled="formBusy" /></template>
-            </BaseSelect>
-            <div v-if="!current || mode === 'replace'" class="server-field-full server-secret-field">
+            <div v-if="current && credentialAction !== 'editing'" class="server-field-full base-field server-credential-field">
+              <div class="server-credential-label">
+                <span>{{ t(current.authType === 'privateKey' ? 'passphrase' : 'password') }}</span>
+                <BaseInfoPopover v-if="current.authType === 'privateKey'" :title="t('credentialHelp')" :description="t('credentialNote')" :trigger-label="t('credentialHelp')" side="right" :disabled="formBusy" />
+              </div>
+              <div class="server-credential-control">
+                <div class="server-credential-state" :data-state="credentialAction" role="status">
+                  <span>{{ credentialAction === 'pendingClear' ? t('credentialRemovalPending') : current.hasSavedCredential ? t(current.authType === 'privateKey' ? 'credentialSavedPassphrase' : 'credentialSavedPassword') : t('credentialNotSaved') }}</span>
+                  <BaseButton v-if="credentialAction === 'unchanged'" :disabled="formBusy" @click="beginCredentialEdit">{{ current.hasSavedCredential ? t('credentialChange') : t('credentialAdd') }}</BaseButton>
+                  <BaseDropdownMenu v-if="credentialAction === 'unchanged' && current.hasSavedCredential" :label="t('credentialMoreActions')" :items="credentialMenuItems" :disabled="formBusy" @action="openCredentialMenuAction" />
+                  <BaseButton v-if="credentialAction === 'pendingClear'" :disabled="formBusy" @click="credentialAction = undoPendingClear(credentialAction)">{{ t('credentialUndoRemoval') }}</BaseButton>
+                </div>
+                <p v-if="credentialAction === 'unchanged'" class="server-form-note server-credential-storage-summary">{{ credentialStorageSummary }}</p>
+                <p v-if="credentialAction === 'pendingClear'" class="server-form-note server-credential-removal-note">{{ t('credentialRemovalDraftNote') }}</p>
+                <p v-if="credentialIdentityChanged" class="server-form-note server-credential-identity-note" role="alert">{{ t('identityChanged') }}</p>
+              </div>
+            </div>
+            <div v-if="!current || credentialAction === 'editing'" class="server-field-full server-secret-field">
               <BaseInput v-model="secret" :label="t(draft.authType === 'privateKey' ? 'passphrase' : 'password')" :type="visible ? 'text' : 'password'" autocomplete="new-password" />
               <BaseTooltip :label="visible ? '隐藏凭据 / Hide credential' : '显示凭据 / Show credential'"><button type="button" class="server-secret-toggle" :aria-pressed="visible" :aria-label="visible ? '隐藏凭据 / Hide credential' : '显示凭据 / Show credential'" @click="visible = !visible"><BaseIcon :name="visible ? 'eye-off' : 'eye'" /></button></BaseTooltip>
               <p class="server-form-note">{{ t('secretNote') }}</p>
+              <BaseButton v-if="current" class="server-credential-edit-cancel" :disabled="formBusy" @click="cancelCredentialEdit">{{ t(current.hasSavedCredential ? 'credentialCancelReplace' : 'credentialCancelAdd') }}</BaseButton>
             </div>
-            <BaseSelect v-model="credentialStorageChoice" class="server-field-full server-credential-storage-field" :label="t('credentialStorage')" :disabled="busy" :options="[{value:'system',label:t('credentialStorageSystem')},{value:'local',label:t('credentialStorageLocal')}]">
-              <template #label-suffix><BaseInfoPopover :title="t('credentialStorageHelp')" :description="t('credentialStorageModeNote')" :trigger-label="t('credentialStorageHelp')" side="right" :disabled="formBusy" /></template>
-            </BaseSelect>
+            <template v-if="!current || credentialAction === 'editing' || credentialStorageEditing">
+              <BaseSelect v-model="credentialStorageChoice" class="server-field-full server-credential-storage-field" :label="t('credentialStorage')" :disabled="busy" :options="[{value:'system',label:t('credentialStorageSystem')},{value:'local',label:t('credentialStorageLocal')}]">
+                <template #label-suffix><BaseInfoPopover :title="t('credentialStorageHelp')" :description="t('credentialStorageModeNote')" :trigger-label="t('credentialStorageHelp')" side="right" :disabled="formBusy" /></template>
+              </BaseSelect>
+              <div v-if="current && credentialAction !== 'editing'" class="server-field-full server-credential-storage-actions">
+                <BaseButton :disabled="formBusy" @click="cancelCredentialStorageEdit">{{ t('credentialStorageCancel') }}</BaseButton>
+                <BaseButton :disabled="formBusy" @click="keepCredentialStorageChoice">{{ t('credentialStorageDone') }}</BaseButton>
+              </div>
+            </template>
           </fieldset>
           <p v-if="error && errorSection === 'basic'" role="alert" class="server-form-error">{{ error }}</p>
           <BaseButton v-if="failure?.code === 'REVISION_CONFLICT' || (serverId && !current)" :disabled="busy" @click="initialize">{{ t(current ? 'reload' : 'retry') }}</BaseButton>
@@ -493,4 +584,11 @@ async function save() {
       </div>
     </template>
   </BaseDialog>
+  <BaseAlertDialog :open="removeCredentialOpen" :title="t('credentialRemovalTitle')" :close-label="t('cancel')" panel-class="server-credential-removal-dialog" :busy="formBusy" @close="removeCredentialOpen = false">
+    <p>{{ t('credentialRemovalConfirm') }}</p>
+    <template #footer>
+      <BaseButton data-dialog-cancel :disabled="formBusy" @click="removeCredentialOpen = false">{{ t('cancel') }}</BaseButton>
+      <BaseButton variant="danger" :disabled="formBusy" @click="confirmCredentialRemoval">{{ t('credentialRemove') }}</BaseButton>
+    </template>
+  </BaseAlertDialog>
 </template>

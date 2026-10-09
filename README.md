@@ -356,6 +356,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 | 开发与运行 | [前端开发说明](./frontend/README.md) · [项目结构](#项目结构) |
 | 视觉回归 | [视觉回归说明](./frontend/visual/README.md) |
 | 历史验收 | [设计 QA 记录](./design-qa.md)（截至 2026-10-01） |
+| 凭据查看保护 | [实现与安全边界](./docs/refactor/credential-reveal/implementation.md) · [P0 基线](./docs/refactor/credential-reveal/P0-baseline.md) |
 
 ## 贡献约定
 

@@ -8,8 +8,9 @@ export function fixtureError(code: AppError["code"], messageKey: string): AppErr
   return { code, messageKey, params: {}, retryable: false, action: code === "REVISION_CONFLICT" ? "reload" : "none", stage: null, requestId: null, details: "Fixture debug details must not be displayed" };
 }
 
-export function createServerMock(options: { state?: "empty" | "servers"; failure?: () => "none" | "inUse" | "revision" | "unknown"; delay?: () => number } = {}) {
+export function createServerMock(options: { state?: "empty" | "servers"; savedCredential?: boolean; failure?: () => "none" | "inUse" | "revision" | "unknown"; delay?: () => number } = {}) {
   let servers = options.state === "empty" ? [] : structuredClone(shellServers);
+  if (options.savedCredential && servers[0]) servers[0].hasSavedCredential = true;
   let groups = options.state === "empty" ? [] : structuredClone(shellGroups);
   const commands: string[] = [];
   const keys = new Set<string>();
@@ -34,6 +35,19 @@ export function createServerMock(options: { state?: "empty" | "servers"; failure
     group_list: () => structuredClone(groups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_appearance_list: () => [],
+    server_appearance_get: ({ serverId }) => ({
+      serverId,
+      labelColor: null,
+      environment: null,
+      terminalOverrideEnabled: false,
+      terminalAppearance: {
+        themeMode: "followApp",
+        customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 },
+      },
+      revision: 0,
+      updatedAtMs: Date.now(),
+    }),
     server_get: ({ id }) => structuredClone(find(id)),
     server_runtime_stats_get: ({ serverId }) => ({ serverId, lastSuccessAtMs: null, lastFailureAtMs: null, lastPreflightAtMs: null, lastPreflightLatencyMs: null, lastFailureCode: null, updatedAtMs: 0 }),
     host_key_get: () => null,

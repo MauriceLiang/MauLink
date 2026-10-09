@@ -47,6 +47,19 @@
 .server-secret-field { position: relative; }
 .server-secret-field .base-input { padding-right: 40px; }
 .server-secret-field > .server-form-note { margin-left: calc(var(--server-dialog-label-width) + 12px); }
+.server-credential-field > .server-credential-label { display: flex; min-width: 0; align-items: center; gap: 5px; color: var(--color-text-secondary); }
+.server-credential-field > .server-credential-control { grid-column: 2; min-width: 0; }
+.server-credential-state { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.server-credential-state > span { flex: 1; min-width: 0; color: var(--color-text-primary); font-size: 12px; }
+.server-credential-state[data-state="pendingClear"] > span { color: var(--color-danger); }
+.server-credential-state .base-button { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+.server-credential-storage-summary { margin: 4px 0 0; }
+.server-credential-removal-note { color: var(--color-text-secondary); }
+.server-credential-identity-note { color: var(--color-danger); }
+.server-credential-storage-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.server-credential-storage-actions .base-button, .server-credential-edit-cancel { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+.server-credential-edit-cancel { margin: 6px 0 0 calc(var(--server-dialog-label-width) + 12px); }
+.server-credential-removal-dialog { max-width: 420px; }
 .server-secret-toggle { position: absolute; top: 5px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--color-text-secondary); background: transparent; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
 .server-secret-toggle .base-icon { transition: transform var(--motion-fast) var(--ease-standard); }
 .server-secret-toggle:hover { color: var(--color-text-primary); background: transparent; }
@@ -109,6 +122,8 @@
   .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options,
   .server-dialog .base-field > .base-field-error { grid-column: 1; }
   .server-secret-field > .server-form-note { margin-left: 0; }
+  .server-credential-field > .server-credential-label, .server-credential-field > .server-credential-control { grid-column: 1; }
+  .server-credential-edit-cancel { margin-left: 0; }
   .server-secret-toggle { top: 24px; }
   .server-dialog .server-key-label, .server-dialog .server-key-control { grid-column: 1; }
 }

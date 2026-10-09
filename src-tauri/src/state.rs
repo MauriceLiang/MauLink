@@ -1,8 +1,8 @@
 use crate::background_images::BackgroundImageStore;
 use maulink_core::{
-    AppCore, CredentialManager, HostKeyStore, LocalFileRegistry, MonitorManager, NetworkInspector,
-    ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore, SettingsService, SftpManager,
-    SftpTransferManager, SshConnectionManager, TerminalManager,
+    AppCore, CredentialManager, CredentialRevealService, HostKeyStore, LocalFileRegistry,
+    MonitorManager, NetworkInspector, ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore,
+    SettingsService, SftpManager, SftpTransferManager, SshConnectionManager, TerminalManager,
 };
 
 pub struct DesktopState {
@@ -13,6 +13,7 @@ pub struct DesktopState {
     pub settings: SettingsService,
     pub local_files: LocalFileRegistry,
     pub credentials: CredentialManager,
+    pub credential_reveal: CredentialRevealService,
     pub host_keys: HostKeyStore,
     pub network: NetworkInspector,
     pub geoip: maulink_core::GeoIpDatabase,

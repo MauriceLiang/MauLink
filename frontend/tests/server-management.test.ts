@@ -1,6 +1,7 @@
 import { DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { ref } from "vue";
 import { createIpcClient, type IpcTransport } from "../src/ipc/client";
 import { createMockIpc } from "../src/ipc/mock";
 import { createServerApi } from "../src/ipc/server";
@@ -8,6 +9,7 @@ import { createServerStore } from "../src/stores/servers";
 import { createServerAppearanceStore } from "../src/stores/server-appearance";
 import { createServerAppearanceApi } from "../src/ipc/server-appearance";
 import { createBackgroundImagesApi } from "../src/ipc/background-images";
+import type { ConnectionStore } from "../src/stores/connections";
 import { createServerMock, fixtureError } from "../src/harness/server-fixtures";
 import { shellServers } from "../src/harness/shell-fixtures";
 import { credentialValidation, newServerDraft, normalizeServerDraft, validateServerDraft } from "../src/dialogs/server-form";
@@ -24,11 +26,11 @@ const wrappers: VueWrapper[] = [];
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); document.body.innerHTML = ""; });
 const profile = shellServers[0]!;
 const makeStore = (transport: IpcTransport = createServerMock()) => createServerStore(createServerApi(createIpcClient(transport)));
-function mountEditor(store = makeStore(), serverId: string | null = null) {
+function mountEditor(store = makeStore(), serverId: string | null = null, connectionStore?: ConnectionStore) {
   const client = createIpcClient(createMockIpc({ server_get: () => profile, server_appearance_get: ({ serverId }) => ({ serverId, labelColor: null, environment: null, terminalOverrideEnabled: false, terminalAppearance: { themeMode: "followApp", customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" }, backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 } }, revision: 0, updatedAtMs: 0 }) }));
   const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
   const backgroundImages = createBackgroundImagesApi(client, path => path);
-  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store, appearanceStore, backgroundImages } });
+  const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store, appearanceStore, backgroundImages, connectionStore } });
   wrappers.push(wrapper);
   return wrapper;
 }
@@ -301,7 +303,8 @@ describe("server management contracts", () => {
     expect(ui().get(".server-key-file-hint").text()).toContain("沿用当前私钥配置");
     expect(ui().text()).not.toMatch(/fixture_ed25519|\/Users\/|\.pem/);
     expect(ui().find('input[type="password"]').exists()).toBe(false);
-    expect(ui().get(".server-credential-storage-field [role=combobox]").text()).toContain("本地加密存储");
+    expect(ui().get(".server-credential-storage-summary").text()).toBe("本地加密存储");
+    expect(ui().find(".server-credential-storage-field [role=combobox]").exists()).toBe(false);
   });
 
   it("maps the saved credential storage choice back to the profile boolean when editing", async () => {
@@ -309,11 +312,103 @@ describe("server management contracts", () => {
     const update = vi.fn(() => ({ server: { ...current, requireAuthentication: false, revision: current.revision + 1 }, credentialCleanupPending: false }));
     mountEditor(makeStore(createMockIpc({ server_get: () => current, server_update: update })), profile.id);
     await flushPromises();
-    expect(ui().get(".server-credential-storage-field [role=combobox]").text()).toContain("系统凭据库");
+    expect(ui().get(".server-credential-storage-summary").text()).toBe("系统凭据库");
+    await ui().get('button[aria-label="更多凭据操作"]').trigger("click");
+    await flushPromises();
+    const changeStorage = ui().findAll('[role="menuitem"]').find(item => item.text() === "更改存储位置");
+    expect(changeStorage).toBeDefined();
+    await changeStorage!.trigger("click");
+    await flushPromises();
     await chooseCredentialStorage("本地加密存储");
     await ui().get("form").trigger("submit");
     await flushPromises();
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ requireAuthentication: false }), credential: { mode: "keep" } }));
+  });
+
+  it("shows an existing credential without prompting and discards a cancelled replacement", async () => {
+    const current = { ...profile, hasSavedCredential: true };
+    const update = vi.fn(() => ({ server: { ...current, revision: current.revision + 1 }, credentialCleanupPending: false }));
+    mountEditor(makeStore(createMockIpc({ server_get: () => current, server_update: update })), profile.id);
+    await flushPromises();
+
+    expect(ui().get(".server-credential-state").text()).toContain("已保存密码");
+    expect(ui().find('input[type="password"]').exists()).toBe(false);
+    await ui().findAll("button").find(button => button.text().trim() === "更换")!.trigger("click");
+    await flushPromises();
+    expect((ui().get('input[type="password"]').element as HTMLInputElement).value).toBe("");
+    expect(ui().findAll(".server-credential-storage-field [role=combobox]")).toHaveLength(1);
+    await ui().get('input[type="password"]').setValue("unsaved-replacement");
+    await ui().findAll("button").find(button => button.text().trim() === "取消更换")!.trigger("click");
+    await flushPromises();
+
+    expect(ui().find('input[type="password"]').exists()).toBe(false);
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "keep" } }));
+    expect(JSON.stringify(update.mock.calls)).not.toContain("unsaved-replacement");
+  });
+
+  it("confirms removal in the draft, allows undo, and clears only on the overall save", async () => {
+    const current = { ...profile, hasSavedCredential: true };
+    const update = vi.fn(() => ({ server: { ...current, hasSavedCredential: false, revision: current.revision + 1 }, credentialCleanupPending: false }));
+    mountEditor(makeStore(createMockIpc({ server_get: () => current, server_update: update })), profile.id);
+    await flushPromises();
+
+    const openRemoval = async () => {
+      await ui().get('button[aria-label="更多凭据操作"]').trigger("click");
+      await flushPromises();
+      const remove = ui().findAll('[role="menuitem"]').find(item => item.text() === "移除已保存凭据");
+      expect(remove).toBeDefined();
+      await remove!.trigger("click");
+      await flushPromises();
+    };
+    await openRemoval();
+    expect(ui().get('[role="alertdialog"]').text()).toContain("关闭或取消弹窗会放弃此操作");
+    await ui().findAll('[role="alertdialog"] button').find(button => button.text().trim() === "取消")!.trigger("click");
+    await flushPromises();
+    expect(ui().get(".server-credential-state").attributes("data-state")).toBe("unchanged");
+
+    await openRemoval();
+    await ui().findAll('[role="alertdialog"] button').find(button => button.text().trim() === "移除已保存凭据")!.trigger("click");
+    await flushPromises();
+    expect(ui().get(".server-credential-state").attributes("data-state")).toBe("pendingClear");
+    expect(update).not.toHaveBeenCalled();
+    await ui().findAll("button").find(button => button.text().trim() === "撤销移除")!.trigger("click");
+    await flushPromises();
+    expect(ui().get(".server-credential-state").attributes("data-state")).toBe("unchanged");
+    expect(update).not.toHaveBeenCalled();
+
+    await openRemoval();
+    await ui().findAll('[role="alertdialog"] button').find(button => button.text().trim() === "移除已保存凭据")!.trigger("click");
+    await flushPromises();
+    expect(update).not.toHaveBeenCalled();
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "clear" } }));
+  });
+
+  it("does not pass a saved credential to draft connection tests while removal is pending", async () => {
+    const current = { ...profile, hasSavedCredential: true };
+    const startDraftTest = vi.fn().mockResolvedValue(null);
+    const connectionStore = {
+      snapshots: ref({}),
+      startDraftTest,
+      cancel: vi.fn(),
+      dismiss: vi.fn(),
+    } as unknown as ConnectionStore;
+    mountEditor(makeStore(createMockIpc({ server_get: () => current })), profile.id, connectionStore);
+    await flushPromises();
+
+    await ui().get('button[aria-label="更多凭据操作"]').trigger("click");
+    await flushPromises();
+    await ui().findAll('[role="menuitem"]').find(item => item.text() === "移除已保存凭据")!.trigger("click");
+    await flushPromises();
+    await ui().findAll('[role="alertdialog"] button').find(button => button.text().trim() === "移除已保存凭据")!.trigger("click");
+    await flushPromises();
+    await ui().findAll("button").find(button => button.text().trim() === "测试连接")!.trigger("click");
+    await flushPromises();
+
+    expect(startDraftTest).toHaveBeenCalledWith(expect.objectContaining({ host: current.host }), null, undefined);
   });
 
   it("reads the current profile before editing and submits its revision rather than stale list data", async () => {
@@ -360,6 +455,21 @@ describe("server management contracts", () => {
     resolve({ server: profile, credentialCleanupPending: false });
     await flushPromises();
     expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("routes the saved password menu action to the isolated reveal dialog request", async () => {
+    const savedProfile = { ...profile, hasSavedCredential: true };
+    const store = makeStore(createMockIpc({ server_get: () => savedProfile }));
+    const wrapper = mountEditor(store, savedProfile.id);
+    await flushPromises();
+    expect(ui().text()).toContain("已保存密码");
+    await ui().get('button[aria-label="更多凭据操作"]').trigger("click");
+    await flushPromises();
+    const revealAction = ui().get('[data-action="reveal"]');
+    expect(revealAction.text()).toContain("查看已保存密码");
+    await revealAction.trigger("click");
+    await flushPromises();
+    expect(wrapper.emitted("revealCredential")).toEqual([[savedProfile.id]]);
   });
 
   it("deletes only after explicit confirmation with the displayed revision and credential removal", async () => {

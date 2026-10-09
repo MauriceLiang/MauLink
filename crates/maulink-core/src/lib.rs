@@ -3,6 +3,7 @@
 pub mod app;
 pub mod connections;
 pub mod contracts;
+pub mod credential_reveal;
 pub mod credentials;
 pub mod error;
 pub mod geoip;
@@ -46,6 +47,12 @@ pub use contracts::{
     SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
     SftpWriteTextWithSudoPayload, TerminalAckPayload, TerminalIdPayload, TerminalOpenPayload,
     TerminalResizePayload, TerminalWritePayload, WorkspaceActivityPayload,
+};
+pub use credential_reveal::{
+    AvailabilityFuture, ChangeSecondaryPasswordPayload, CredentialRevealPolicy,
+    CredentialRevealResult, CredentialRevealService, CredentialRevealTarget, EnableDirectPayload,
+    EnableProtectedPayload, IdentityFuture, OsIdentityError, OsIdentityGate, OsIdentityPurpose,
+    RecoverRevealPolicyPayload, RevealMode, SetDenyPayload,
 };
 pub use credentials::{
     CredentialCipher, CredentialDeleteResult, CredentialKind, CredentialManager,

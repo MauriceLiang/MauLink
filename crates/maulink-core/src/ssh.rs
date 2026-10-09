@@ -63,6 +63,16 @@ pub(crate) struct FixedExecOutput {
     pub(crate) exit_status: Option<u32>,
 }
 
+struct SudoWriteRequest<'a> {
+    command: &'a str,
+    prompt_marker: &'a str,
+    ready_marker: &'a str,
+    password: Secret,
+    content: &'a str,
+    timeout: Duration,
+    cancellation: &'a CancellationToken,
+}
+
 #[derive(Clone)]
 pub struct SshConnectionManager {
     profiles: ProfileStore,
@@ -960,15 +970,15 @@ impl SshConnectionManager {
                     _ = cancellation.cancelled() => Err(cancelled()),
                     result = tokio::time::timeout(
                         remaining,
-                        session.execute_sudo_write(
+                        session.execute_sudo_write(SudoWriteRequest {
                             command,
                             prompt_marker,
                             ready_marker,
-                            password.take().ok_or_else(sudo_authorization_failed)?,
+                            password: password.take().ok_or_else(sudo_authorization_failed)?,
                             content,
-                            remaining,
-                            &cancellation,
-                        ),
+                            timeout: remaining,
+                            cancellation: &cancellation,
+                        }),
                     ) => result.unwrap_or_else(|_| Err(sudo_write_timeout())),
                 };
             }
@@ -1667,17 +1677,8 @@ impl SshSession {
         result
     }
 
-    async fn execute_sudo_write(
-        &self,
-        command: &str,
-        prompt_marker: &str,
-        ready_marker: &str,
-        password: Secret,
-        content: &str,
-        timeout: Duration,
-        cancellation: &CancellationToken,
-    ) -> Result<(), AppError> {
-        let password = password.into_utf8_string()?;
+    async fn execute_sudo_write(&self, request: SudoWriteRequest<'_>) -> Result<(), AppError> {
+        let password = request.password.into_utf8_string()?;
         if password.is_empty()
             || password
                 .chars()
@@ -1686,15 +1687,15 @@ impl SshSession {
             return Err(validation("password", "errors.sudoPasswordInvalid"));
         }
         tokio::select! {
-            _ = cancellation.cancelled() => Err(cancelled()),
+            _ = request.cancellation.cancelled() => Err(cancelled()),
             result = tokio::time::timeout(
-                timeout,
+                request.timeout,
                 self.execute_sudo_write_inner(
-                    command,
-                    prompt_marker.as_bytes(),
-                    ready_marker.as_bytes(),
+                    request.command,
+                    request.prompt_marker.as_bytes(),
+                    request.ready_marker.as_bytes(),
                     password,
-                    content,
+                    request.content,
                 ),
             ) => result.unwrap_or_else(|_| Err(sudo_write_timeout())),
         }

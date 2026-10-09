@@ -3,11 +3,13 @@ use std::path::PathBuf;
 use maulink_core::{
     AccentColor, ApiRequest, AppError, AppInfo, AppSettings, AuthType, AuthenticationChallenge,
     AuthenticationRespondPayload, BackgroundImageAsset, BackgroundImageGetResult,
-    BackgroundImageImportPayload, BackgroundImagePayload, ConnectionDisconnectPayload,
-    ConnectionIdPayload, ConnectionMode, ConnectionPreflightError, ConnectionPreflightPayload,
-    ConnectionPreflightResult, ConnectionSnapshot, ConnectionStartPayload, ConnectionStartSource,
-    ConnectionState, CredentialDeleteResult, CredentialKind, CredentialReplaceResult,
-    CredentialUpdate, CursorStyle, DecimalU64, EmptyPayload, Group, GroupCreate, GroupUpdate,
+    BackgroundImageImportPayload, BackgroundImagePayload, ChangeSecondaryPasswordPayload,
+    ConnectionDisconnectPayload, ConnectionIdPayload, ConnectionMode, ConnectionPreflightError,
+    ConnectionPreflightPayload, ConnectionPreflightResult, ConnectionSnapshot,
+    ConnectionStartPayload, ConnectionStartSource, ConnectionState, CredentialDeleteResult,
+    CredentialKind, CredentialReplaceResult, CredentialRevealPolicy, CredentialRevealResult,
+    CredentialRevealTarget, CredentialUpdate, CursorStyle, DecimalU64, EmptyPayload,
+    EnableDirectPayload, EnableProtectedPayload, Group, GroupCreate, GroupUpdate,
     GroupUpdatePayload, HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord,
     HostKeyRespondPayload, Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot,
     MonitorDiskSnapshot, MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric,
@@ -15,22 +17,23 @@ use maulink_core::{
     MonitorMetricQuality, MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus,
     MonitorRefreshPayload, MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot,
     NegotiatedAlgorithms, NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection,
-    NetworkInspectionSource, NetworkIpVersion, NetworkScope, ProxyType, RemoteFileEntry,
-    RemoteFileType, ResourceIdPayload, RetainedCredential, RevisionPayload, SelectedLocalFile,
-    ServerAppearance, ServerAppearancePayload, ServerAppearanceUpdate, ServerCreatePayload,
-    ServerDeletePayload, ServerEnvironment, ServerListPage, ServerListQuery, ServerMutationResult,
-    ServerProfile, ServerProfileDraft, ServerRuntimeStats, ServerRuntimeStatsPayload,
-    ServerUpdatePayload, SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload,
-    SftpDirectoryPage, SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload,
-    SftpReadTextPayload, SftpReadTextResult, SftpRenamePayload, SftpStatPayload,
-    SftpTransferDirection, SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot,
-    SftpTransferState, SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult,
-    SftpWriteTextWithSudoPayload, SidebarWidth, TerminalAckPayload, TerminalAppearanceSettings,
-    TerminalBackgroundFit, TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind,
-    TerminalBackgroundPosition, TerminalChunk, TerminalCustomColors, TerminalIdPayload,
-    TerminalOpenPayload, TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot,
-    TerminalState, TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme,
-    ToastPosition, UiDensity, WorkspaceActivityPayload,
+    NetworkInspectionSource, NetworkIpVersion, NetworkScope, ProxyType, RecoverRevealPolicyPayload,
+    RemoteFileEntry, RemoteFileType, ResourceIdPayload, RetainedCredential, RevealMode,
+    RevisionPayload, SelectedLocalFile, ServerAppearance, ServerAppearancePayload,
+    ServerAppearanceUpdate, ServerCreatePayload, ServerDeletePayload, ServerEnvironment,
+    ServerListPage, ServerListQuery, ServerMutationResult, ServerProfile, ServerProfileDraft,
+    ServerRuntimeStats, ServerRuntimeStatsPayload, ServerUpdatePayload, SetDenyPayload,
+    SettingsRecord, SettingsUpdate, SftpCursorPayload, SftpDeletePayload, SftpDirectoryPage,
+    SftpDownloadPayload, SftpListStartPayload, SftpMkdirPayload, SftpReadTextPayload,
+    SftpReadTextResult, SftpRenamePayload, SftpStatPayload, SftpTransferDirection,
+    SftpTransferIdPayload, SftpTransferListPayload, SftpTransferSnapshot, SftpTransferState,
+    SftpUploadPayload, SftpWriteTextPayload, SftpWriteTextResult, SftpWriteTextWithSudoPayload,
+    SidebarWidth, TerminalAckPayload, TerminalAppearanceSettings, TerminalBackgroundFit,
+    TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
+    TerminalChunk, TerminalCustomColors, TerminalIdPayload, TerminalOpenPayload,
+    TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState,
+    TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme, ToastPosition, UiDensity,
+    WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -75,6 +78,15 @@ fn main() -> Result<(), ts_rs::ExportError> {
     CredentialReplaceResult::export_all(&config)?;
     CredentialDeleteResult::export_all(&config)?;
     CredentialUpdate::export_all(&config)?;
+    RevealMode::export_all(&config)?;
+    CredentialRevealPolicy::export_all(&config)?;
+    CredentialRevealResult::export_all(&config)?;
+    CredentialRevealTarget::export_all(&config)?;
+    EnableProtectedPayload::export_all(&config)?;
+    EnableDirectPayload::export_all(&config)?;
+    SetDenyPayload::export_all(&config)?;
+    ChangeSecondaryPasswordPayload::export_all(&config)?;
+    RecoverRevealPolicyPayload::export_all(&config)?;
     RetainedCredential::export_all(&config)?;
     ServerMutationResult::export_all(&config)?;
     HostKeyRecord::export_all(&config)?;

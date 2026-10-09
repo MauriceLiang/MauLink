@@ -63,7 +63,7 @@ impl Secret {
         Ok(Self(bytes))
     }
 
-    fn expose(&self) -> &[u8] {
+    pub(crate) fn expose(&self) -> &[u8] {
         &self.0
     }
 

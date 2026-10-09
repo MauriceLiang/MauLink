@@ -4,6 +4,39 @@ import type { CredentialUpdate } from "../../../contracts/v1/CredentialUpdate";
 import type { SelectedLocalFile } from "../../../contracts/v1/SelectedLocalFile";
 import type { ServerMessage } from "../i18n/servers";
 
+export type CredentialEditAction = "unchanged" | "editing" | "pendingClear";
+
+export function initialCredentialEditAction(isNew: boolean): CredentialEditAction {
+  return isNew ? "editing" : "unchanged";
+}
+
+export function enterReplace(): CredentialEditAction {
+  return "editing";
+}
+
+export function cancelReplace(action: CredentialEditAction): CredentialEditAction {
+  return action === "editing" ? "unchanged" : action;
+}
+
+export function markPendingClear(action: CredentialEditAction): CredentialEditAction {
+  return action === "unchanged" ? "pendingClear" : action;
+}
+
+export function undoPendingClear(action: CredentialEditAction): CredentialEditAction {
+  return action === "pendingClear" ? "unchanged" : action;
+}
+
+export function resolveCredentialUpdate(
+  action: CredentialEditAction,
+  secret: string,
+  hasSavedCredential: boolean,
+): CredentialUpdate {
+  if (action === "unchanged") return { mode: "keep" };
+  if (action === "pendingClear") return { mode: "clear" };
+  if (!secret && !hasSavedCredential) return { mode: "clear" };
+  return { mode: "replace", secret };
+}
+
 export function newServerDraft(profile: ServerProfile | null = null, groupId: string | null = null): ServerProfileDraft {
   return {
     name: profile?.name ?? "", host: profile?.host ?? "", port: profile?.port ?? 22,

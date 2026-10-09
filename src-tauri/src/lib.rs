@@ -2,6 +2,7 @@ mod app_icon;
 mod background_images;
 mod commands;
 mod geoip;
+mod security;
 mod server_appearance;
 mod state;
 
@@ -11,21 +12,24 @@ use commands::{
     app_get_info, auth_respond, background_image_delete, background_image_get,
     background_image_import, connection_cancel, connection_disconnect, connection_get,
     connection_preflight, connection_start, credential_cleanup_retry, credential_delete_retained,
-    credential_list_retained, group_create, group_delete, group_list, group_update, host_key_get,
-    host_key_respond, local_file_select, monitor_get_history, monitor_get_snapshot,
-    monitor_refresh, network_inspect, server_create, server_delete, server_get, server_list,
-    server_runtime_stats_get, server_update, settings_get, settings_update, sftp_delete,
-    sftp_download, sftp_list_close, sftp_list_next, sftp_list_start, sftp_mkdir, sftp_read_text,
-    sftp_rename, sftp_stat, sftp_transfer_cancel, sftp_transfer_get, sftp_transfer_list,
-    sftp_upload, sftp_write_text, sftp_write_text_with_sudo, terminal_ack, terminal_close,
-    terminal_get, terminal_open, terminal_resize, terminal_write, workspace_set_activity,
+    credential_list_retained, credential_reveal, group_create, group_delete, group_list,
+    group_update, host_key_get, host_key_respond, local_file_select, monitor_get_history,
+    monitor_get_snapshot, monitor_refresh, network_inspect, reveal_policy_change_password,
+    reveal_policy_enable_direct, reveal_policy_enable_protected, reveal_policy_get,
+    reveal_policy_recover, reveal_policy_set_deny, server_create, server_delete, server_get,
+    server_list, server_runtime_stats_get, server_update, settings_get, settings_update,
+    sftp_delete, sftp_download, sftp_list_close, sftp_list_next, sftp_list_start, sftp_mkdir,
+    sftp_read_text, sftp_rename, sftp_stat, sftp_transfer_cancel, sftp_transfer_get,
+    sftp_transfer_list, sftp_upload, sftp_write_text, sftp_write_text_with_sudo, terminal_ack,
+    terminal_close, terminal_get, terminal_open, terminal_resize, terminal_write,
+    workspace_set_activity,
 };
 use maulink_core::{
     AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialCipher, CredentialManager,
-    CredentialWorker, Database, HostKeyStore, HostKeyVerifier, LocalFileRegistry, MonitorManager,
-    NetworkInspector, ProfileStore, ServerAppearanceStore, ServerRuntimeStatsStore,
-    SettingsService, SftpManager, SftpTransferManager, SshConnectionManager, SshConnector,
-    TerminalManager,
+    CredentialRevealService, CredentialWorker, Database, HostKeyStore, HostKeyVerifier,
+    LocalFileRegistry, MonitorManager, NetworkInspector, ProfileStore, ServerAppearanceStore,
+    ServerRuntimeStatsStore, SettingsService, SftpManager, SftpTransferManager,
+    SshConnectionManager, SshConnector, TerminalManager,
 };
 use server_appearance::{server_appearance_get, server_appearance_list, server_appearance_update};
 use state::DesktopState;
@@ -55,6 +59,11 @@ pub fn run() {
                 CredentialCipher::open(app_data_directory.join("credential-encryption.key"))?;
             let credentials =
                 CredentialManager::new(database.clone(), credential_worker, credential_cipher);
+            let credential_reveal = CredentialRevealService::new(
+                database.clone(),
+                credentials.clone(),
+                security::NativeIdentityGate::new(app.handle().clone()),
+            );
             if let Err(error) = tauri::async_runtime::block_on(credentials.recover_pending()) {
                 eprintln!(
                     "MauLink deferred credential cleanup: {}",
@@ -114,6 +123,7 @@ pub fn run() {
                 settings,
                 local_files,
                 credentials,
+                credential_reveal,
                 host_keys,
                 network,
                 geoip,
@@ -145,6 +155,13 @@ pub fn run() {
             credential_list_retained,
             credential_delete_retained,
             credential_cleanup_retry,
+            reveal_policy_get,
+            reveal_policy_enable_protected,
+            reveal_policy_enable_direct,
+            reveal_policy_set_deny,
+            reveal_policy_change_password,
+            reveal_policy_recover,
+            credential_reveal,
             connection_start,
             connection_get,
             connection_cancel,
