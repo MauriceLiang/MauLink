@@ -29,7 +29,7 @@ defineEmits<{ "update:query": [value: string]; home: []; about: []; add: []; set
       <button type="button" class="palette-trigger" :aria-label="t('commandPalette')" @click="$emit('palette')"><kbd>{{ shortcut }}</kbd></button>
     </div>
     <div class="shell-topbar-actions">
-      <BaseButton variant="primary" :disabled="!canManage" @click="$emit('add')"><ShellIcon name="plus" />{{ t('addServer') }}</BaseButton>
+      <BaseButton variant="primary" size="lg" :disabled="!canManage" @click="$emit('add')"><ShellIcon name="plus" />{{ t('addServer') }}</BaseButton>
       <BaseIconButton :label="t('settings')" :disabled="!settingsEnabled" @click="$emit('settings')"><ShellIcon name="settings" /></BaseIconButton>
       <BaseIconButton :label="t('aboutMauLink')" @click="$emit('about')"><ShellIcon name="info" /></BaseIconButton>
     </div>

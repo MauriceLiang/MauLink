@@ -1,0 +1,60 @@
+{
+  "title": "MauLink 弹窗与按钮统一风格改造视觉证据",
+  "baseCommit": "cb016fad09d600ba366c0b7167eda64ebc80c41d",
+  "captureDate": "2026-10-09",
+  "afterScreenshotCount": 60,
+  "beforeComparisonCount": 14,
+  "dpr": 1,
+  "allIndependentRepeatsIdentical": true,
+  "allCapturedPagesWithoutHorizontalOverflow": true,
+  "matrices": [
+    {
+      "name": "light-zh-CN-1440x920",
+      "count": 35,
+      "manifest": "after/light-zh-CN-1440x920/manifest.json",
+      "theme": "light",
+      "locale": "zh-CN",
+      "viewport": "1440x920",
+      "density": "standard"
+    },
+    {
+      "name": "dark-zh-CN-1440x920-core",
+      "count": 12,
+      "manifest": "after/dark-zh-CN-1440x920-core/manifest.json",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "viewport": "1440x920",
+      "density": "standard"
+    },
+    {
+      "name": "light-en-860x640",
+      "count": 6,
+      "manifest": "after/light-en-860x640/manifest.json",
+      "theme": "light",
+      "locale": "en",
+      "viewport": "860x640",
+      "density": "standard"
+    },
+    {
+      "name": "custom-red-compact",
+      "count": 5,
+      "manifest": "after/custom-red-compact/manifest.json",
+      "theme": "light",
+      "locale": "zh-CN",
+      "viewport": "1440x920",
+      "density": "compact"
+    },
+    {
+      "name": "button-overview",
+      "count": 2,
+      "manifest": "after/button-overview/manifest.json",
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "locale": "zh-CN",
+      "viewport": "1440x320",
+      "density": "standard"
+    }
+  ]
+}

@@ -107,10 +107,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 .base-select-trigger[data-state="open"] .base-icon { transform: rotate(180deg); }
 .base-select-indicator, .base-checkbox-indicator { display: inline-flex; align-items: center; justify-content: center; animation: check-in var(--motion-fast) var(--ease-enter); }
 @keyframes check-in { from { opacity: 0; transform: scale(.75); } to { opacity: 1; transform: scale(1); } }
-.base-icon-button .base-icon, .base-icon-button .shell-icon { transition: transform var(--motion-fast) var(--ease-standard); }
-.base-icon-button:hover:not(:disabled) .base-icon, .base-icon-button:hover:not(:disabled) .shell-icon { transform: scale(1.1); }
-.base-icon-button:active:not(:disabled) .base-icon, .base-icon-button:active:not(:disabled) .shell-icon { transform: scale(.96); }
-.base-icon-button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.base-icon-button:focus-visible { outline-color: var(--color-border-active); }
 .base-popover-content { z-index: calc(var(--z-popup-context) + var(--z-popover)); max-width: min(320px, calc(100vw - 16px)); padding: 14px; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
 .base-popover-content h3 { margin: 0 0 8px; font-size: 14px; }
 .base-info-trigger { display: inline-grid; width: 24px; height: 24px; flex: none; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); color: var(--color-text-tertiary); background: transparent; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
@@ -140,7 +137,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 @keyframes dialog-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, calc(-50% + 4px)) scale(.985); } }
 @media (prefers-reduced-motion: reduce) {
   .base-button-spinner { animation: none; }
-  .base-switch-thumb, .base-collapsible-chevron, .settings-dialog form section,
+  .base-switch-thumb, .base-collapsible-chevron, .settings-workspace-section,
   .server-home-card, .terminal-tabs [role="tab"], .shell-server-item { animation-duration: 1ms !important; transition-duration: 1ms !important; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -152,7 +149,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
   .base-alert,
   .server-form-error,
   .files-message[role="status"],
-  .settings-dialog form section,
+  .settings-workspace-section,
   .shell-welcome,
   .shell-welcome-icon,
   .server-home,

@@ -23,17 +23,16 @@ import BaseIconButton from "../base/BaseIconButton.vue";
 import BaseDialog from "../base/BaseDialog.vue";
 import TerminalTabs from "./TerminalTabs.vue";
 import XtermHost from "./XtermHost.vue";
-import TerminalSettingsDialog from "../../dialogs/TerminalSettingsDialog.vue";
 import { mapError } from "../../errors/mapper";
 import { terminalBackgroundImageStyle, terminalBackgroundOverlayStyle } from "../../terminal/background";
 import { resolveTerminalAppearance } from "../../terminal/appearance";
 import { resolveTerminalTheme } from "../../terminal/theme";
 const t = messages(terminalMessages);
 const props = defineProps<{ server: ServerProfile; serverAppearance?: ServerAppearance; snapshot: ConnectionSnapshot; controller: TerminalController; sftp: ReturnType<typeof createSftpApi>; transfers: TransferStore; monitor: MonitorStore; preferences: TerminalPreferences; backgroundImages: BackgroundImagesApi; visible: boolean; busy: boolean; error?: AppError | null }>();
-const emit = defineEmits<{ home: []; disconnect: [stopActiveTransfers: boolean]; focusMode: [enabled: boolean]; view: [pane: 'terminal' | 'files' | 'monitor'] }>();
+const emit = defineEmits<{ home: []; settings: []; disconnect: [stopActiveTransfers: boolean]; focusMode: [enabled: boolean]; view: [pane: 'terminal' | 'files' | 'monitor'] }>();
 const root = ref<HTMLElement | null>(null);
 const activeId = ref<string | null>(null);
-const settingsOpen = ref(false); const disconnectOpen = ref(false); const focused = ref(false);
+const disconnectOpen = ref(false); const focused = ref(false);
 const tabs = computed(() => props.controller.tabs.value.filter(tab => tab.connectionId === props.snapshot.connectionId));
 const active = computed(() => tabs.value.find(tab => tab.id === activeId.value));
 const ready = computed(() => props.snapshot.state === 'ready');
@@ -102,7 +101,6 @@ watch(ready, value => { if (!value) { void props.controller.refreshConnection(pr
 async function activate(id: string, focus = true) { activeId.value = id; await nextTick(); if (focus) props.controller.focus(id); }
 async function close(id: string) { if (await props.controller.close(id)) { if (activeId.value === id) activeId.value = tabs.value.at(-1)?.id ?? null; await nextTick(); if (activeId.value) props.controller.focus(activeId.value); else root.value?.querySelector<HTMLButtonElement>('.terminal-new')?.focus(); } }
 async function toggleFocus() { focused.value = !focused.value; emit('focusMode', focused.value); await nextTick(); if (activeId.value) props.controller.focus(activeId.value); }
-async function closeSettings() { settingsOpen.value = false; await nextTick(); if (activeId.value) props.controller.focus(activeId.value); }
 function disconnect() { stopTransfers.value = false; if (requireStopConfirmation.value || (props.preferences.record.value?.value.confirmBeforeDisconnect ?? true)) disconnectOpen.value = true; else emit('disconnect', false); }
 watch(() => props.busy, busy => { if (!busy && !ready.value) disconnectOpen.value = false; });
 defineExpose({ connectionId: props.snapshot.connectionId, view });
@@ -110,7 +108,7 @@ defineExpose({ connectionId: props.snapshot.connectionId, view });
 <template>
   <section ref="root" class="terminal-workspace" :class="{ 'is-focused': focused, 'is-files': pane === 'files', 'is-monitor': pane === 'monitor' }" :aria-label="t('workspace', {name: server.name})">
     <header class="workspace-heading"><BaseIconButton class="workspace-heading-action" :label="t('backToServers')" @click="emit('home')"><BaseIcon name="arrow-left" /></BaseIconButton><div><h1>{{ server.name }}</h1><span>{{ server.username }}@{{ server.host }}:{{ server.port }}</span><span v-if="environmentLabel || serverAppearance?.labelColor" class="workspace-server-environment"><i :style="serverAppearance?.labelColor ? { backgroundColor: serverAppearance.labelColor } : undefined"></i>{{ environmentLabel }}</span></div><span class="workspace-connection-state">{{ connectionStateText(snapshot.state) }}</span><BaseIconButton class="workspace-heading-action" :label="t('disconnect')" :disabled="!ready || busy || transfers.starting.value[snapshot.connectionId]" @click="disconnect"><BaseIcon name="power" /></BaseIconButton><div class="workspace-view-tabs" role="group" :aria-label="t('workspace', {name: server.name})"><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'terminal'" @click="view('terminal')">{{ t('terminal') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'files'" @click="view('files')">{{ t('files') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'monitor'" @click="view('monitor')">{{ t('monitor') }}</BaseButton></div></header>
-    <div v-show="pane === 'terminal'" class="terminal-toolbar"><TerminalTabs :tabs="tabs" :active-id="activeId" @activate="activate" @close="close" /><BaseIconButton class="terminal-new terminal-toolbar-action" :label="t('newTerminal')" :disabled="!ready || busy" @click="create"><BaseIcon name="plus" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="focused ? t('exitFocus') : t('focus')" :disabled="!active" :aria-pressed="focused" @click="toggleFocus"><BaseIcon :name="focused ? 'minimize' : 'maximize'" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('terminalSettings')" @click="settingsOpen = true"><BaseIcon name="settings" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('clearTerminal')" :disabled="!active" @click="activeId && controller.clear(activeId)"><BaseIcon name="eraser" /></BaseIconButton></div>
+    <div v-show="pane === 'terminal'" class="terminal-toolbar"><TerminalTabs :tabs="tabs" :active-id="activeId" @activate="activate" @close="close" /><BaseIconButton class="terminal-new terminal-toolbar-action" :label="t('newTerminal')" :disabled="!ready || busy" @click="create"><BaseIcon name="plus" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="focused ? t('exitFocus') : t('focus')" :disabled="!active" :aria-pressed="focused" @click="toggleFocus"><BaseIcon :name="focused ? 'minimize' : 'maximize'" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('terminalSettings')" @click="emit('settings')"><BaseIcon name="settings" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('clearTerminal')" :disabled="!active" @click="activeId && controller.clear(activeId)"><BaseIcon name="eraser" /></BaseIconButton></div>
     <div v-show="pane === 'terminal' || pane === 'files'" class="terminal-main" :class="{ 'has-inline-files': pane === 'terminal' && filesExpanded, 'is-full-files': pane === 'files' }">
       <div v-show="pane === 'terminal'" class="terminal-stack" :style="terminalStackStyle"><div v-if="backgroundImageUrl" class="terminal-background-layer" aria-hidden="true" :style="terminalBackgroundStyle"></div><div v-if="backgroundImageUrl" class="terminal-background-overlay" aria-hidden="true" :style="terminalOverlayStyle"></div><XtermHost v-for="tab in tabs" :key="tab.id" v-show="tab.id === activeId" :id="tab.id" :controller="controller" :active="visible && pane === 'terminal' && tab.id === activeId" /><p v-if="!tabs.length" class="terminal-empty">{{ ready ? t('selectNewTerminalToOpenAShell') : t('sshConnectionEnded') }}</p></div>
       <MonitorView v-show="pane === 'terminal'" :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" quick @full="view('monitor')" />
@@ -121,12 +119,11 @@ defineExpose({ connectionId: props.snapshot.connectionId, view });
     <footer v-show="pane === 'terminal'" class="terminal-footer" role="status"><span v-if="filesExpanded && filePageInfo">{{ filePageInfo }}</span><span>{{ active ? active.state === 'running' ? active.inputPaused ? t('inputPaused') : t('shellReady') : t('sessionStopped') : t('waitingForShell') }}</span><span>{{ active?.columns ?? '—' }} × {{ active?.rows ?? '—' }}</span><span>{{ t(tabs.length === 1 ? 'oneTerminal' : 'terminalCount', {count: tabs.length}) }}</span><BaseIconButton class="terminal-files-toggle" :label="t(filesExpanded ? 'collapseFiles' : 'expandFiles')" :disabled="!ready || busy" :aria-pressed="filesExpanded" @click="toggleFiles"><BaseIcon name="folder" /></BaseIconButton></footer>
     <MonitorView v-show="pane === 'monitor'" :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" />
     <p v-show="pane === 'terminal'" v-if="active?.error || preferences.error.value || backgroundError || error" class="terminal-warning" role="alert"><span v-if="active?.error">{{ active.error }}</span><span v-if="preferences.error.value">{{ preferences.error.value }}</span><span v-if="backgroundError">{{ backgroundError }}</span><span v-if="error">{{ presentError(error).message }}</span></p>
-    <TerminalSettingsDialog :open="settingsOpen" :preferences="preferences" :background-images="backgroundImages" @close="closeSettings" />
-    <BaseDialog :open="disconnectOpen" :title="t('disconnectSSH')" :busy="busy" @close="disconnectOpen = false">
+    <BaseDialog :open="disconnectOpen" size="standard" :title="t('disconnectSSH')" :busy="busy" @close="disconnectOpen = false">
       <p>{{ t('disconnectNote', {name: server.name}) }}</p>
       <BaseCheckbox v-if="requireStopConfirmation" v-model="stopTransfers" :disabled="busy" :label="t('stopTransfersForThisConnectionBeforeDisconnecting')" />
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
-      <template #footer><BaseButton :disabled="busy" @click="disconnectOpen = false">{{ t('keepConnection') }}</BaseButton><BaseButton variant="danger" :disabled="busy || (requireStopConfirmation && !stopTransfers)" @click="emit('disconnect', stopTransfers)">{{ t('confirmDisconnect') }}</BaseButton></template>
+      <template #footer><BaseButton size="md" :disabled="busy" @click="disconnectOpen = false">{{ t('keepConnection') }}</BaseButton><BaseButton size="md" variant="danger" :disabled="busy || (requireStopConfirmation && !stopTransfers)" @click="emit('disconnect', stopTransfers)">{{ t('confirmDisconnect') }}</BaseButton></template>
     </BaseDialog>
   </section>
 </template>

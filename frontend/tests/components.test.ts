@@ -25,6 +25,24 @@ describe("base keyboard interactions", () => {
     expect(button.getAttribute("aria-busy")).toBe("false");
   });
 
+  it("keeps the secondary default and exposes the design variants, sizes, and block class", () => {
+    const wrapper = mount(BaseButton, { slots: { default: "动作" } });
+    wrappers.push(wrapper);
+    expect(wrapper.classes()).toContain("base-button--secondary");
+    expect(wrapper.classes()).toContain("base-button--md");
+
+    for (const variant of ["primary", "secondary", "softPrimary", "danger", "ghost", "icon"] as const) {
+      const button = mount(BaseButton, { props: { variant, size: "lg", block: true } });
+      wrappers.push(button);
+      expect(button.classes()).toContain(`base-button--${variant}`);
+      expect(button.classes()).toContain("base-button--lg");
+      expect(button.classes()).toContain("base-button--block");
+    }
+    const compact = mount(BaseButton, { props: { size: "sm" } });
+    wrappers.push(compact);
+    expect(compact.classes()).toContain("base-button--sm");
+  });
+
   it("keeps an initially disabled button inactive and outside focus navigation", () => {
     const opener = document.createElement("button");
     document.body.append(opener);

@@ -19,6 +19,6 @@ defineEmits<{ "update:query": [value: string]; select: [id: string]; add: []; gr
       <ShellIcon name="search" /><BaseInput :label="t('searchServers')" type="search" autocomplete="off" :model-value="query" :placeholder="t('search')" @update:model-value="$emit('update:query', $event)" />
     </div></div>
     <ServerNavigation :servers="servers" :groups="groups" :selected-id="selectedId" :query="query" :pending="pending" :failed="failed" :can-manage="canManage" @select="$emit('select', $event)" @groups="$emit('groups')" @action="$emit('server-action', $event)" />
-    <div class="shell-sidebar-bottom"><BaseButton :disabled="!canManage" @click="$emit('add')"><ShellIcon name="plus" />{{ t('addServer') }}</BaseButton></div>
+    <div class="shell-sidebar-bottom"><BaseButton variant="softPrimary" size="lg" block :disabled="!canManage" @click="$emit('add')"><ShellIcon name="plus" />{{ t('addServer') }}</BaseButton></div>
   </aside>
 </template>

@@ -36,7 +36,7 @@ async function restoreFocus() {
 </script>
 <template>
   <section ref="panel" class="connection-panel" :aria-label="t('connection', {name: server.name})" :aria-busy="busy">
-    <BaseDialog :open="errorOpen && !!error && !store.challenge.value" :title="t('connectionFailed')" panel-class="connection-dialog" :close-label="t('close')" @close="errorOpen = false" @closed="restoreFocus">
+  <BaseDialog :open="errorOpen && !!error && !store.challenge.value" size="standard" :title="t('connectionFailed')" panel-class="connection-dialog" :close-label="t('close')" @close="errorOpen = false" @closed="restoreFocus">
       <ConnectionError v-if="error" :error="error" />
       <template #footer>
         <BaseButton @click="errorOpen = false">{{ t('close') }}</BaseButton>

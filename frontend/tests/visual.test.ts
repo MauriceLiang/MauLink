@@ -5,16 +5,17 @@ import { createIpcClient } from '../src/ipc/client';
 import { createTerminalApi } from '../src/ipc/terminal';
 import { createVisualMock, createVisualStorage, visualConfig, visualEpoch, visualFiles } from '../src/harness/visual-fixtures';
 import cases from '../visual/cases.json';
-const config = (page = 'servers') => ({page,theme:'dark' as const,locale:'en' as const});
+const config = (page = 'servers') => ({page,theme:'dark' as const,locale:'en' as const,accentColor:'blue' as const,customAccentColor:null,uiDensity:'standard' as const});
 describe('deterministic visual fixtures', () => {
-  it('validates stable page/theme/locale inputs and falls back safely', () => {
+  it('validates stable page/theme/locale/customization inputs and falls back safely', () => {
     expect(new Set(cases.map(item=>item.page)).size).toBe(cases.length);
     expect(visualConfig(new URLSearchParams('page=host-key&theme=dark&locale=en'))).toEqual(config('host-key'));
-    expect(visualConfig(new URLSearchParams('page=https://example.test/&theme=unknown&locale=unknown'))).toEqual({page:'servers',theme:'light',locale:'zh-CN'});
+    expect(visualConfig(new URLSearchParams('page=settings-appearance&theme=light&accentColor=custom&customAccentColor=%23D92D20&uiDensity=compact'))).toMatchObject({page:'settings-appearance',theme:'light',accentColor:'custom',customAccentColor:'#D92D20',uiDensity:'compact'});
+    expect(visualConfig(new URLSearchParams('page=https://example.test/&theme=unknown&locale=unknown&accentColor=invalid&customAccentColor=red&uiDensity=invalid'))).toEqual({page:'servers',theme:'light',locale:'zh-CN',accentColor:'blue',customAccentColor:null,uiDensity:'standard'});
   });
   it('includes the Server Overview and terminal personalization acceptance scenes', () => {
     const pages = new Set(cases.map(item=>item.page));
-    for (const page of ['server-overview','terminal-light','terminal-dark','terminal-custom','terminal-image','settings-terminal-image']) expect(pages.has(page)).toBe(true);
+    for (const page of ['server-overview','terminal-light','terminal-dark','terminal-custom','terminal-image','settings-terminal-image','settings-security','delete-group','disconnect','disconnect-transfer','quick-monitor','credential-reveal']) expect(pages.has(page)).toBe(true);
   });
   it('returns equal visible state under different wall clocks and independent mounts', async () => {
     async function capture() {
@@ -55,5 +56,9 @@ describe('deterministic visual fixtures', () => {
   it('rejects unsupported writes instead of falling through to native IPC', async () => {
     const client=createIpcClient(createVisualMock(config()));
     await expect(client.call('sftp_delete',{connectionId:'visual-connection',path:'/opt/app/package.json',expectedType:'file',confirmed:true})).rejects.toMatchObject({code:'INTERNAL'});
+  });
+  it('provides an available default credential viewing policy for the security screen', async () => {
+    const client=createIpcClient(createVisualMock(config('settings-security')));
+    expect(await client.call('reveal_policy_get',{})).toMatchObject({mode:'deny',revision:1,nativeAuthAvailable:true});
   });
 });

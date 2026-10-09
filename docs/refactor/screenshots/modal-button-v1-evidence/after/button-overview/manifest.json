@@ -1,0 +1,34 @@
+[
+  {
+    "page": "button-overview",
+    "file": "button-overview-light.jpg",
+    "url": "http://127.0.0.1:1420/?harness=interaction&theme=light",
+    "width": 1440,
+    "height": 320,
+    "dpr": 1,
+    "theme": "light",
+    "locale": "zh-CN",
+    "density": "standard",
+    "fonts": "loaded",
+    "overflow": false,
+    "sha256": "b836da0d007f0591e6a3c85191001e98d1d5f83669a3a1bc96eb27a6c162f2bf",
+    "repeatSha256": "b836da0d007f0591e6a3c85191001e98d1d5f83669a3a1bc96eb27a6c162f2bf",
+    "identical": true
+  },
+  {
+    "page": "button-overview",
+    "file": "button-overview-dark.jpg",
+    "url": "http://127.0.0.1:1420/?harness=interaction&theme=dark",
+    "width": 1440,
+    "height": 320,
+    "dpr": 1,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "density": "standard",
+    "fonts": "loaded",
+    "overflow": false,
+    "sha256": "97d61590cd40c509a2cfa2986d68ac6c163c6ba35d5bd6ec2d635c1aaf571cf8",
+    "repeatSha256": "97d61590cd40c509a2cfa2986d68ac6c163c6ba35d5bd6ec2d635c1aaf571cf8",
+    "identical": true
+  }
+]
