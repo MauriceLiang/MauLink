@@ -36,11 +36,11 @@
 .base-toast-viewport[data-position="topLeft"], .base-toast-viewport[data-position="bottomLeft"] { left: 16px; align-items: flex-start; }
 .base-toast-viewport[data-position="topRight"], .base-toast-viewport[data-position="bottomRight"] { right: 16px; align-items: flex-end; }
 .base-toast-viewport[data-position="topCenter"], .base-toast-viewport[data-position="bottomCenter"] { left: 50%; transform: translateX(-50%); align-items: center; }
-.base-toast { display: grid; flex: none; grid-template-columns: 18px minmax(0, 1fr) 28px; align-items: start; gap: 10px; width: fit-content; min-width: min(280px, 100%); max-width: 100%; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); box-sizing: border-box; pointer-events: auto; overflow-wrap: anywhere; }
+.base-toast { display: grid; flex: none; grid-template-columns: 24px minmax(0, 1fr) 28px; align-items: start; gap: 10px; width: fit-content; min-width: min(280px, 100%); max-width: 100%; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); box-sizing: border-box; pointer-events: auto; overflow-wrap: anywhere; }
 .base-toast-content { min-width: 0; }
 .base-toast-title { display: block; margin: 0; color: var(--color-text-primary); font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .base-toast-description { display: block; margin: 3px 0 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
-.base-toast-status-icon { width: 18px; height: 18px; margin-top: 1px; }
+.base-toast-status-icon { align-self: center; width: 24px; height: 24px; }
 .base-toast--success .base-toast-status-icon { color: var(--color-success); }
 .base-toast--error .base-toast-status-icon { color: var(--color-danger); }
 .base-toast--warning .base-toast-status-icon { color: var(--color-warning); }
