@@ -13,7 +13,7 @@
 .server-home-card .base-button { min-height: 28px; padding: 0 11px; font-size: 12px; }
 .server-card-menu summary { padding: 4px; border-radius: 4px; cursor: pointer; list-style: none; }
 .server-card-menu summary::-webkit-details-marker { display: none; }
-.server-dialog { height: auto; max-height: min(620px, calc(100dvh - 40px)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+.server-dialog { --server-dialog-label-width: 128px; height: auto; max-height: min(620px, calc(100dvh - 40px)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .server-dialog .base-dialog-heading { border-bottom: 0; }
 .server-dialog .base-dialog-heading h2 { font-size: 16px; }
 .server-dialog .base-dialog-footer { align-items: center; justify-content: space-between; padding: 8px 20px 16px; border-top: 0; }
@@ -32,32 +32,44 @@
 .server-dialog-panel[data-state="active"] { animation: server-dialog-panel-in var(--motion-normal) var(--ease-enter); }
 @keyframes server-dialog-panel-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 .server-dialog-loading { display: grid; height: 100%; min-height: 0; place-items: center; padding: 24px; color: var(--color-text-secondary); }
-.server-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 14px 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.server-form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .server-field-full { grid-column: 1 / -1; }
-.server-dialog .base-field { gap: 6px; font-size: 12px; color: var(--color-text-secondary); }
+.server-host-port-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px; align-items: start; gap: 12px; }
+.server-dialog .base-field { display: grid; grid-template-columns: var(--server-dialog-label-width) minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-text-secondary); }
+.server-dialog .base-field > label, .server-dialog .base-field > span { grid-column: 1; }
+.server-dialog .base-field > input, .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options, .server-dialog .base-field > .base-field-error { grid-column: 2; }
+.server-dialog .server-port-field { grid-template-columns: minmax(0, 1fr); align-content: start; }
+.server-dialog .server-port-field > input { grid-column: 1; }
 .server-dialog .base-input { min-height: var(--app-density-input-height, 38px); padding: 8px 11px; font-size: 13px; }
 .server-auth-options { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--color-bg-hover); }
 .server-auth-options .base-button { flex: 1; min-height: 26px; border: 0; color: var(--color-text-secondary); background: transparent; font-size: 12px; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .server-auth-options .base-button[aria-pressed="true"] { color: var(--color-primary-hover); background: var(--color-primary-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 16%, transparent); }
 .server-secret-field { position: relative; }
 .server-secret-field .base-input { padding-right: 40px; }
-.server-secret-toggle { position: absolute; top: 24px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--color-text-secondary); background: transparent; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
+.server-secret-field > .server-form-note { margin-left: calc(var(--server-dialog-label-width) + 12px); }
+.server-secret-toggle { position: absolute; top: 5px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: var(--color-text-secondary); background: transparent; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
 .server-secret-toggle .base-icon { transition: transform var(--motion-fast) var(--ease-standard); }
 .server-secret-toggle:hover { color: var(--color-text-primary); background: transparent; }
 .server-secret-toggle:hover .base-icon { transform: scale(1.1); }
 .server-secret-toggle:active { transform: scale(.94); }
 .server-form-note { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
-.server-key-picker { font-size: 12px; color: var(--color-text-secondary); }
-.server-key-picker > div { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.server-key-picker > div > span { flex: 1; overflow-wrap: anywhere; }
+.server-credential-storage-row { display: flex; align-items: center; gap: 8px; }
+.server-key-picker { display: grid; grid-template-columns: var(--server-dialog-label-width) minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-text-secondary); }
+.server-key-picker-label { grid-column: 1; grid-row: 1; }
+.server-key-picker-actions { display: flex; grid-column: 2; grid-row: 1; align-items: center; gap: 8px; }
+.server-key-picker-value { grid-column: 2; grid-row: 2; overflow-wrap: anywhere; }
 .server-key-picker .base-button { min-height: 30px; font-size: 12px; }
+.server-info-button { display: inline-grid; width: 20px; height: 20px; flex: none; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; color: var(--color-text-secondary); background: transparent; cursor: help; }
+.server-info-button .base-icon { width: 12px; height: 12px; }
+.server-info-button:hover { border-color: var(--color-primary-border); color: var(--color-primary); }
+.server-info-button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
 .server-advanced-sections { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.server-advanced-section { display: grid; gap: 14px; min-width: 0; }
+.server-advanced-section { display: grid; gap: 16px; min-width: 0; }
 .server-advanced-section-heading { display: grid; gap: 4px; }
 .server-advanced-section-heading h3 { margin: 0; color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
 .server-advanced-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; align-items: end; }
 .server-dependent-fields { animation: feedback-in var(--motion-normal) var(--ease-enter); }
-.server-connection-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.server-connection-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .server-form-error { margin: 12px 0 0; color: var(--color-danger); font-size: 13px; line-height: 1.6; animation: feedback-in var(--motion-normal) var(--ease-enter); }
 .server-form-error + .base-button { margin-top: 12px; }
 .server-dialog-panel > .base-button { margin-top: 12px; }
@@ -80,7 +92,19 @@
 .server-group-manager .base-button { min-height: 30px; font-size: 12px; }
 .server-group-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .server-group-form .base-field { flex: 1; min-width: 180px; }
-@media (max-width: 600px) { .server-advanced-row, .server-connection-settings { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .server-advanced-row, .server-connection-settings, .server-host-port-row { grid-template-columns: minmax(0, 1fr); }
+  .server-dialog .base-field { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .server-dialog .base-field > label, .server-dialog .base-field > span, .server-dialog .base-field > input,
+  .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options,
+  .server-dialog .base-field > .base-field-error { grid-column: 1; }
+  .server-secret-field > .server-form-note { margin-left: 0; }
+  .server-secret-toggle { top: 24px; }
+  .server-key-picker { grid-template-columns: minmax(0, 1fr); }
+  .server-key-picker-label, .server-key-picker-actions, .server-key-picker-value { grid-column: 1; }
+  .server-key-picker-actions { grid-row: 2; }
+  .server-key-picker-value { grid-row: 3; }
+}
 @media (prefers-reduced-motion: reduce) {
   .server-dialog-panel[data-state="active"], .server-dependent-fields { animation: none !important; }
   .server-dialog-tab::after { transition-duration: 1ms !important; }

@@ -68,7 +68,7 @@ async function reload() {
   <component :is="deleting ? BaseAlertDialog : BaseDialog" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :open="open" :title="t('groups')" :busy="busy" :close-label="t('cancel')" panel-class="server-group-dialog" @close="$emit('close')">
     <template v-if="deleting"><p>{{ deleting.name }}</p><p>{{ t('groupDeleteNote') }}</p></template>
     <template v-else>
-      <ul class="server-group-manager"><li v-for="group in groups" :key="group.id"><span>{{ group.name }}</span>
+      <ul v-if="groups.length" class="server-group-manager"><li v-for="group in groups" :key="group.id"><span>{{ group.name }}</span>
         <BaseButton :disabled="busy" :aria-label="`${t('rename')} ${group.name}`" @click="editing = { ...group }; name = group.name; error = ''; conflict = false">{{ t('rename') }}</BaseButton>
         <BaseButton :disabled="busy" :aria-label="`${t('deleteGroup')} ${group.name}`" @click="deleting = { ...group }; error = ''; conflict = false">{{ t('deleteGroup') }}</BaseButton>
       </li></ul>
@@ -78,6 +78,6 @@ async function reload() {
     </template>
     <p v-if="error" class="server-form-error" role="alert">{{ error }}</p>
     <BaseButton v-if="conflict" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>
-    <template #footer><BaseButton data-dialog-cancel :disabled="busy" @click="deleting ? reset() : $emit('close')">{{ t('cancel') }}</BaseButton><BaseButton v-if="deleting" variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
+    <template v-if="deleting" #footer><BaseButton data-dialog-cancel :disabled="busy" @click="reset">{{ t('cancel') }}</BaseButton><BaseButton variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
   </component>
 </template>
