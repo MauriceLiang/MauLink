@@ -26,6 +26,8 @@
 .base-dialog-close { border: 0; background: transparent; }
 .base-dialog-close:hover:not(:disabled) { border: 0; background: transparent; }
 .base-field { display: grid; gap: 8px; }
+.base-field-label { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
+.base-field-label > label { min-width: 0; }
 .base-input { width: 100%; min-height: var(--app-density-input-height, 36px); padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-primary); background: var(--color-surface); }
 .base-input:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-input[aria-invalid="true"], .base-input[aria-invalid="true"]:hover { border-color: var(--color-danger); }

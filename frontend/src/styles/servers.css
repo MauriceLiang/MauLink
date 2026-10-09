@@ -36,7 +36,7 @@
 .server-field-full { grid-column: 1 / -1; }
 .server-host-port-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px; align-items: start; gap: 12px; }
 .server-dialog .base-field { display: grid; grid-template-columns: var(--server-dialog-label-width) minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-text-secondary); }
-.server-dialog .base-field > label, .server-dialog .base-field > span { grid-column: 1; }
+.server-dialog .base-field > label, .server-dialog .base-field > span, .server-dialog .base-field > .base-field-label { grid-column: 1; }
 .server-dialog .base-field > input, .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options, .server-dialog .base-field > .base-field-error { grid-column: 2; }
 .server-dialog .server-port-field { grid-template-columns: minmax(0, 1fr); align-content: start; }
 .server-dialog .server-port-field > input { grid-column: 1; }
@@ -53,16 +53,26 @@
 .server-secret-toggle:hover .base-icon { transform: scale(1.1); }
 .server-secret-toggle:active { transform: scale(.94); }
 .server-form-note { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.5; }
-.server-credential-storage-row { display: flex; align-items: center; gap: 8px; }
-.server-key-picker { display: grid; grid-template-columns: var(--server-dialog-label-width) minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-text-secondary); }
-.server-key-picker-label { grid-column: 1; grid-row: 1; }
-.server-key-picker-actions { display: flex; grid-column: 2; grid-row: 1; align-items: center; gap: 8px; }
-.server-key-picker-value { grid-column: 2; grid-row: 2; overflow-wrap: anywhere; }
-.server-key-picker .base-button { min-height: 30px; font-size: 12px; }
-.server-info-button { display: inline-grid; width: 20px; height: 20px; flex: none; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; color: var(--color-text-secondary); background: transparent; cursor: help; }
-.server-info-button .base-icon { width: 12px; height: 12px; }
-.server-info-button:hover { border-color: var(--color-primary-border); color: var(--color-primary); }
-.server-info-button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.server-key-field { min-width: 0; }
+.server-dialog .server-key-label { display: flex; grid-column: 1; min-width: 0; align-items: center; gap: 5px; color: var(--color-text-secondary); }
+.server-dialog .server-key-control { grid-column: 2; min-width: 0; }
+.server-key-picker-input { display: flex; min-height: var(--app-density-input-height, 38px); align-items: center; gap: 10px; padding: 4px 5px 4px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); transition: border-color var(--motion-fast) var(--ease-standard); }
+.server-key-picker-input:hover { border-color: var(--color-border-hover); }
+.server-key-file-icon { width: 18px; height: 18px; flex: none; color: var(--color-text-tertiary); }
+.server-key-file-details { flex: 1; min-width: 0; }
+.server-key-file-name { display: block; min-width: 0; overflow: hidden; font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.server-key-picker-input[data-state="empty"] .server-key-file-name { color: var(--color-text-tertiary); }
+.server-key-browse-button { display: inline-flex; min-height: 28px; flex: none; align-items: center; justify-content: center; padding: 0 10px; border: 0; border-radius: var(--radius-sm); color: var(--color-text-primary); background: var(--color-bg-subtle); font: inherit; font-size: 12px; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard); }
+.server-key-browse-button:hover:not(:disabled) { background: var(--color-bg-hover); }
+.server-key-browse-button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.server-key-browse-button:disabled { opacity: .52; cursor: not-allowed; }
+.server-key-file-hint { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 11.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.server-key-file-hint--error { color: var(--color-danger); }
+.server-key-picker-input[data-state="expired"] { border-color: var(--color-danger); }
+:root[data-density="compact"] .server-key-picker-input { gap: 8px; min-height: var(--app-density-input-height, 34px); padding: 3px 4px 3px 9px; }
+:root[data-density="compact"] .server-key-file-icon { width: 16px; height: 16px; }
+:root[data-density="compact"] .server-key-file-name { font-size: 12px; }
+:root[data-density="compact"] .server-key-browse-button { min-height: 26px; font-size: 11px; }
 .server-advanced-sections { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .server-advanced-section { display: grid; gap: 16px; min-width: 0; }
 .server-advanced-section-heading { display: grid; gap: 4px; }
@@ -95,15 +105,12 @@
 @media (max-width: 600px) {
   .server-advanced-row, .server-connection-settings, .server-host-port-row { grid-template-columns: minmax(0, 1fr); }
   .server-dialog .base-field { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
-  .server-dialog .base-field > label, .server-dialog .base-field > span, .server-dialog .base-field > input,
+  .server-dialog .base-field > label, .server-dialog .base-field > span, .server-dialog .base-field > .base-field-label, .server-dialog .base-field > input,
   .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options,
   .server-dialog .base-field > .base-field-error { grid-column: 1; }
   .server-secret-field > .server-form-note { margin-left: 0; }
   .server-secret-toggle { top: 24px; }
-  .server-key-picker { grid-template-columns: minmax(0, 1fr); }
-  .server-key-picker-label, .server-key-picker-actions, .server-key-picker-value { grid-column: 1; }
-  .server-key-picker-actions { grid-row: 2; }
-  .server-key-picker-value { grid-row: 3; }
+  .server-dialog .server-key-label, .server-dialog .server-key-control { grid-column: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .server-dialog-panel[data-state="active"], .server-dependent-fields { animation: none !important; }

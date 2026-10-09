@@ -81,7 +81,7 @@
 .terminal-settings-dialog label.terminal-settings-row > span { white-space: nowrap; }
 .terminal-settings-dialog label.terminal-settings-row > .base-input { width: 100%; min-width: 0; }
 .terminal-settings-dialog .terminal-settings-select { gap: 0 14px; }
-.terminal-settings-dialog .terminal-settings-select > label { color: var(--color-text-secondary); font-size: 13px; white-space: nowrap; }
+.terminal-settings-dialog .terminal-settings-select > .base-field-label > label { color: var(--color-text-secondary); font-size: 13px; white-space: nowrap; }
 .terminal-settings-dialog .terminal-settings-select .base-select-trigger { width: 100%; min-width: 0; }
 .terminal-settings-dialog .terminal-settings-copy-row .base-toggle-field { min-width: 0; white-space: nowrap; }
 .terminal-settings-dialog .terminal-settings-copy-row .base-toggle-field > label { font-size: 13px; }

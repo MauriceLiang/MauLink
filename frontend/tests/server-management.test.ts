@@ -41,6 +41,16 @@ async function selectDialogTab(section: "basic" | "advanced") {
   await tabs[section === "basic" ? 0 : 1]!.trigger("mousedown", { button: 0, ctrlKey: false });
   await flushPromises();
 }
+async function chooseCredentialStorage(label: string) {
+  const trigger = ui().get(".server-credential-storage-field [role=combobox]");
+  trigger.element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+  await flushPromises();
+  const option = ui().findAll('[role="option"]').find(item => item.text().includes(label));
+  expect(option).toBeDefined();
+  (option!.element as HTMLElement).focus();
+  option!.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  await flushPromises();
+}
 
 describe("server management contracts", () => {
   it("saves per-server appearance independently with its own revision", async () => {
@@ -165,7 +175,8 @@ describe("server management contracts", () => {
     expect(create).not.toHaveBeenCalled();
     expect(ui().get('[role="alert"]').text()).toContain("主机地址");
     await enterRequired(wrapper);
-    await ui().get('[role="switch"]').trigger("click");
+    expect(ui().get(".server-credential-storage-field [role=combobox]").text()).toContain("本地加密存储");
+    await chooseCredentialStorage("系统凭据库");
     await ui().get('input[type="password"]').setValue("test-transient-secret");
     await ui().get("form").trigger("submit");
     await flushPromises();
@@ -237,13 +248,72 @@ describe("server management contracts", () => {
     await ui().findAll("button").find(button => button.text() === "SSH 密钥")!.trigger("click");
     await ui().get("form").trigger("submit");
     expect(create).not.toHaveBeenCalled();
-    await ui().findAll("button").find(button => button.text() === "选择私钥")!.trigger("click");
+    await ui().get(".server-key-browse-button").trigger("click");
     await flushPromises();
     expect(ui().text()).toContain("fixture-key");
+    expect(ui().text()).not.toContain("opaque-key-token");
+    expect(ui().get(".server-key-file-hint").text()).toContain("保存配置后应用");
     await ui().get("form").trigger("submit");
     await flushPromises();
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ privateKeyToken: "opaque-key-token" }), credential: { mode: "clear" } }));
     expect(validateServerDraft({ ...newServerDraft({ ...profile, authType: "privateKey", hasPrivateKey: true }) }, { ...profile, authType: "privateKey", hasPrivateKey: true }, null)).toBeNull();
+  });
+
+  it("keeps the selected private key when the picker is cancelled", async () => {
+    const selection = vi.fn()
+      .mockReturnValueOnce({ token: "opaque-key-token", displayName: "fixture_ed25519", purpose: "privateKey", expiresAtMs: Date.now() + 60000 })
+      .mockReturnValueOnce(null);
+    const wrapper = mountEditor(makeStore(createMockIpc({ local_file_select: selection })));
+    await flushPromises();
+    await enterRequired(wrapper);
+    await ui().findAll("button").find(button => button.text() === "SSH 密钥")!.trigger("click");
+    await ui().get(".server-key-browse-button").trigger("click");
+    await flushPromises();
+    await ui().get(".server-key-browse-button").trigger("click");
+    await flushPromises();
+    expect(ui().get(".server-key-file-name").text()).toBe("fixture_ed25519");
+    expect(ui().get(".server-key-file-hint").text()).toContain("保存配置后应用");
+  });
+
+  it("marks an expired private key reference and blocks saving it", async () => {
+    const expiredCreate = vi.fn();
+    const expired = mountEditor(makeStore(createMockIpc({
+      server_create: expiredCreate,
+      local_file_select: () => ({ token: "expired-key-token", displayName: "expired_ed25519", purpose: "privateKey", expiresAtMs: Date.now() - 1 }),
+    })));
+    await flushPromises();
+    await enterRequired(expired);
+    await ui().findAll("button").find(button => button.text() === "SSH 密钥")!.trigger("click");
+    await ui().get(".server-key-browse-button").trigger("click");
+    await flushPromises();
+    expect(ui().get(".server-key-picker-input").attributes("data-state")).toBe("expired");
+    expect(ui().get(".server-key-file-hint").text()).toContain("已过期");
+    await ui().get("form").trigger("submit");
+    expect(expiredCreate).not.toHaveBeenCalled();
+    expect(ui().get('[role="alert"]').text()).toContain("过期");
+  });
+
+  it("shows an existing private key without inventing its filename or exposing a path", async () => {
+    const currentKey = { ...profile, authType: "privateKey" as const, hasPrivateKey: true, hasSavedCredential: true };
+    mountEditor(makeStore(createMockIpc({ server_get: () => currentKey })), profile.id);
+    await flushPromises();
+    expect(ui().get(".server-key-file-name").text()).toBe("已配置私钥文件");
+    expect(ui().get(".server-key-file-hint").text()).toContain("沿用当前私钥配置");
+    expect(ui().text()).not.toMatch(/fixture_ed25519|\/Users\/|\.pem/);
+    expect(ui().find('input[type="password"]').exists()).toBe(false);
+    expect(ui().get(".server-credential-storage-field [role=combobox]").text()).toContain("本地加密存储");
+  });
+
+  it("maps the saved credential storage choice back to the profile boolean when editing", async () => {
+    const current = { ...profile, requireAuthentication: true, hasSavedCredential: true };
+    const update = vi.fn(() => ({ server: { ...current, requireAuthentication: false, revision: current.revision + 1 }, credentialCleanupPending: false }));
+    mountEditor(makeStore(createMockIpc({ server_get: () => current, server_update: update })), profile.id);
+    await flushPromises();
+    expect(ui().get(".server-credential-storage-field [role=combobox]").text()).toContain("系统凭据库");
+    await chooseCredentialStorage("本地加密存储");
+    await ui().get("form").trigger("submit");
+    await flushPromises();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ requireAuthentication: false }), credential: { mode: "keep" } }));
   });
 
   it("reads the current profile before editing and submits its revision rather than stale list data", async () => {
