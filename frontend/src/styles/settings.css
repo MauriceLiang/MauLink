@@ -30,6 +30,29 @@
 .settings-custom-accent { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--color-text-secondary); font-size: 12px; }
 .settings-custom-accent input { width: 40px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); cursor: pointer; }
 .settings-custom-accent code { color: var(--color-text-primary); font-family: ui-monospace, monospace; }
+.settings-toast-position-fieldset { min-width: 0; margin: 18px 0; padding: 0; border: 0; }
+.settings-toast-position-fieldset legend { margin-bottom: 10px; color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
+.settings-toast-position-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.settings-toast-position-option { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 36px; padding: 0 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface-elevated); font-size: 12px; cursor: pointer; }
+.settings-toast-position-option:hover { background: var(--color-bg-hover); }
+.settings-toast-position-option:has(input:checked) { border-color: var(--color-primary-border); color: var(--color-text-primary); background: var(--color-primary-soft); }
+.settings-toast-position-option:has(input:checked)::before { width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); content: ""; }
+.settings-toast-position-option input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+.settings-toast-position-option:has(input:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.settings-toast-position-option:has(input:disabled) { opacity: .52; cursor: not-allowed; }
+.settings-toast-preview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); min-height: 112px; margin-top: 12px; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-subtle); }
+.settings-toast-preview-card { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: start; gap: 6px; width: fit-content; max-width: 100%; padding: 7px 8px; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface-elevated); box-shadow: var(--shadow-sm); }
+.settings-toast-preview-card > .base-icon { width: 14px; height: 14px; margin-top: 1px; color: var(--color-success); }
+.settings-toast-preview-card > span { display: grid; min-width: 0; gap: 2px; }
+.settings-toast-preview-card strong { color: var(--color-text-primary); font-size: 10px; font-weight: 600; line-height: 1.3; }
+.settings-toast-preview-card small { color: var(--color-text-secondary); font-size: 9px; line-height: 1.35; }
+.settings-toast-preview[data-position="topLeft"] .settings-toast-preview-card { grid-column: 1; grid-row: 1; justify-self: start; align-self: start; }
+.settings-toast-preview[data-position="topCenter"] .settings-toast-preview-card { grid-column: 2; grid-row: 1; justify-self: center; align-self: start; }
+.settings-toast-preview[data-position="topRight"] .settings-toast-preview-card { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; }
+.settings-toast-preview[data-position="bottomLeft"] .settings-toast-preview-card { grid-column: 1; grid-row: 2; justify-self: start; align-self: end; }
+.settings-toast-preview[data-position="bottomCenter"] .settings-toast-preview-card { grid-column: 2; grid-row: 2; justify-self: center; align-self: end; }
+.settings-toast-preview[data-position="bottomRight"] .settings-toast-preview-card { grid-column: 3; grid-row: 2; justify-self: end; align-self: end; }
+.settings-toast-position-note { margin: 8px 0 0; font-size: 12px; }
 @keyframes settings-section-in { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
 .settings-dialog h3 { margin-top: 0; }.settings-dialog p { color: var(--color-text-secondary); line-height: 1.6; }
 .command-palette { width: min(600px, calc(100vw - 32px)); }
