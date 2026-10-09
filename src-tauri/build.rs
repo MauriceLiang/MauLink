@@ -15,6 +15,7 @@ fn main() {
             "server_appearance_get",
             "server_appearance_update",
             "server_runtime_stats_get",
+            "connection_start",
             "connection_preflight",
             "host_key_get",
             "network_inspect",
