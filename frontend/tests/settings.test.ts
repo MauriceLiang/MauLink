@@ -13,6 +13,7 @@ import { monitorMessages } from '../src/i18n/monitor';
 import { terminalMessages } from '../src/i18n/terminal';
 import { connectionMessages } from '../src/i18n/connection';
 import { settingsMessages } from '../src/i18n/settings';
+import { securityMessages } from '../src/i18n/security';
 import { paletteMessages } from '../src/i18n/palette';
 import SettingsDialog from '../src/dialogs/SettingsDialog.vue';
 import TerminalSettingsDialog from '../src/dialogs/TerminalSettingsDialog.vue';
@@ -150,7 +151,7 @@ describe('catalogs and command palette', () => {
     const root=document.createElement('div'); applyAccentColor('purple',null,root); expect(root.style.getPropertyValue('--color-accent-base')).toBe('#A855F7');
   });
   it('has complete bilingual entries and matching interpolation parameters by module', () => {
-    for (const catalog of [shellMessages,filesMessages,monitorMessages,terminalMessages,connectionMessages,settingsMessages,paletteMessages]) for (const [zh,en] of Object.values(catalog)) { expect(zh.length).toBeGreaterThan(0); expect(en.length).toBeGreaterThan(0); expect([...zh.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()).toEqual([...en.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()); }
+    for (const catalog of [shellMessages,filesMessages,monitorMessages,terminalMessages,connectionMessages,settingsMessages,securityMessages,paletteMessages]) for (const [zh,en] of Object.values(catalog)) { expect(zh.length).toBeGreaterThan(0); expect(en.length).toBeGreaterThan(0); expect([...zh.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()).toEqual([...en.matchAll(/\{(\w+)\}/g)].map(value=>value[1]).sort()); }
     locale.value='en'; expect(messages(filesMessages)('deleteNote',{name:'服务器.txt'})).toContain('服务器.txt'); expect(messages(shellMessages)('oneTerminal')).toBe('1 terminal');
   });
   it('filters normalized terms and skips every disabled option in both directions', () => {

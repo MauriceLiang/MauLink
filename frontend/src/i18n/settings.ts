@@ -1,5 +1,5 @@
 export const settingsMessages = {
-  done: ['完成', 'Done'],
+  done: ['完成', 'Done'], security: ['安全与隐私', 'Security & Privacy'],
   network: ['网络', 'Network'],
   settings: ['设置', 'Settings'], sections: ['设置分类', 'Settings sections'], general: ['通用', 'General'], appearance: ['外观', 'Appearance'], files: ['文件', 'Files'], terminal: ['终端', 'Terminal'], language: ['语言', 'Language'],
   showSizeColumn: ['显示大小列', 'Show size column'], showFileSizes: ['显示文件大小', 'Show file sizes'], showFolderSizes: ['显示文件夹大小', 'Show folder sizes'], folderSizeNote: ['按需递归统计目录中的文件大小，目录较大时需要一些时间；遇到无法读取的子目录时显示 —。', 'Folder sizes are calculated on demand by scanning files recursively. Large folders may take time; folders with unreadable descendants show —.'],

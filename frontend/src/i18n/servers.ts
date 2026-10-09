@@ -21,6 +21,7 @@ const messages = {
   credential: ["凭据", "Credential"], keep: ["保留当前凭据", "Keep current credential"],
   replace: ["替换并安全保存", "Replace and save securely"], clear: ["移除已保存凭据", "Remove saved credential"],
   credentialSavedPassword: ["已保存密码", "Password saved"], credentialSavedPassphrase: ["已保存私钥口令", "Passphrase saved"],
+  credentialRevealPassword: ["查看已保存密码", "View saved password"], credentialRevealPassphrase: ["查看已保存私钥口令", "View saved passphrase"],
   credentialNotSaved: ["未保存", "Not saved"], credentialChange: ["更换", "Change"], credentialAdd: ["添加", "Add"],
   credentialMoreActions: ["更多凭据操作", "More credential actions"], credentialChangeStorage: ["更改存储位置", "Change storage location"],
   credentialRemove: ["移除已保存凭据", "Remove saved credential"], credentialRemovalTitle: ["移除已保存凭据？", "Remove saved credential?"],

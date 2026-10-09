@@ -48,7 +48,7 @@ import BaseInput from "../components/base/BaseInput.vue";
 import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
-const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult] }>();
+const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult]; revealCredential: [serverId: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
 const current = ref<ServerProfile | null>(null);
@@ -107,6 +107,7 @@ const credentialIdentityChanged = computed(() => {
   return credentialValidation(current.value, profile, { mode: "keep" }) === "identityChanged";
 });
 const credentialMenuItems = computed<MenuItem[]>(() => [
+  { id: "reveal", label: t(current.value?.authType === "privateKey" ? "credentialRevealPassphrase" : "credentialRevealPassword") },
   { id: "change-storage", label: t("credentialChangeStorage") },
   { id: "remove", label: t("credentialRemove"), danger: true, separatorBefore: true },
 ]);
@@ -350,6 +351,7 @@ function cancelCredentialEdit() {
 }
 
 function openCredentialMenuAction(action: string) {
+  if (action === "reveal" && current.value?.hasSavedCredential) emit("revealCredential", current.value.id);
   if (action === "change-storage") credentialStorageEditing.value = true;
   if (action === "remove") removeCredentialOpen.value = true;
 }

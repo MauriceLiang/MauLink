@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 
 use crate::{AppError, ErrorCode};
 
-const CURRENT_SCHEMA_VERSION: i64 = 6;
+const CURRENT_SCHEMA_VERSION: i64 = 7;
 const REQUEST_QUEUE_CAPACITY: usize = 32;
 const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
 const PROFILE_LIST_REVISION_MIGRATION: &str =
@@ -22,6 +22,8 @@ const SERVER_RUNTIME_STATS_MIGRATION: &str =
     include_str!("../migrations/0005_server_runtime_stats.sql");
 const PER_SERVER_CREDENTIAL_STORAGE_MIGRATION: &str =
     include_str!("../migrations/0006_per_server_credential_storage.sql");
+const CREDENTIAL_REVEAL_POLICY_MIGRATION: &str =
+    include_str!("../migrations/0007_credential_reveal_policy.sql");
 
 type Job = Box<dyn FnOnce(&mut Connection) + Send + 'static>;
 
@@ -216,6 +218,11 @@ fn migrate(connection: &mut Connection, from_version: i64) -> Result<(), AppErro
             .execute_batch(PER_SERVER_CREDENTIAL_STORAGE_MIGRATION)
             .map_err(|_| migration_error("errors.migrationFailed"))?;
     }
+    if from_version < 7 {
+        transaction
+            .execute_batch(CREDENTIAL_REVEAL_POLICY_MIGRATION)
+            .map_err(|_| migration_error("errors.migrationFailed"))?;
+    }
     transaction
         .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
         .map_err(|_| migration_error("errors.migrationFailed"))?;
@@ -323,6 +330,57 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.code, ErrorCode::SchemaTooNew);
+    }
+
+    #[test]
+    fn migrates_version_six_with_reveal_disabled_and_keeps_servers() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("maulink.sqlite3");
+        let connection = Connection::open(&path).expect("open old database");
+        for migration in [
+            INITIAL_MIGRATION,
+            PROFILE_LIST_REVISION_MIGRATION,
+            ADVANCED_SSH_MIGRATION,
+            SERVER_APPEARANCE_MIGRATION,
+            SERVER_RUNTIME_STATS_MIGRATION,
+            PER_SERVER_CREDENTIAL_STORAGE_MIGRATION,
+        ] {
+            connection
+                .execute_batch(migration)
+                .expect("create version six schema");
+        }
+        connection
+            .execute(
+                "INSERT INTO servers
+                 (id, name, host, port, username, auth_type, created_at_ms, updated_at_ms)
+                 VALUES ('server-id', 'existing', 'example.test', 22, 'root', 'password', 1, 1)",
+                [],
+            )
+            .expect("insert existing server");
+        connection
+            .pragma_update(None, "user_version", 6_i64)
+            .expect("mark version six");
+        drop(connection);
+
+        drop(Database::open(&path).expect("migrate version six database"));
+        let connection = Connection::open(&path).expect("open migrated database");
+        let (mode, revision): (String, i64) = connection
+            .query_row(
+                "SELECT mode, revision FROM credential_reveal_policy WHERE singleton = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read initial reveal policy");
+        let server_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM servers WHERE id = 'server-id'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read existing server");
+        assert_eq!(mode, "deny");
+        assert_eq!(revision, 1);
+        assert_eq!(server_count, 1);
     }
 
     #[test]

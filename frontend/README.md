@@ -133,7 +133,7 @@ Browser 验收：`http://127.0.0.1:1420/?harness=monitor`，Web-01 → 连接。
 
 ## Phase 9：Settings / i18n / Command Palette
 
-DEV 地址 `http://127.0.0.1:1420/?harness=settings`。真实设置通过 Rust SettingsService 更新；Harness 为显式内存 Settings/SSH fixture，不写正式资料。主题/语言/终端设置、模块 catalog、统一菜单和 Palette 已建立，115 项测试与 build 通过。Browser 工具无法完成终端焦点组合键，用户已在独立 Tauri release 应用完成 1–7 项实测，包含快捷键放行及重启持久化，并确认正常。本阶段 PASS，可进入 Phase 10；保留 Browser 工具限制记录。完整记录见 `docs/refactor/frontend-v2-phase-9.md`。
+DEV 地址 `http://127.0.0.1:1420/?harness=settings`。在该 URL 增加 `&nativeAuth=0` 可模拟系统身份验证不可用，检查明文查看策略入口保持禁用。真实设置通过 Rust SettingsService 更新；Harness 为显式内存 Settings/SSH fixture，不写正式资料。主题/语言/终端设置、模块 catalog、统一菜单和 Palette 已建立，115 项测试与 build 通过。Browser 工具无法完成终端焦点组合键，用户已在独立 Tauri release 应用完成 1–7 项实测，包含快捷键放行及重启持久化，并确认正常。本阶段 PASS，可进入 Phase 10；保留 Browser 工具限制记录。完整记录见 `docs/refactor/frontend-v2-phase-9.md`。
 
 ## Phase 10：固定 Browser 视觉回归
 

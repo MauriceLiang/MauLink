@@ -2587,6 +2587,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "apple-native-keyring-store",
+ "argon2",
  "base64 0.22.1",
  "dns-lookup",
  "flate2",
@@ -2617,11 +2618,13 @@ dependencies = [
 name = "maulink-desktop"
 version = "0.1.0"
 dependencies = [
+ "block2",
  "image",
  "maulink-core",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+ "objc2-local-authentication",
  "serde",
  "serde_json",
  "tauri",
@@ -2630,6 +2633,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -2998,6 +3002,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-local-authentication"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48e0b8b339e0d9d2ed4416b7f93f9d4daadff7d4dd797f89867cde11aeac607"
+dependencies = [
+ "block2",
+ "objc2",
+ "objc2-foundation",
+]
+
+[[package]]
 name = "objc2-quartz-core"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3186,6 +3201,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
+ "getrandom 0.4.3",
  "phc",
 ]
 
@@ -3222,6 +3238,7 @@ checksum = "44dc769b75f93afdddd8c7fa12d685292ddeff1e66f7f0f3a234cf1818afe892"
 dependencies = [
  "base64ct",
  "ctutils",
+ "getrandom 0.4.3",
 ]
 
 [[package]]

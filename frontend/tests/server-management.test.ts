@@ -457,6 +457,21 @@ describe("server management contracts", () => {
     expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
+  it("routes the saved password menu action to the isolated reveal dialog request", async () => {
+    const savedProfile = { ...profile, hasSavedCredential: true };
+    const store = makeStore(createMockIpc({ server_get: () => savedProfile }));
+    const wrapper = mountEditor(store, savedProfile.id);
+    await flushPromises();
+    expect(ui().text()).toContain("已保存密码");
+    await ui().get('button[aria-label="更多凭据操作"]').trigger("click");
+    await flushPromises();
+    const revealAction = ui().get('[data-action="reveal"]');
+    expect(revealAction.text()).toContain("查看已保存密码");
+    await revealAction.trigger("click");
+    await flushPromises();
+    expect(wrapper.emitted("revealCredential")).toEqual([[savedProfile.id]]);
+  });
+
   it("deletes only after explicit confirmation with the displayed revision and credential removal", async () => {
     const remove = vi.fn(() => ({ credentialCleanupPending: false }));
     const wrapper = mount(ConfirmDialog, { attachTo: document.body, props: { server: { ...profile, revision: 4 }, store: makeStore(createMockIpc({ server_delete: remove })) } });

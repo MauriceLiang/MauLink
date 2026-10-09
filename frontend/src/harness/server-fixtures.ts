@@ -8,8 +8,9 @@ export function fixtureError(code: AppError["code"], messageKey: string): AppErr
   return { code, messageKey, params: {}, retryable: false, action: code === "REVISION_CONFLICT" ? "reload" : "none", stage: null, requestId: null, details: "Fixture debug details must not be displayed" };
 }
 
-export function createServerMock(options: { state?: "empty" | "servers"; failure?: () => "none" | "inUse" | "revision" | "unknown"; delay?: () => number } = {}) {
+export function createServerMock(options: { state?: "empty" | "servers"; savedCredential?: boolean; failure?: () => "none" | "inUse" | "revision" | "unknown"; delay?: () => number } = {}) {
   let servers = options.state === "empty" ? [] : structuredClone(shellServers);
+  if (options.savedCredential && servers[0]) servers[0].hasSavedCredential = true;
   let groups = options.state === "empty" ? [] : structuredClone(shellGroups);
   const commands: string[] = [];
   const keys = new Set<string>();

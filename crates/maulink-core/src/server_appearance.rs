@@ -307,7 +307,7 @@ fn map_appearance(row: &rusqlite::Row<'_>) -> rusqlite::Result<ServerAppearance>
 
 fn validate_server_id(value: &str) -> Result<(), AppError> {
     let parsed = uuid::Uuid::parse_str(value).ok();
-    if parsed.as_ref().map_or(true, |id| id.to_string() != value) {
+    if parsed.as_ref().is_none_or(|id| id.to_string() != value) {
         return Err(validation("serverId", "errors.resourceIdInvalid"));
     }
     Ok(())

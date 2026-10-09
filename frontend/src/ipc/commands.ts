@@ -15,6 +15,14 @@ import type { ConnectionPreflightResult } from "../../../contracts/v1/Connection
 import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapshot";
 import type { ConnectionStartPayload } from "../../../contracts/v1/ConnectionStartPayload";
 import type { CredentialDeleteResult } from "../../../contracts/v1/CredentialDeleteResult";
+import type { CredentialRevealPolicy } from "../../../contracts/v1/CredentialRevealPolicy";
+import type { CredentialRevealResult } from "../../../contracts/v1/CredentialRevealResult";
+import type { CredentialRevealTarget } from "../../../contracts/v1/CredentialRevealTarget";
+import type { ChangeSecondaryPasswordPayload } from "../../../contracts/v1/ChangeSecondaryPasswordPayload";
+import type { EnableDirectPayload } from "../../../contracts/v1/EnableDirectPayload";
+import type { EnableProtectedPayload } from "../../../contracts/v1/EnableProtectedPayload";
+import type { RecoverRevealPolicyPayload } from "../../../contracts/v1/RecoverRevealPolicyPayload";
+import type { SetDenyPayload } from "../../../contracts/v1/SetDenyPayload";
 import type { EmptyPayload } from "../../../contracts/v1/EmptyPayload";
 import type { Group } from "../../../contracts/v1/Group";
 import type { GroupCreate } from "../../../contracts/v1/GroupCreate";
@@ -104,6 +112,13 @@ export interface CommandContracts {
   credential_list_retained: { payload: EmptyPayload; result: RetainedCredential[] };
   credential_delete_retained: { payload: ResourceIdPayload; result: CredentialDeleteResult };
   credential_cleanup_retry: { payload: ResourceIdPayload; result: CredentialDeleteResult };
+  reveal_policy_get: { payload: EmptyPayload; result: CredentialRevealPolicy };
+  reveal_policy_enable_protected: { payload: EnableProtectedPayload; result: CredentialRevealPolicy };
+  reveal_policy_enable_direct: { payload: EnableDirectPayload; result: CredentialRevealPolicy };
+  reveal_policy_set_deny: { payload: SetDenyPayload; result: CredentialRevealPolicy };
+  reveal_policy_change_password: { payload: ChangeSecondaryPasswordPayload; result: CredentialRevealPolicy };
+  reveal_policy_recover: { payload: RecoverRevealPolicyPayload; result: CredentialRevealPolicy };
+  credential_reveal: { payload: CredentialRevealTarget; result: CredentialRevealResult };
   connection_start: { payload: ConnectionStartPayload; result: ConnectionSnapshot };
   connection_preflight: { payload: ConnectionPreflightPayload; result: ConnectionPreflightResult };
   connection_get: { payload: ConnectionIdPayload; result: ConnectionSnapshot };
