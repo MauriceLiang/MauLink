@@ -1,3 +1,5 @@
+**简体中文** | [English](./README.en.md)
+
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./frontend/src/assets/app-icon-dark.png">
@@ -35,32 +37,24 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 
 <table>
   <tr>
-    <th>浅色 · 清晰的服务器入口</th>
-    <th>深色 · 统一的工作台外观</th>
+    <th>简体中文 · 浅色</th>
+    <th>简体中文 · 深色</th>
   </tr>
   <tr>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue 浅色服务器主页" width="480"></td>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue 深色服务器主页" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-light-zh-CN-1280x720.jpg" alt="MauLink 简体中文浅色主题服务器主页" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-zh-CN-1280x720.jpg" alt="MauLink 简体中文深色主题服务器主页" width="480"></td>
+  </tr>
+  <tr>
+    <th>English · Light</th>
+    <th>English · Dark</th>
+  </tr>
+  <tr>
+    <td><img src="./docs/screenshots/readme/servers-light-en-1280x720.jpg" alt="MauLink server home in English light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-en-1280x720.jpg" alt="MauLink server home in English dark theme" width="480"></td>
   </tr>
 </table>
 
-<details>
-<summary><strong>展开查看终端与 Quick Monitor 工作区</strong></summary>
-
-![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/color-v1-review/terminal-light-zh-CN-1440x920.jpg)
-
-</details>
-
-<details>
-<summary><strong>展开查看统一下拉控件与顶部操作反馈</strong></summary>
-
-![深色弹窗与主题选择](./docs/refactor/screenshots/color-v1-review/palette-dark-zh-CN-1440x920.jpg)
-
-![顶部居中的成功提示](./docs/refactor/screenshots/color-v1-review/toast-light-zh-CN-1440x920.jpg)
-
-</details>
-
-截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。固定场景与截图校验方式见 [视觉回归说明](./frontend/visual/README.md)。
+截图由当前 Vue 前端的 DEV-only Typed Mock IPC fixture 生成，使用三台示例服务器；四种组合统一为 1280×720、DPR 1。固定场景与截图校验方式见 [视觉回归说明](./frontend/visual/README.md)。
 
 ## 核心能力
 
@@ -72,7 +66,7 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 | **使用终端** | 多个独立 PTY、尺寸自适应、专注模式、字体与光标设置；xterm.js 随应用本地分发 |
 | **管理远程文件** | SFTP 分页浏览、属性查询、新建目录、重命名、删除、单文件上传 / 下载；不超过 2 MiB 的普通文本查看与编辑、Markdown 预览及保存冲突检查 |
 | **查看主机状态** | Quick / Full Monitor 共用快照；CPU、内存、根文件系统、网络、负载、运行时间及数据质量状态 |
-| **调整工作环境** | 系统 / 浅色 / 深色主题、简体中文 / English、命令面板、终端偏好与断开确认 |
+| **调整工作环境** | 系统 / 浅色 / 深色主题、简体中文 / English、命令面板、六种通知位置、终端偏好与断开确认 |
 | **保存在本机** | SQLite 保存配置、Host Key 与设置；每台服务器可选择将密码或私钥口令存入系统凭据库，或以 AES-GCM 加密保存在本地数据库 |
 
 Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指定不同用户名。代理目前支持无认证 SOCKS5 和 HTTP CONNECT。远程文本查看与编辑仅支持不超过 2 MiB 的普通文件；二进制文件预览 / 编辑、Docker 管理、数据库客户端、进程列表及 Disk I/O 监控不在当前实现范围内。
@@ -336,7 +330,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 
 ## 验证与发布状态
 
-以下验收状态按历史记录日期汇总：后端截至 **2026-09-28**，前端组件与交互截至 **2026-10-02**。2026-10-03 新增的远程文本查看 / 编辑，以及 2026-10-08 的服务器凭据、网络信息和详情页更新，不在这些历史验收结果内。前端截至 2026-10-02 的记录包含类型检查、136/136 项测试、Browser 键盘与弹层实测、184 张视觉截图复验、macOS arm64 构建及签名校验；本机 Windows 交叉构建因缺少 MSVC SDK 头文件失败，仍为 BLOCKED。System-Dark 与系统 Reduced Motion 尚未专项实测；这些结果不代表完整双平台 QA。
+以下验收状态按历史记录日期汇总：后端截至 **2026-09-28**，前端组件与交互截至 **2026-10-02**。2026-10-03 新增的远程文本查看 / 编辑、2026-10-08 的服务器凭据 / 网络信息 / 详情页更新，以及 2026-10-09 的通知位置和服务器表单更新，不在这些历史验收结果内。前端截至 2026-10-02 的记录包含类型检查、136/136 项测试、Browser 键盘与弹层实测、184 张视觉截图复验、macOS arm64 构建及签名校验；本机 Windows 交叉构建因缺少 MSVC SDK 头文件失败，仍为 BLOCKED。System-Dark 与系统 Reduced Motion 尚未专项实测；这些结果不代表完整双平台 QA。
 
 | 范围 | 当前状态 | 仍需完成 |
 | --- | --- | --- |
