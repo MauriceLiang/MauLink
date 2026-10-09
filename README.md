@@ -60,7 +60,7 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 
 </details>
 
-截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。用户已确认本轮 macOS app 与顶部提示；检查记录见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)、[颜色系统验收](./docs/refactor/color-system-v1.md)，历史页面与回归证据见 [设计 QA](./design-qa.md)。
+截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。固定场景与截图校验方式见 [视觉回归说明](./frontend/visual/README.md)。
 
 ## 核心能力
 
@@ -70,12 +70,12 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 | **建立 SSH 连接** | 密码 / 私钥认证、单跳 Jump Host、SOCKS5 / HTTP CONNECT 代理、连接测试、取消、超时与 keepalive |
 | **确认主机身份** | 首次连接确认 Host Key；已信任密钥变化时默认拒绝，核实后显式更新 |
 | **使用终端** | 多个独立 PTY、尺寸自适应、专注模式、字体与光标设置；xterm.js 随应用本地分发 |
-| **管理远程文件** | SFTP 分页浏览、属性查询、新建目录、重命名、删除、单文件上传 / 下载、进度与取消 |
+| **管理远程文件** | SFTP 分页浏览、属性查询、新建目录、重命名、删除、单文件上传 / 下载；不超过 2 MiB 的普通文本查看与编辑、Markdown 预览及保存冲突检查 |
 | **查看主机状态** | Quick / Full Monitor 共用快照；CPU、内存、根文件系统、网络、负载、运行时间及数据质量状态 |
 | **调整工作环境** | 系统 / 浅色 / 深色主题、简体中文 / English、命令面板、终端偏好与断开确认 |
-| **保存在本机** | SQLite 保存配置、Host Key 与设置；每台服务器可选择将密码存入系统凭据库，或以 AES-GCM 加密保存在本地数据库 |
+| **保存在本机** | SQLite 保存配置、Host Key 与设置；每台服务器可选择将密码或私钥口令存入系统凭据库，或以 AES-GCM 加密保存在本地数据库 |
 
-Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指定不同用户名。代理目前支持无认证 SOCKS5 和 HTTP CONNECT。远程文件 View / Edit、Docker 管理、数据库客户端、进程列表及 Disk I/O 监控不在当前实现范围内。
+Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指定不同用户名。代理目前支持无认证 SOCKS5 和 HTTP CONNECT。远程文本查看与编辑仅支持不超过 2 MiB 的普通文件；二进制文件预览 / 编辑、Docker 管理、数据库客户端、进程列表及 Disk I/O 监控不在当前实现范围内。
 
 ### 图标与外观
 
@@ -83,7 +83,7 @@ Jump Host 沿用目标服务器的认证方式和凭据，可用 `user@host` 指
 
 Reka UI 通过现有 `Base*` 组件统一下拉选择、菜单、弹窗和切换控件，支持键盘导航、焦点恢复与边缘自动定位。操作提示在应用顶部居中，以绿色成功、蓝色信息、橙色警告和红色错误文字提供反馈，按内容收缩并自动消失；需要确认的危险操作仍使用确认弹窗。动画保持轻量，并提供减少动态效果的样式支持。
 
-品牌 Logo 随浅深主题切换；设置中的「应用图标样式」独立选择浅色或深色，保存后更新运行图标并在重启后恢复。macOS Dock 使用所选样式，**Finder 固定使用浅色圆角安装图标**。图标使用真实透明圆角；实现和签名检查见 [图标验收报告](./docs/refactor/app-icon-rounded.md)。
+品牌 Logo 随浅深主题切换；设置中的「应用图标样式」独立选择浅色或深色，保存后更新运行图标并在重启后恢复。macOS Dock 使用所选样式，**Finder 固定使用浅色圆角安装图标**。图标使用真实透明圆角；运行时切换见 [app_icon.rs](./src-tauri/src/app_icon.rs)，资源生成见 [generate-app-icons.mjs](./tools/generate-app-icons.mjs)。
 
 ## 快速开始
 
@@ -127,7 +127,7 @@ cargo tauri build -- --locked
 cargo tauri build --bundles app --ci -- --locked
 ```
 
-产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。最新组件构建与用户确认记录见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)，配色记录见 [颜色系统验收](./docs/refactor/color-system-v1.md)，图标记录见 [圆角图标报告](./docs/refactor/app-icon-rounded.md)，正式前端切换记录见 [Phase 12](./docs/refactor/frontend-v2-phase-12.md)。
+产物位于 `target/release/bundle/`；macOS 应用为 `target/release/bundle/macos/MauLink.app`。当前 macOS 验收包使用本机 ad-hoc 签名，未公证，属于开发测试包。平台限制与验收日期见[验证与发布状态](#验证与发布状态)。
 
 <details>
 <summary><strong>macOS 内部打包与签名检查</strong></summary>
@@ -205,7 +205,7 @@ TypeScript DTO 由 `ts-rs` 根据 Rust 类型生成，生成后保存在 `contra
 
 ### 安全与本机数据
 
-- **凭据不写入普通配置字段。**密码和私钥口令通过系统凭据服务保存：macOS Keychain 或 Windows Credential Store。SQLite 保存引用和恢复状态，不保存凭据明文；原生凭据服务不可用时不回退到明文文件。
+- **凭据按服务器选择存储方式。**密码和私钥口令可保存在 macOS Keychain / Windows Credential Manager，或以 AES-GCM 加密后写入本机 SQLite；凭据不会以明文写入数据库或普通配置文件。切换存储方式时，在保存服务器配置时迁移已保存凭据；系统凭据服务不可用时不会静默回退到明文文件。
 - **凭据更新可恢复。**数据库记录 `pending_write`、`pending_delete` 和 `retained` 等状态，使 SQLite 与系统凭据存储之间的失败可以在后续启动时识别和清理。
 - **Host Key 变化默认拒绝。**信任按规范化的主机与端口绑定；未知密钥需要用户决定，密钥变化不会自动接受。
 - **本机文件由原生选择器授权。**前端拿到的是短期、用途绑定的 token，而非任意本地路径。默认有效期为 10 分钟，token 注册容量为 64 项；上传和下载 token 消费后失效，私钥选择 token 可在过期前供对应连接使用。
@@ -237,7 +237,7 @@ TypeScript DTO 由 `ts-rs` 根据 Rust 类型生成，生成后保存在 `contra
 | Vue 3 / TypeScript 5.9.3 / Vite | 桌面 WebView 页面与构建 |
 | xterm.js `5.5.0`、addon-fit `0.10.0` | 本地打包的终端显示与布局适配 |
 
-`Cargo.lock` 固定 Rust 依赖解析结果；依赖版本和选择背景见[依赖决策记录](./docs/technical-decisions/dependencies.md)。
+`Cargo.lock` 固定 Rust 依赖解析结果；前端依赖版本由 `frontend/package.json` 和 `frontend/package-lock.json` 固定。
 
 ### 项目结构
 
@@ -316,7 +316,7 @@ cargo test -p maulink-core --test openssh_terminal --locked -- --ignored --nocap
 cargo test -p maulink-core --test openssh_sftp openssh_sftp --locked -- --ignored --nocapture
 ```
 
-SFTP 另有覆盖 100 MiB、1 GiB 和 10 GiB 文件的长时间压力测试。它会占用明显的磁盘空间和运行时间，不属于默认测试套件；请先阅读 [M5 验收记录](./docs/verification/backend-sftp-m5-2026-09-28.md) 再在专用环境中启动。
+SFTP 另有覆盖 100 MiB、1 GiB 和 10 GiB 文件的长时间压力测试。它会占用明显的磁盘空间和运行时间，不属于默认测试套件；仅应在有足够空间和时间的专用环境中启动。
 
 重新生成共享 TypeScript 类型：
 
@@ -336,36 +336,32 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 
 ## 验证与发布状态
 
-以下后端状态保留 2026-09-28 的验收范围；前端组件与交互更新至 **2026-10-02**。本轮通过类型检查、136/136 前端测试、Browser 键盘与弹层实测、184 张视觉截图复验、macOS arm64 构建及严格签名校验，用户已确认应用与顶部提示，见 [组件与交互验收](./docs/refactor/reka-ui-v1.md)。本机 Windows 交叉构建因缺少 MSVC SDK 头文件失败，仍为 BLOCKED；System-Dark 与系统 Reduced Motion 尚未专项实测，用户确认不代替完整双平台 QA。迁移、配色与图标历史见 [迁移总结](./docs/refactor/frontend-migration-summary.md)、[颜色系统验收](./docs/refactor/color-system-v1.md) 和 [圆角图标报告](./docs/refactor/app-icon-rounded.md)。
+以下验收状态按历史记录日期汇总：后端截至 **2026-09-28**，前端组件与交互截至 **2026-10-02**。2026-10-03 新增的远程文本查看 / 编辑，以及 2026-10-08 的服务器凭据、网络信息和详情页更新，不在这些历史验收结果内。前端截至 2026-10-02 的记录包含类型检查、136/136 项测试、Browser 键盘与弹层实测、184 张视觉截图复验、macOS arm64 构建及签名校验；本机 Windows 交叉构建因缺少 MSVC SDK 头文件失败，仍为 BLOCKED。System-Dark 与系统 Reduced Motion 尚未专项实测；这些结果不代表完整双平台 QA。
 
 | 范围 | 当前状态 | 仍需完成 |
 | --- | --- | --- |
 | M1–M3：核心骨架、数据/凭据、SSH | 核心实现和相应单元/隔离 OpenSSH 测试通过；M3 Windows MSVC 交叉编译通过 | Windows 原生凭据服务、网络行为、路径与安装包真机验收 |
 | M4：Terminal | PTY、多终端、取消与有界流控实现；本机 OpenSSH 压力场景通过 | 真实 WebView/Tauri IPC 吞吐与延迟测量尚未完成，因此不登记为完整性能验收通过 |
-| M5：SFTP | 浏览、目录操作、文件传输实现；隔离 OpenSSH 回归和大文件往返验证通过 | Windows 文件发布与目标服务器故障矩阵验收 |
+| M5：SFTP | 浏览、目录操作、文件传输及不超过 2 MiB 的普通文本查看 / 编辑已实现；2026-09-28 的隔离 OpenSSH 和大文件往返验证覆盖文件传输 | 补充文本查看 / 编辑与 Markdown 预览验收；Windows 文件发布与目标服务器故障矩阵验收 |
 | M6：Monitor | 采集、解析、有限历史和工作区页面实现；当前可用环境检查通过 | Linux 主机实测指标比对、Windows 窗口最小化/恢复行为验收 |
 | 桌面 UI | Vue 正式入口与 Reka UI 组件；Browser 双语、双主题与固定视觉回归；macOS release 应用经用户确认 | Phase 6 既有验收缺口、系统主题/减少动态效果专项实测、原生最小化/恢复；Windows 构建环境及桌面验收 |
 | 发布 | 本机开发 bundle 可用 | Developer ID / Windows 签名、macOS 公证、DMG 和公开发行检查 |
 
 当前界面提供简体中文与 English catalog；用户名称、远端路径和终端输出保持原内容。MVP 当前不包含 Docker 管理、数据库客户端、进程列表和 Disk I/O 监控。M4 IPC 数值测试按用户选择跳过，README 不提供未经实测的吞吐或延迟数据。
 
-更细的验证结果：
+开发与视觉回归说明：
 
-- [后端实施计划](./docs/MauLink_后端开发实施文档_v0.1.md)
-- [M3 SSH 验收记录](./docs/verification/backend-ssh-foundation-2026-09-22.md)
-- [M4 Terminal 开发与验收记录](./docs/verification/backend-terminal-foundation-2026-09-27.md)
-- [M5 SFTP 验收记录](./docs/verification/backend-sftp-m5-2026-09-28.md)
-- [M6 Monitor 验收记录](./docs/verification/backend-monitor-m6-2026-09-28.md)
-- [桌面 UI 与打包记录](./docs/verification/desktop-ui-package-2026-09-28.md)
-- [设计 QA 记录](./design-qa.md)
+- [前端开发说明](./frontend/README.md)
+- [视觉回归说明](./frontend/visual/README.md)
+- [历史设计 QA 记录](./design-qa.md)（截至 2026-10-01，不包含之后新增的远程文本查看 / 编辑）
 
 ## 文档导航
 
 | 关注内容 | 入口 |
 | --- | --- |
-| 产品与交互 | [PRD](./docs/MauLink_PRD_v0.1.md) · [MVP 定义](./docs/MauLink_MVP_设计文档_v0.1.md) · [UX 设计](./docs/MauLink_UX_设计文档_v0.1.md) |
-| 开发与架构 | [前端说明](./frontend/README.md) · [后端实施](./docs/MauLink_后端开发实施文档_v0.1.md) · [依赖决策](./docs/technical-decisions/dependencies.md) |
-| 迁移与验收 | [前端迁移总结](./docs/refactor/frontend-migration-summary.md) · [组件与交互验收](./docs/refactor/reka-ui-v1.md) · [视觉回归](./frontend/visual/README.md) · [设计 QA](./design-qa.md) · [颜色系统验收](./docs/refactor/color-system-v1.md) · [图标验收](./docs/refactor/app-icon-rounded.md) |
+| 开发与运行 | [前端开发说明](./frontend/README.md) · [项目结构](#项目结构) |
+| 视觉回归 | [视觉回归说明](./frontend/visual/README.md) |
+| 历史验收 | [设计 QA 记录](./design-qa.md)（截至 2026-10-01） |
 
 ## 贡献约定
 
