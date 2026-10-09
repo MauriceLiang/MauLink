@@ -38,10 +38,10 @@ function hostKeyApi(get: (payload: { host: string; port: number }) => HostKeyRec
 function networkApi(inspect: (payload: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => NetworkInspection | Promise<NetworkInspection>) {
   return createNetworkApi(createIpcClient(createMockIpc({ network_inspect: inspect })));
 }
-function preflightResult(error: ConnectionPreflightResult["error"] = null): ConnectionPreflightResult {
+function preflightResult(error: ConnectionPreflightResult["error"] = null, durationMs: number | null = 7): ConnectionPreflightResult {
   return {
     resolvedAddresses: ["198.51.100.10"], selectedAddress: error ? null : "198.51.100.10",
-    dnsDurationMs: 4, tcpReachable: error ? false : true, tcpConnectDurationMs: 7, error, checkedAtMs: 1_800_000_000_000,
+    dnsDurationMs: 4, tcpReachable: error ? false : true, tcpConnectDurationMs: durationMs, error, checkedAtMs: 1_800_000_000_000,
   };
 }
 function preflightApi(check: (payload: { serverId: string; host: string; port: number; timeoutMs: number }) => ConnectionPreflightResult | Promise<ConnectionPreflightResult> = () => preflightResult()) {
@@ -305,7 +305,7 @@ describe("server overview", () => {
   });
 
   it("runs a lightweight preflight only after the user clicks and reports TCP reachability without SSH login", async () => {
-    const check = vi.fn(() => preflightResult());
+    const check = vi.fn(() => preflightResult(null, 2460));
     const getStats = vi.fn(({ serverId }: { serverId: string }) => runtimeStats(serverId));
     const wrapper = mount(ServerOverview, { props: {
       server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
@@ -321,7 +321,7 @@ describe("server overview", () => {
 
     expect(check).toHaveBeenCalledExactlyOnceWith({ serverId: base.id, host: "192.168.1.20", port: 22, timeoutMs: 10000 });
     expect(getStats).toHaveBeenCalledWith({ serverId: base.id });
-    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "success", message: "连接检测成功 · 延迟 7 ms" }]]);
+    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "success", title: "TCP 端口可达", description: "连接耗时 2.46 秒" }]]);
     expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
     expect(wrapper.findAll(".server-overview-card")).toHaveLength(5);
   });
@@ -335,8 +335,20 @@ describe("server overview", () => {
     wrappers.push(wrapper);
     await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
     await flushPromises();
-    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "error", message: "连接检测失败 · 延迟 7 ms" }]]);
+    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "error", title: "连接检测失败", description: "连接耗时 7 毫秒" }]]);
     expect(wrapper.find('[aria-label="连接检测结果"]').exists()).toBe(false);
+  });
+
+  it("does not invent a duration when preflight timing is unavailable", async () => {
+    const wrapper = mount(ServerOverview, { props: {
+      server: profile(), store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
+      networkApi: networkApi(({ host, detailed }) => networkResult(host, detailed)),
+      preflightApi: preflightApi(() => preflightResult(null, null)), runtimeStatsApi: runtimeStatsApi(), readOnly: false,
+    } });
+    wrappers.push(wrapper);
+    await wrapper.findAll("button").find(button => button.text().includes("连接检测"))!.trigger("click");
+    await flushPromises();
+    expect(wrapper.emitted("testResult")).toEqual([[{ kind: "success", title: "TCP 端口可达", description: "已连接，但没有可用的耗时数据" }]]);
   });
 
   it("automatically analyzes an IP while keeping technical details collapsed until requested", async () => {

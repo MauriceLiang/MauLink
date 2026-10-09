@@ -21,9 +21,10 @@ import type { createNetworkApi } from "../../ipc/network";
 import type { createPreflightApi } from "../../ipc/preflight";
 import type { createServerRuntimeStatsApi } from "../../ipc/server-runtime-stats";
 import RecentActivityCard from "./RecentActivityCard.vue";
+import type { ConnectionTestToastResult } from "../../app/connection-test-toast";
 
 const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean; databaseRevision?: number }>();
-const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: []; testResult: [result: { kind: "success" | "error"; message: string }] }>();
+const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: []; testResult: [result: ConnectionTestToastResult] }>();
 const t = messages(serverOverviewMessages);
 const overviewSections = ["connection", "network", "security", "route", "activity"] as const;
 type OverviewSection = (typeof overviewSections)[number];
@@ -111,6 +112,13 @@ function menuAction(id: string) {
   else if (id === "copy-ssh" && sshCommand.value) emit("copy", "ssh", sshCommand.value);
 }
 
+function formatConnectionDuration(durationMs: number | null | undefined) {
+  if (durationMs == null || !Number.isFinite(durationMs) || durationMs < 0) return null;
+  if (durationMs < 1000) return `${Math.round(durationMs)} ${t("milliseconds")}`;
+  const seconds = new Intl.NumberFormat(locale.value === "en" ? "en-US" : "zh-CN", { maximumFractionDigits: 2 }).format(durationMs / 1000);
+  return `${seconds} ${locale.value === "en" ? "s" : "秒"}`;
+}
+
 async function runPreflight() {
   const requestVersion = ++preflightRequestVersion;
   preflightState.value = "loading";
@@ -124,13 +132,20 @@ async function runPreflight() {
     if (requestVersion === preflightRequestVersion) {
       preflightState.value = "idle";
       const success = result.tcpReachable === true && result.error === null;
-      emit("testResult", { kind: success ? "success" : "error", message: t(success ? "preflightSuccess" : "preflightFailure", { latency: result.tcpConnectDurationMs ?? "—" }) });
+      const duration = formatConnectionDuration(result.tcpConnectDurationMs);
+      emit("testResult", {
+        kind: success ? "success" : "error",
+        title: t(success ? "preflightSuccessTitle" : "preflightFailureTitle"),
+        description: duration
+          ? t("preflightConnectionTime", { duration })
+          : t(success ? "preflightDurationUnavailable" : "preflightUnreachable"),
+      });
       await loadRuntimeStats();
     }
   } catch {
     if (requestVersion === preflightRequestVersion) {
       preflightState.value = "idle";
-      emit("testResult", { kind: "error", message: t("preflightFailure", { latency: "—" }) });
+      emit("testResult", { kind: "error", title: t("preflightFailureTitle"), description: t("preflightUnreachable") });
     }
   }
 }

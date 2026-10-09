@@ -58,6 +58,19 @@ describe('shared SettingsService preferences', () => {
     button('外观').click(); await flushPromises(); await changeSelect(0, '深色'); await changeSelect(1, '紧凑'); await changeSelect(2, '宽'); expect(fixture.current().value.theme).toBe('system'); expect(fixture.current().value.uiDensity).toBe('standard');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises(); expect(fixture.current().value).toMatchObject({theme:'dark',uiDensity:'compact',sidebarWidth:'wide'}); expect(wrapper.emitted('saved')).toHaveLength(1);
   });
+  it('keeps notification position as a draft until save and restores it after cancellation', async () => {
+    const fixture=createSettingsMock(); const apply=vi.fn(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),apply); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
+    button('外观').click(); await flushPromises();
+    const positions=[...document.querySelectorAll<HTMLInputElement>('input[name="toastPosition"]')];
+    expect(positions.map(input=>input.value)).toEqual(['topLeft','topCenter','topRight','bottomLeft','bottomCenter','bottomRight']);
+    const bottomLeft=document.querySelector<HTMLInputElement>('input[name="toastPosition"][value="bottomLeft"]')!; bottomLeft.click(); await flushPromises();
+    expect(fixture.current().value.toastPosition).toBe('topRight'); expect(apply.mock.lastCall?.[0].toastPosition).toBe('topRight');
+    button('取消').click(); await wrapper.setProps({open:false}); await wrapper.setProps({open:true}); await flushPromises();
+    expect(document.querySelector<HTMLInputElement>('input[name="toastPosition"][value="topRight"]')?.checked).toBe(true);
+    document.querySelector<HTMLInputElement>('input[name="toastPosition"][value="bottomCenter"]')!.click();
+    document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
+    expect(fixture.current().value.toastPosition).toBe('bottomCenter'); expect(apply.mock.lastCall?.[0].toastPosition).toBe('bottomCenter');
+  });
   it('persists the selected accent and custom hex color only after saving', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(SettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     button('外观').click(); await flushPromises();

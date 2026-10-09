@@ -51,6 +51,7 @@ import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
 import ServerOverview from "../components/server-overview/ServerOverview.vue";
 import { serverOverviewMessages } from "../i18n/server-overview";
+import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
 const t = messages(shellMessages);
 
@@ -191,9 +192,9 @@ watch(() => {
   } else if (isFinished(snapshot)) pendingServerNavigation.value = null;
 });
 
-function onConnectionTestResult(result: { kind: "success" | "error"; message: string }) {
-  if (result.kind === "success") toast.success(result.message);
-  else toast.error(result.message);
+function onConnectionTestResult(result: ConnectionTestToastResult) {
+  if (result.kind === "success") toast.success(result.description, { title: result.title });
+  else toast.error(result.description, { title: result.title });
 }
 
 async function copyOverviewValue(kind: "address" | "ssh", value: string) {
@@ -266,6 +267,6 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
     <ConnectionDialogs :store="connections" :servers="servers" :suspended="settingsOpen || paletteOpen || about || (editor && !connections.draftTestActive.value) || manageGroups || !!deleteTarget" />
     <SettingsDialog :open="settingsOpen" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :initial-section="settingsInitialSection" @database-changed="databaseRevision++" @close="settingsOpen = false" @saved="toast.success(settingsText('saved'))" />
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" @execute="executeCommand" />
-    <BaseToastViewport :queue="toast" />
+    <BaseToastViewport :queue="toast" :position="terminalPreferences.record.value?.value.toastPosition ?? 'topRight'" />
   </div>
 </template>

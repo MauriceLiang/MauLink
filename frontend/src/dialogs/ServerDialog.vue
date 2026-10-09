@@ -30,9 +30,10 @@ import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import BaseSwitch from "../components/base/BaseSwitch.vue";
+import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
-const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: { kind: "success" | "error"; message: string }] }>();
+const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
 const current = ref<ServerProfile | null>(null);
@@ -192,11 +193,11 @@ watch(() => {
   }
   if (snapshot.state === "closed") {
     const latency = Math.max(0, Math.round(now - testStartedAt - challengeDurationMs));
-    emit("testResult", { kind: "success", message: t("testConnectionSucceeded").replace("{latency}", String(latency)) });
+    emit("testResult", { kind: "success", title: t("testConnectionSuccessTitle"), description: t("testConnectionSucceeded").replace("{latency}", String(latency)) });
     finishTest();
   } else if (snapshot.state === "failed") {
     const reason = snapshot.error ? presentError(snapshot.error, props.language).message : t("testConnectionFailedUnknown");
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${reason}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: reason });
     finishTest();
   } else if (snapshot.state === "cancelled") finishTest();
 }, { flush: "sync" });
@@ -237,7 +238,7 @@ async function testConnection() {
     section.value = "basic";
     errorSection.value = "basic";
     error.value = t(invalid);
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${t(invalid)}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: t(invalid) });
     return;
   }
   error.value = "";
@@ -263,7 +264,7 @@ async function testConnection() {
       if (generation === testRunGeneration) {
         error.value = t("testConnectionUnavailable");
         testRunning.value = false;
-        emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${error.value}` });
+        emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: error.value });
       }
       return;
     }
@@ -280,7 +281,7 @@ async function testConnection() {
     error.value = presentError(failure.value, props.language).message;
     errorSection.value = "basic";
     testRunning.value = false;
-    emit("testResult", { kind: "error", message: `${t("testConnectionFailed")}${error.value}` });
+    emit("testResult", { kind: "error", title: t("testConnectionFailureTitle"), description: error.value });
   }
 }
 
@@ -348,14 +349,15 @@ async function save() {
         <TabsContent value="basic" class="server-dialog-panel">
           <fieldset :disabled="formBusy || (!!serverId && !current)" class="server-form-grid">
             <div class="server-field-full"><BaseInput v-model="draft.name!" :label="t('name')" maxlength="128" placeholder="Production Web" /></div>
-            <BaseInput v-model="draft.host" :label="t('host')" autocomplete="off" placeholder="192.168.1.10" />
-            <label class="base-field"><span>{{ t('port') }}</span><input v-model.number="draft.port" class="base-input" type="number" min="1" max="65535" required /></label>
+            <div class="server-field-full server-host-port-row">
+              <BaseInput v-model="draft.host" :label="t('host')" autocomplete="off" placeholder="192.168.1.10" />
+              <div class="base-field server-port-field"><input v-model.number="draft.port" class="base-input" type="number" min="1" max="65535" required :aria-label="t('port')" /></div>
+            </div>
             <div class="server-field-full"><BaseInput v-model="draft.username" :label="t('username')" autocomplete="username" placeholder="root" /></div>
             <div class="server-field-full base-field"><span>{{ t('auth') }}</span><div class="server-auth-options" role="group" :aria-label="t('auth')">
               <BaseButton :aria-pressed="draft.authType === 'password'" @click="draft.authType = 'password'">{{ t('password') }}</BaseButton>
               <BaseButton :aria-pressed="draft.authType === 'privateKey'" @click="draft.authType = 'privateKey'">{{ t('key') }}</BaseButton>
             </div></div>
-            <div class="server-field-full"><BaseSwitch v-model="draft.requireAuthentication" :label="t('requireAuthenticationOnConnect')" :disabled="busy" /><p class="server-form-note">{{ t('credentialStorageModeNote') }}</p></div>
             <BaseSelect v-if="current" v-model="mode" class="server-field-full" :label="t('credential')" :disabled="busy" :options="[{value:'keep',label:t('keep')},{value:'replace',label:t('replace')},{value:'clear',label:t('clear')}]" />
             <div v-if="!current || mode === 'replace'" class="server-field-full server-secret-field">
               <BaseInput v-model="secret" :label="t(draft.authType === 'privateKey' ? 'passphrase' : 'password')" :type="visible ? 'text' : 'password'" autocomplete="new-password" />
@@ -363,8 +365,16 @@ async function save() {
               <p class="server-form-note">{{ t('secretNote') }}</p>
             </div>
             <div v-if="draft.authType === 'privateKey'" class="server-field-full server-key-picker">
-              <span>{{ t('privateKey') }}</span><p class="server-form-note">{{ t('keyNote') }}</p>
-              <div><span>{{ key?.displayName ?? t(current?.authType === 'privateKey' && current.hasPrivateKey ? 'keepKey' : 'noKey') }}</span><BaseButton @click="selectKey">{{ t('selectKey') }}</BaseButton></div>
+              <span class="server-key-picker-label">{{ t('privateKey') }}</span>
+              <div class="server-key-picker-actions">
+                <BaseButton type="button" @click="selectKey">{{ t('selectKey') }}</BaseButton>
+                <BaseTooltip :label="t('keyNote')"><button type="button" class="server-info-button" :aria-label="t('keyHelp')"><BaseIcon name="info" /></button></BaseTooltip>
+              </div>
+              <span class="server-key-picker-value">{{ key?.displayName ?? t(current?.authType === 'privateKey' && current.hasPrivateKey ? 'keepKey' : 'noKey') }}</span>
+            </div>
+            <div class="server-field-full server-credential-storage-row">
+              <BaseSwitch v-model="draft.requireAuthentication" :label="t('requireAuthenticationOnConnect')" :disabled="busy" />
+              <BaseTooltip :label="t('credentialStorageModeNote')"><button type="button" class="server-info-button" :aria-label="t('credentialStorageHelp')"><BaseIcon name="info" /></button></BaseTooltip>
             </div>
           </fieldset>
           <p v-if="error && errorSection === 'basic'" role="alert" class="server-form-error">{{ error }}</p>
@@ -380,7 +390,7 @@ async function save() {
               <header class="server-advanced-section-heading"><h3>{{ t('jumpRouting') }}</h3></header>
               <div class="server-advanced-row">
                 <BaseInput v-model="draft.jumpHost!" :label="t('jumpHost')" placeholder="user@bastion.example.com" />
-                <label class="base-field"><span>{{ t('jumpPort') }}</span><input v-model.number="draft.jumpPort" class="base-input" type="number" min="1" max="65535" /></label>
+                <div class="base-field server-port-field"><input v-model.number="draft.jumpPort" class="base-input" type="number" min="1" max="65535" :aria-label="t('jumpPort')" /></div>
               </div>
             </section>
             <section class="server-advanced-section">
@@ -388,7 +398,7 @@ async function save() {
               <BaseSelect v-model="draft.proxyType" :label="t('proxy')" :disabled="busy || (!!serverId && !current)" :options="[{value:null,label:t('none')},{value:'socks5',label:'SOCKS5'},{value:'httpConnect',label:'HTTP CONNECT'}]" />
               <div v-if="draft.proxyType" class="server-advanced-row server-dependent-fields">
                 <BaseInput v-model="draft.proxyHost!" :label="t('proxyHost')" />
-                <label class="base-field"><span>{{ t('proxyPort') }}</span><input v-model.number="draft.proxyPort" class="base-input" type="number" min="1" max="65535" /></label>
+                <label class="base-field server-port-field"><span>{{ t('proxyPort') }}</span><input v-model.number="draft.proxyPort" class="base-input" type="number" min="1" max="65535" /></label>
               </div>
             </section>
             <section class="server-advanced-section">
