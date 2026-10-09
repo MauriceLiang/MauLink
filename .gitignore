@@ -32,6 +32,12 @@ docs/
 # Keep the README screenshots and their active visual regression baseline.
 !docs/
 docs/*
+!docs/screenshots/
+docs/screenshots/*
+!docs/screenshots/readme/
+docs/screenshots/readme/*
+!docs/screenshots/readme/*.jpg
+!docs/screenshots/readme/capture-*.json
 !docs/refactor/
 docs/refactor/*
 !docs/refactor/screenshots/

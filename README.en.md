@@ -37,32 +37,24 @@ MauLink is currently in development and internal testing, targeting macOS and Wi
 
 <table>
   <tr>
-    <th>Light theme · a clear server overview</th>
-    <th>Dark theme · a consistent workspace</th>
+    <th>Simplified Chinese · Light</th>
+    <th>Simplified Chinese · Dark</th>
   </tr>
   <tr>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue server home in light theme" width="480"></td>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue server home in dark theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-light-zh-CN-1280x720.jpg" alt="MauLink server home in Simplified Chinese light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-zh-CN-1280x720.jpg" alt="MauLink server home in Simplified Chinese dark theme" width="480"></td>
+  </tr>
+  <tr>
+    <th>English · Light</th>
+    <th>English · Dark</th>
+  </tr>
+  <tr>
+    <td><img src="./docs/screenshots/readme/servers-light-en-1280x720.jpg" alt="MauLink server home in English light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-en-1280x720.jpg" alt="MauLink server home in English dark theme" width="480"></td>
   </tr>
 </table>
 
-<details>
-<summary><strong>Show the Terminal and Quick Monitor workspace</strong></summary>
-
-![Terminal and Quick Monitor workspace](./docs/refactor/screenshots/color-v1-review/terminal-light-zh-CN-1440x920.jpg)
-
-</details>
-
-<details>
-<summary><strong>Show the unified select control and top-level feedback</strong></summary>
-
-![Dark dialog and theme selector](./docs/refactor/screenshots/color-v1-review/palette-dark-zh-CN-1440x920.jpg)
-
-![Success notification centered at the top](./docs/refactor/screenshots/color-v1-review/toast-light-zh-CN-1440x920.jpg)
-
-</details>
-
-The screenshots show the current MauLink Blue Vue UI. Server lists, terminal output, and monitoring metrics use isolated Browser Harness test data. See the [visual regression guide](./frontend/visual/README.md) for fixed scenarios and screenshot checks.
+These screenshots were captured from the current Vue frontend with the DEV-only Typed Mock IPC fixture and three sample servers. All four combinations use the same 1280×720 viewport at DPR 1. See the [visual regression guide](./frontend/visual/README.md) for fixed scenarios and screenshot checks.
 
 ## Core capabilities
 

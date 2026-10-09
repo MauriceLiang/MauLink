@@ -1,0 +1,17 @@
+[
+  {
+    "page": "servers",
+    "file": "servers-light-en-1280x720.jpg",
+    "url": "http://127.0.0.1:1421/?harness=visual&page=servers&theme=light&locale=en",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 720,
+    "locale": "en",
+    "overflow": false,
+    "theme": "light",
+    "width": 1280,
+    "sha256": "4fdafeb2da5ce0fb58d1029b97232e0bf7bbd125ca7509d315ebbc0b7a04052a",
+    "repeatSha256": "4fdafeb2da5ce0fb58d1029b97232e0bf7bbd125ca7509d315ebbc0b7a04052a",
+    "identical": true
+  }
+]

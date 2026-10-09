@@ -1,0 +1,17 @@
+[
+  {
+    "page": "servers",
+    "file": "servers-dark-en-1280x720.jpg",
+    "url": "http://127.0.0.1:1421/?harness=visual&page=servers&theme=dark&locale=en",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 720,
+    "locale": "en",
+    "overflow": false,
+    "theme": "dark",
+    "width": 1280,
+    "sha256": "a1a0235677ce6b961808510d30d934808ef22a8f6e9b97435c1c192a2435439f",
+    "repeatSha256": "a1a0235677ce6b961808510d30d934808ef22a8f6e9b97435c1c192a2435439f",
+    "identical": true
+  }
+]

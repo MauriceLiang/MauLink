@@ -37,32 +37,24 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 
 <table>
   <tr>
-    <th>浅色 · 清晰的服务器入口</th>
-    <th>深色 · 统一的工作台外观</th>
+    <th>简体中文 · 浅色</th>
+    <th>简体中文 · 深色</th>
   </tr>
   <tr>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-light-zh-CN-1440x920.jpg" alt="MauLink Blue 浅色服务器主页" width="480"></td>
-    <td><img src="./docs/refactor/screenshots/color-v1-review/servers-dark-zh-CN-1440x920.jpg" alt="MauLink Blue 深色服务器主页" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-light-zh-CN-1280x720.jpg" alt="MauLink 简体中文浅色主题服务器主页" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-zh-CN-1280x720.jpg" alt="MauLink 简体中文深色主题服务器主页" width="480"></td>
+  </tr>
+  <tr>
+    <th>English · Light</th>
+    <th>English · Dark</th>
+  </tr>
+  <tr>
+    <td><img src="./docs/screenshots/readme/servers-light-en-1280x720.jpg" alt="MauLink server home in English light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-en-1280x720.jpg" alt="MauLink server home in English dark theme" width="480"></td>
   </tr>
 </table>
 
-<details>
-<summary><strong>展开查看终端与 Quick Monitor 工作区</strong></summary>
-
-![终端与 Quick Monitor 工作区](./docs/refactor/screenshots/color-v1-review/terminal-light-zh-CN-1440x920.jpg)
-
-</details>
-
-<details>
-<summary><strong>展开查看统一下拉控件与顶部操作反馈</strong></summary>
-
-![深色弹窗与主题选择](./docs/refactor/screenshots/color-v1-review/palette-dark-zh-CN-1440x920.jpg)
-
-![顶部居中的成功提示](./docs/refactor/screenshots/color-v1-review/toast-light-zh-CN-1440x920.jpg)
-
-</details>
-
-截图来自当前 MauLink Blue 配色的实际 Vue 界面，服务器、终端输出和监控指标使用 Browser Harness 的隔离测试数据。固定场景与截图校验方式见 [视觉回归说明](./frontend/visual/README.md)。
+截图由当前 Vue 前端的 DEV-only Typed Mock IPC fixture 生成，使用三台示例服务器；四种组合统一为 1280×720、DPR 1。固定场景与截图校验方式见 [视觉回归说明](./frontend/visual/README.md)。
 
 ## 核心能力
 

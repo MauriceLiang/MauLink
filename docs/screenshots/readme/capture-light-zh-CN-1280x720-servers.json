@@ -1,0 +1,17 @@
+[
+  {
+    "page": "servers",
+    "file": "servers-light-zh-CN-1280x720.jpg",
+    "url": "http://127.0.0.1:1421/?harness=visual&page=servers&theme=light&locale=zh-CN",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 720,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 1280,
+    "sha256": "468c751e084c49765cf4bc3a85f03c5533a7638f84a0b53de357cf7bab07db13",
+    "repeatSha256": "468c751e084c49765cf4bc3a85f03c5533a7638f84a0b53de357cf7bab07db13",
+    "identical": true
+  }
+]
