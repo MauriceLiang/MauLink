@@ -78,6 +78,6 @@ async function reload() {
     </template>
     <p v-if="error" class="server-form-error" role="alert">{{ error }}</p>
     <BaseButton v-if="conflict" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>
-    <template #footer><BaseButton data-dialog-cancel :disabled="busy" @click="deleting ? reset() : $emit('close')">{{ t('cancel') }}</BaseButton><BaseButton v-if="deleting" variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
+    <template v-if="deleting" #footer><BaseButton data-dialog-cancel :disabled="busy" @click="reset">{{ t('cancel') }}</BaseButton><BaseButton variant="danger" :loading="busy" @click="remove">{{ t('deleteGroup') }}</BaseButton></template>
   </component>
 </template>
