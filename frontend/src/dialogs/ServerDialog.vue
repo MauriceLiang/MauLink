@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BaseTooltip from "../components/base/BaseTooltip.vue";
+import BaseInfoPopover from "../components/base/BaseInfoPopover.vue";
 import BaseIcon from "../components/base/BaseIcon.vue";
 import BaseSelect from "../components/base/BaseSelect.vue";
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
@@ -29,7 +30,6 @@ import { credentialValidation, newServerDraft, normalizeServerDraft, validateSer
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
-import BaseSwitch from "../components/base/BaseSwitch.vue";
 import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
 const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
@@ -41,6 +41,21 @@ const draft = reactive(newServerDraft());
 const secret = ref("");
 const visible = ref(false);
 const key = ref<SelectedLocalFile | null>(null);
+type CredentialStorageChoice = "system" | "local";
+const credentialStorageChoice = computed<CredentialStorageChoice>({
+  get: () => draft.requireAuthentication ? "system" : "local",
+  set: choice => { draft.requireAuthentication = choice === "system"; },
+});
+type PrivateKeyUiState = "empty" | "selected" | "existing" | "expired";
+const keyValidationNow = ref(Date.now());
+function refreshKeyStatus() { keyValidationNow.value = Date.now(); }
+const privateKeyUiState = computed<PrivateKeyUiState>(() => {
+  if (key.value) return key.value.expiresAtMs <= keyValidationNow.value ? "expired" : "selected";
+  if (current.value?.authType === "privateKey" && current.value.hasPrivateKey) return "existing";
+  return "empty";
+});
+const privateKeyButtonText = computed(() => privateKeyUiState.value === "empty" ? t("browseKey") : privateKeyUiState.value === "expired" ? t("reselectKey") : t("replaceKey"));
+const privateKeyDisplayText = computed(() => key.value?.displayName ?? (privateKeyUiState.value === "existing" ? t("configuredKey") : t("noKey")));
 const mode = ref<CredentialUpdate["mode"]>("keep");
 type ServerDialogSection = "basic" | "advanced" | "appearance";
 const section = ref<ServerDialogSection>("basic");
@@ -75,6 +90,7 @@ let testRunGeneration = 0;
 let cancelTestRequested = false;
 
 async function initialize() {
+  refreshKeyStatus();
   error.value = "";
   failure.value = null;
   appearanceBusy.value = false;
@@ -231,6 +247,7 @@ function closeDialog() {
 
 async function testConnection() {
   if (!props.connectionStore || formBusy.value) return;
+  refreshKeyStatus();
   const profile = normalizeServerDraft(draft, key.value);
   const invalid = validateServerDraft(profile, current.value, key.value)
     ?? (current.value && mode.value === "keep" ? credentialValidation(current.value, profile, { mode: "keep" }) : null);
@@ -286,7 +303,7 @@ async function testConnection() {
 }
 
 async function selectKey() {
-  if (busy.value) return;
+  if (formBusy.value) return;
   selectingKey.value = true;
   errorSection.value = "basic";
   error.value = "";
@@ -298,11 +315,15 @@ async function selectKey() {
     failure.value = mapError(reason);
     error.value = presentError(failure.value, props.language).message;
     phase.value = "error";
-  } finally { selectingKey.value = false; }
+  } finally {
+    refreshKeyStatus();
+    selectingKey.value = false;
+  }
 }
 
 async function save() {
   if (formBusy.value || (props.serverId && !current.value)) return;
+  refreshKeyStatus();
   failure.value = null;
   error.value = "";
   const profile = normalizeServerDraft(draft, key.value);
@@ -358,24 +379,33 @@ async function save() {
               <BaseButton :aria-pressed="draft.authType === 'password'" @click="draft.authType = 'password'">{{ t('password') }}</BaseButton>
               <BaseButton :aria-pressed="draft.authType === 'privateKey'" @click="draft.authType = 'privateKey'">{{ t('key') }}</BaseButton>
             </div></div>
-            <BaseSelect v-if="current" v-model="mode" class="server-field-full" :label="t('credential')" :disabled="busy" :options="[{value:'keep',label:t('keep')},{value:'replace',label:t('replace')},{value:'clear',label:t('clear')}]" />
+            <div v-if="draft.authType === 'privateKey'" class="server-field-full base-field server-key-field">
+              <div class="server-key-label">
+                <label :for="`${formId}-private-key`">{{ t('privateKey') }}</label>
+                <BaseInfoPopover :title="t('keyHelp')" :description="t('keyNote')" :trigger-label="t('keyHelp')" side="right" :disabled="formBusy" />
+              </div>
+              <div class="server-key-control">
+                <div class="server-key-picker-input" :data-state="privateKeyUiState">
+                  <BaseIcon name="file-text" class="server-key-file-icon" />
+                  <div class="server-key-file-details"><span class="server-key-file-name" :title="privateKeyDisplayText">{{ privateKeyDisplayText }}</span></div>
+                  <button :id="`${formId}-private-key`" type="button" class="server-key-browse-button" :disabled="formBusy" :aria-label="privateKeyButtonText" @click="selectKey">{{ selectingKey ? t('selectingKey') : privateKeyButtonText }}</button>
+                </div>
+                <p v-if="privateKeyUiState === 'selected' || privateKeyUiState === 'existing' || privateKeyUiState === 'expired'" class="server-key-file-hint" :class="{ 'server-key-file-hint--error': privateKeyUiState === 'expired' }">
+                  {{ privateKeyUiState === 'selected' ? t('selectedKeyHint') : privateKeyUiState === 'existing' ? t('existingKeyHint') : t('expiredKeyHint') }}
+                </p>
+              </div>
+            </div>
+            <BaseSelect v-if="current" v-model="mode" class="server-field-full" :label="t('credential')" :disabled="busy" :options="[{value:'keep',label:t('keep')},{value:'replace',label:t('replace')},{value:'clear',label:t('clear')}]">
+              <template v-if="draft.authType === 'privateKey'" #label-suffix><BaseInfoPopover :title="t('credentialHelp')" :description="t('credentialNote')" :trigger-label="t('credentialHelp')" side="right" :disabled="formBusy" /></template>
+            </BaseSelect>
             <div v-if="!current || mode === 'replace'" class="server-field-full server-secret-field">
               <BaseInput v-model="secret" :label="t(draft.authType === 'privateKey' ? 'passphrase' : 'password')" :type="visible ? 'text' : 'password'" autocomplete="new-password" />
               <BaseTooltip :label="visible ? '隐藏凭据 / Hide credential' : '显示凭据 / Show credential'"><button type="button" class="server-secret-toggle" :aria-pressed="visible" :aria-label="visible ? '隐藏凭据 / Hide credential' : '显示凭据 / Show credential'" @click="visible = !visible"><BaseIcon :name="visible ? 'eye-off' : 'eye'" /></button></BaseTooltip>
               <p class="server-form-note">{{ t('secretNote') }}</p>
             </div>
-            <div v-if="draft.authType === 'privateKey'" class="server-field-full server-key-picker">
-              <span class="server-key-picker-label">{{ t('privateKey') }}</span>
-              <div class="server-key-picker-actions">
-                <BaseButton type="button" @click="selectKey">{{ t('selectKey') }}</BaseButton>
-                <BaseTooltip :label="t('keyNote')"><button type="button" class="server-info-button" :aria-label="t('keyHelp')"><BaseIcon name="info" /></button></BaseTooltip>
-              </div>
-              <span class="server-key-picker-value">{{ key?.displayName ?? t(current?.authType === 'privateKey' && current.hasPrivateKey ? 'keepKey' : 'noKey') }}</span>
-            </div>
-            <div class="server-field-full server-credential-storage-row">
-              <BaseSwitch v-model="draft.requireAuthentication" :label="t('requireAuthenticationOnConnect')" :disabled="busy" />
-              <BaseTooltip :label="t('credentialStorageModeNote')"><button type="button" class="server-info-button" :aria-label="t('credentialStorageHelp')"><BaseIcon name="info" /></button></BaseTooltip>
-            </div>
+            <BaseSelect v-model="credentialStorageChoice" class="server-field-full server-credential-storage-field" :label="t('credentialStorage')" :disabled="busy" :options="[{value:'system',label:t('credentialStorageSystem')},{value:'local',label:t('credentialStorageLocal')}]">
+              <template #label-suffix><BaseInfoPopover :title="t('credentialStorageHelp')" :description="t('credentialStorageModeNote')" :trigger-label="t('credentialStorageHelp')" side="right" :disabled="formBusy" /></template>
+            </BaseSelect>
           </fieldset>
           <p v-if="error && errorSection === 'basic'" role="alert" class="server-form-error">{{ error }}</p>
           <BaseButton v-if="failure?.code === 'REVISION_CONFLICT' || (serverId && !current)" :disabled="busy" @click="initialize">{{ t(current ? 'reload' : 'retry') }}</BaseButton>
