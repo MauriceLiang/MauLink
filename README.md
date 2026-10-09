@@ -1,3 +1,5 @@
+**简体中文** | [English](./README.en.md)
+
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./frontend/src/assets/app-icon-dark.png">
