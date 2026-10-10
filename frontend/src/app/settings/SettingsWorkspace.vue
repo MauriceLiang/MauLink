@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { AppSettings } from '../../../../contracts/v1/AppSettings';
 import type { AccentColor } from '../../../../contracts/v1/AccentColor';
 import type { ToastPosition } from '../../../../contracts/v1/ToastPosition';
@@ -39,9 +39,9 @@ const savedCopyOnSelect = ref(false);
 const copyOnSelect = ref(false);
 const resetKey = ref(0);
 const databaseBusy = ref(false);
-const leaveDialogOpen = ref(false);
 const reloadDialogOpen = ref(false);
 const terminalSection = ref<InstanceType<typeof TerminalSettingsSection> | null>(null);
+const autoSaveReady = ref(false);
 const dirty = computed(() => JSON.stringify(draft) !== JSON.stringify(savedSettings.value) || copyOnSelect.value !== savedCopyOnSelect.value);
 const regularSection = computed(() => props.section !== 'security' && props.section !== 'network');
 const busy = computed(() => props.preferences.busy.value || databaseBusy.value || !!terminalSection.value?.busy);
@@ -61,6 +61,39 @@ const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessage
 };
 const title = computed(() => t(sectionCopy[props.section].title));
 const description = computed(() => t(sectionCopy[props.section].description));
+const terminalSettingKeys = new Set<keyof AppSettings>(['terminalFontFamily', 'terminalFontSize', 'terminalCursorStyle', 'terminalScrollbackLines', 'terminalThemeMode', 'terminalCustomColors', 'terminalBackgroundImage']);
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let autoSaveQueued = false;
+let activeSave: Promise<boolean> | null = null;
+
+function clearAutoSaveTimer() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+}
+function settingsPatch() {
+  const patch: Partial<AppSettings> = {};
+  const changedKeys = new Set<keyof AppSettings>();
+  for (const key of Object.keys(savedSettings.value) as (keyof AppSettings)[]) {
+    if (JSON.stringify(draft[key]) !== JSON.stringify(savedSettings.value[key])) {
+      Object.assign(patch, { [key]: draft[key] });
+      changedKeys.add(key);
+    }
+  }
+  return { patch, changedKeys };
+}
+function scheduleAutoSave(delay = 350) {
+  if (!autoSaveReady.value || !dirty.value) return;
+  clearAutoSaveTimer();
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    if (props.preferences.busy.value || terminalSection.value?.busy) {
+      autoSaveQueued = true;
+      return;
+    }
+    autoSaveQueued = false;
+    void saveSettings();
+  }, delay);
+}
 
 function cloneSettings(value: AppSettings): AppSettings {
   return { ...value, terminalCustomColors: { ...value.terminalCustomColors }, terminalBackgroundImage: { ...value.terminalBackgroundImage } };
@@ -74,11 +107,26 @@ function resetDraft() {
   resetKey.value++;
 }
 async function activate() {
+  autoSaveReady.value = false;
+  clearAutoSaveTimer();
+  autoSaveQueued = false;
   if (!props.preferences.record.value) await props.preferences.load();
   resetDraft();
+  await nextTick();
+  autoSaveReady.value = true;
 }
 watch(() => props.active, active => { if (active) void activate(); }, { immediate: true });
 watch(busy, value => emit('busyChange', value), { immediate: true });
+watch(() => [JSON.stringify(draft), copyOnSelect.value], () => {
+  if (autoSaveReady.value && dirty.value) scheduleAutoSave();
+});
+watch(() => props.preferences.busy.value || !!terminalSection.value?.busy, value => {
+  if (!value && autoSaveQueued) {
+    autoSaveQueued = false;
+    scheduleAutoSave(0);
+  }
+});
+onBeforeUnmount(clearAutoSaveTimer);
 
 function updateTerminalSettings(value: Pick<AppSettings, 'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' | 'terminalThemeMode' | 'terminalCustomColors' | 'terminalBackgroundImage'>) {
   Object.assign(draft, value);
@@ -91,34 +139,59 @@ async function discardSettings() {
   resetKey.value++;
   return true;
 }
-async function saveSettings() {
-  if (busy.value || !props.preferences.record.value) return false;
-  if (terminalSection.value && !terminalSection.value.validate()) return false;
-  const snapshot = cloneSettings(draft);
-  if (!(await props.preferences.save(snapshot, copyOnSelect.value))) return false;
-  savedSettings.value = cloneSettings(props.preferences.record.value?.value ?? snapshot);
+async function persistSettings() {
+  if (!autoSaveReady.value || !props.preferences.record.value) return false;
+  if (props.preferences.busy.value || terminalSection.value?.busy) {
+    autoSaveQueued = true;
+    return false;
+  }
+  const { patch, changedKeys } = settingsPatch();
+  const copyChanged = copyOnSelect.value !== savedCopyOnSelect.value;
+  if (!changedKeys.size && !copyChanged) return true;
+  const terminalChanged = [...changedKeys].some(key => terminalSettingKeys.has(key));
+  if (terminalChanged && terminalSection.value && !terminalSection.value.validate()) return false;
+  if (!(await props.preferences.save(patch, copyChanged ? copyOnSelect.value : undefined))) return false;
+  savedSettings.value = cloneSettings(props.preferences.record.value?.value ?? { ...savedSettings.value, ...patch });
   savedCopyOnSelect.value = props.preferences.copyOnSelect.value;
-  emit('saved');
-  if (terminalSection.value && !(await terminalSection.value.commit())) return false;
+  if (!props.preferences.error.value) emit('saved');
+  if (terminalChanged && terminalSection.value && !(await terminalSection.value.commit())) return false;
   return true;
 }
-function requestLeave() {
-  if (databaseBusy.value || props.preferences.busy.value || terminalSection.value?.busy) return;
-  if (dirty.value) { leaveDialogOpen.value = true; return; }
-  void terminalSection.value?.commit().then(ok => { if (ok !== false) emit('leave'); });
+function saveSettings() {
+  if (activeSave) return activeSave;
+  const task = persistSettings();
+  activeSave = task;
+  void task.then(
+    () => { if (activeSave === task) activeSave = null; },
+    () => { if (activeSave === task) activeSave = null; },
+  );
+  return task;
 }
-function cancelLeave() { leaveDialogOpen.value = false; emit('leaveCancelled'); }
-async function saveAndLeave() {
-  if (await saveSettings()) { leaveDialogOpen.value = false; emit('leave'); }
-}
-async function discardAndLeave() {
-  if (await discardSettings()) { leaveDialogOpen.value = false; emit('leave'); }
+async function requestLeave() {
+  if (!autoSaveReady.value || databaseBusy.value || terminalSection.value?.busy || (props.preferences.busy.value && !activeSave)) {
+    emit('leaveCancelled');
+    return;
+  }
+  clearAutoSaveTimer();
+  if (activeSave && !(await activeSave)) { emit('leaveCancelled'); return; }
+  if (dirty.value && !(await saveSettings())) { emit('leaveCancelled'); return; }
+  if (dirty.value) { emit('leaveCancelled'); return; }
+  if (terminalSection.value && !(await terminalSection.value.commit())) { emit('leaveCancelled'); return; }
+  emit('leave');
 }
 async function confirmReload() {
   reloadDialogOpen.value = false;
-  if (!(await discardSettings())) return;
+  autoSaveReady.value = false;
+  clearAutoSaveTimer();
+  autoSaveQueued = false;
+  if (!(await discardSettings())) {
+    autoSaveReady.value = true;
+    return;
+  }
   await props.preferences.load();
   resetDraft();
+  await nextTick();
+  autoSaveReady.value = true;
 }
 defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy() { return databaseBusy.value; } });
 </script>
@@ -128,7 +201,7 @@ defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy
     <header class="settings-workspace__header"><div><h1>{{ title }}</h1><p>{{ description }}</p></div></header>
     <div class="settings-workspace__scroll">
       <div class="settings-workspace__body">
-        <form id="settings-workspace-form" class="terminal-settings-form" @submit.prevent="saveSettings">
+        <form class="terminal-settings-form" @submit.prevent>
           <fieldset v-if="regularSection && section !== 'terminal'" :disabled="preferences.busy.value || !preferences.record.value">
             <section v-if="section === 'general'" class="settings-workspace-section"><BaseSwitch v-model="draft.confirmBeforeDisconnect" :label="t('confirmDisconnect')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('transferConfirmation') }}</p></section>
             <section v-else-if="section === 'appearance'" class="settings-workspace-section">
@@ -148,21 +221,10 @@ defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy
           <GeoIpSettingsSection v-if="section === 'network' && geoip" :api="geoip" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />
         </form>
         <BaseAlert v-if="preferences.error.value && regularSection" role="alert">{{ preferences.error.value }}</BaseAlert>
-        <BaseButton v-if="preferences.error.value && regularSection" variant="secondary" :disabled="preferences.busy.value" @click="reloadDialogOpen = true">{{ t('reload') }}</BaseButton>
+        <BaseButton v-if="preferences.error.value && regularSection" variant="secondary" :disabled="busy" @click="reloadDialogOpen = true">{{ t('reload') }}</BaseButton>
       </div>
     </div>
-    <footer class="settings-workspace__footer" :data-section="section">
-      <template v-if="regularSection">
-        <span v-if="dirty" role="status">{{ t('unsavedSettings') }}</span><span v-else aria-live="polite">{{ t('saved') }}</span>
-        <div class="settings-workspace__actions"><BaseButton v-if="dirty" variant="secondary" :disabled="busy" @click="discardSettings">{{ t('discardChanges') }}</BaseButton><BaseButton variant="primary" :disabled="!dirty || busy || !preferences.record.value" :loading="preferences.busy.value" @click="saveSettings">{{ t('saveChanges') }}</BaseButton></div>
-      </template>
-      <span v-else aria-live="polite"></span>
-    </footer>
   </section>
-  <BaseDialog :open="leaveDialogOpen" :title="t('leaveSettingsTitle')" size="compact" :initial-focus="'[data-dialog-continue]'" :busy="busy" @close="cancelLeave">
-    <p>{{ t('leaveSettingsDescription') }}</p>
-    <template #footer><BaseButton variant="ghost" data-dialog-continue :disabled="busy" @click="cancelLeave">{{ t('continueEditing') }}</BaseButton><BaseButton variant="secondary" :disabled="busy" @click="discardAndLeave">{{ t('discardAndLeave') }}</BaseButton><BaseButton variant="primary" :disabled="busy" :loading="preferences.busy.value" @click="saveAndLeave">{{ t('saveAndLeave') }}</BaseButton></template>
-  </BaseDialog>
   <BaseDialog :open="reloadDialogOpen" :title="t('reloadSettingsTitle')" size="compact" @close="reloadDialogOpen = false">
     <p>{{ t('reloadSettingsDescription') }}</p>
     <template #footer><BaseButton variant="secondary" @click="reloadDialogOpen = false">{{ t('cancel') }}</BaseButton><BaseButton variant="primary" @click="confirmReload">{{ t('confirmReload') }}</BaseButton></template>

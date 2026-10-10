@@ -49,6 +49,7 @@ const imageError = ref('');
 const originalImageId = ref<string | null>(null);
 const importedImageIds = ref<string[]>([]);
 const initialized = ref(false);
+const settingsFields = ref<HTMLFieldSetElement | null>(null);
 let resetSequence = 0;
 
 const themeModes: { value: TerminalThemeMode; key: keyof typeof terminalMessages }[] = [
@@ -146,6 +147,8 @@ function clearImage() {
   if (themeMode.value === 'image') themeMode.value = 'followApp';
 }
 function validate() {
+  imageError.value = '';
+  if (settingsFields.value && !settingsFields.value.reportValidity()) return false;
   if (themeMode.value === 'image' && !backgroundSettings.value.imageId) {
     imageError.value = t('imageRequired');
     return false;
@@ -174,7 +177,7 @@ defineExpose({ discard, commit, validate, reset, get busy() { return imageBusy.v
 
 <template>
   <section class="settings-terminal-section" :aria-label="t('terminalSettings')" :aria-busy="busy || imageBusy">
-    <fieldset :disabled="busy || imageBusy || !initialized">
+    <fieldset ref="settingsFields" :disabled="busy || imageBusy || !initialized">
       <fieldset class="terminal-theme-mode-field"><legend>{{ t('themeMode') }}</legend><div class="terminal-theme-mode-options" role="radiogroup" :aria-label="t('themeMode')"><label v-for="mode in themeModes" :key="mode.value" class="terminal-theme-mode-option"><input v-model="themeMode" type="radio" name="terminalThemeMode" :value="mode.value" /><span>{{ t(mode.key) }}</span></label></div></fieldset>
       <div v-if="themeMode === 'customColor'" class="terminal-custom-colors"><label v-for="key in ['background', 'foreground', 'cursor', 'selection'] as const" :key="key"><span>{{ t(customColorLabels[key]) }}</span><input v-model="customColors[key]" type="color" :aria-label="t(customColorLabels[key])" /><code>{{ customColors[key].toUpperCase() }}</code></label></div>
       <section v-if="themeMode === 'image'" class="terminal-background-settings" :aria-label="t('imageTerminal')">
