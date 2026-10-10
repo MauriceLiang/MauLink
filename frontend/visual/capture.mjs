@@ -23,12 +23,14 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const labels = {
   add: ['添加服务器', 'Add Server'], 'server-menu': ['更多操作 Web-01', 'More actions Web-01'],
   edit: ['编辑服务器 Web-01', 'Edit server Web-01'], 'delete-server': ['删除服务器 Web-01', 'Delete server Web-01'],
-  select: ['查看 Web-01', 'View Web-01'], connect: ['连接服务器', 'Connect server'], focus: ['专注', 'Focus'],
-  files: ['文件', 'Files'], monitor: ['监控', 'Monitor'], settings: ['设置', 'Settings'],
-  general: ['通用', 'General'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'],
-  'terminal-settings': ['终端设置', 'Terminal settings'], language: ['语言', 'Language'],
+  'group-manager': ['管理分组', 'Manage groups'], 'delete-production-group': ['删除分组 Production', 'Delete group Production'],
+  disconnect: ['断开连接', 'Disconnect'], 'credential-actions': ['更多凭据操作', 'More credential actions'], 'reveal-credential': ['查看已保存密码', 'View saved password'],
+  select: ['查看 Web-01 · 尚未连接', 'View Web-01 · Not connected'], connect: ['连接服务器', 'Connect server'], focus: ['专注', 'Focus'],
+  files: ['文件', 'Files'], terminal: ['终端', 'Terminal'], monitor: ['监控', 'Monitor'], settings: ['设置', 'Settings'],
+  general: ['通用', 'General'], security: ['安全与隐私', 'Security & Privacy'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'],
+  language: ['语言', 'Language'],
   palette: ['命令面板', 'Command palette'], 'file-menu': ['package.json 操作', 'package.json Actions'],
-  'delete-file': ['删除', 'Delete'], 'save-settings': ['保存设置', 'Save settings'],
+  'delete-file': ['删除', 'Delete'], 'save-settings': ['保存更改', 'Save changes'], 'confirm-disconnect': ['断开连接前确认', 'Confirm before disconnecting'],
 };
 async function prepare(tab, item, locale) {
   const index = locale === 'en' ? 1 : 0;
@@ -37,12 +39,25 @@ async function prepare(tab, item, locale) {
   for (const step of item.steps) {
     const name = labels[step][index];
     // Read state before every action. All actions target actual rendered controls.
-    if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: ${step} not present in current DOM (${name})`);
-    const role = ['edit', 'delete-server', 'delete-file'].includes(step) ? 'menuitem' : 'button';
-    let control = tab.playwright.getByRole(role, { name, exact: true });
-    if (step === 'add') control = tab.playwright.getByRole('banner').getByRole('button', { name, exact: true });
-    if (step === 'terminal-section' || step === 'general' || step === 'appearance' || step === 'language') control = tab.playwright.getByRole('dialog').getByRole('button', { name, exact: true });
-    await control.click();
+    let control;
+    if (step === 'save-settings') {
+      const toggleName = labels['confirm-disconnect'][index];
+      if (!dom.includes(`"${toggleName}"`)) throw new Error(`${item.page}: settings toggle not present in current DOM (${toggleName})`);
+      await tab.playwright.getByRole('switch', { name: toggleName, exact: true }).click();
+      dom = await tab.playwright.domSnapshot();
+      if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: save action not present in current DOM (${name})`);
+      control = tab.playwright.getByRole('button', { name, exact: true });
+    } else if (step === 'file-menu') {
+      if (!dom.includes('button "package.json"')) throw new Error(`${item.page}: package.json row not present in current DOM`);
+      control = tab.playwright.getByRole('row', { name: /package\.json/ });
+    } else {
+      if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: ${step} not present in current DOM (${name})`);
+      const role = ['edit', 'delete-server', 'delete-file', 'reveal-credential'].includes(step) ? 'menuitem' : 'button';
+      control = tab.playwright.getByRole(role, { name, exact: true });
+      if (step === 'add') control = tab.playwright.getByRole('banner').getByRole('button', { name, exact: true });
+    }
+    if (step === 'file-menu') await control.click({button:'right'});
+    else await control.click();
     dom = await tab.playwright.domSnapshot();
     if (step === 'connect' && !['host-key','host-key-changed','authentication','connection-error'].includes(item.page)) {
       await tab.playwright.getByText(index ? 'Shell ready' : 'Shell 就绪', {exact:true}).waitFor({state:'visible'});
@@ -52,17 +67,22 @@ async function prepare(tab, item, locale) {
     if (step === 'files') {
       await tab.playwright.locator('.files-table-scroll[aria-busy="false"]').waitFor({state:'visible'});
       await tab.playwright.getByRole('button', {name:'package.json',exact:true}).waitFor({state:'visible'});
+      if (item.page === 'disconnect-transfer') await tab.playwright.getByText(index ? '1 transfer' : '1 项传输', {exact:true}).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();
     }
-    if (step === 'save-settings') { await tab.playwright.getByRole('dialog').waitFor({state:'hidden'}); dom = await tab.playwright.domSnapshot(); }
+    if (step === 'save-settings') { await tab.playwright.getByText(index ? 'Settings saved.' : '设置已保存。', {exact:true}).waitFor({state:'visible'}); dom = await tab.playwright.domSnapshot(); }
   }
   // Verify the requested screen, rather than archiving a transient/loading page.
   const expected = {
     'add-server': ['添加服务器','Add server'], 'edit-server':['编辑服务器','Edit server'],
     'delete-server':['删除服务器？','Delete server?'], 'host-key':['确认服务器身份','Verify server identity'],
+    'delete-group':['删除分组？','Delete group?'], disconnect:['断开 SSH 连接？','Disconnect SSH?'],
+    'disconnect-transfer':['停止该连接的传输任务后断开','Stop transfers for this connection before disconnecting'],
+    'credential-reveal':['当前禁止查看明文','Plaintext viewing is disabled'], 'quick-monitor':['Quick Monitor','Quick Monitor'],
     'host-key-changed':['服务器身份发生变化','Server identity changed'], authentication:['输入 SSH 密码','Enter SSH password'],
     'connection-error':['服务器拒绝连接','Connection refused'], 'file-delete':['确认删除？','Confirm deletion?'],
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
+    'settings-security':['禁止查看明文','Disable plaintext viewing'],
     'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
     'settings-language':['中文','English'], palette:['combobox','combobox'],
     'terminal-light':['Shell 就绪','Shell ready'], 'terminal-dark':['Shell 就绪','Shell ready'],
@@ -85,24 +105,26 @@ async function prepare(tab, item, locale) {
   }
   return dom;
 }
-export async function captureCases({ tab, viewport, outputDir, width, height, theme, locale, pages, update = false, baseUrl = 'http://127.0.0.1:1420/' }) {
+export async function captureCases({ tab, viewport, outputDir, width, height, theme, locale, pages, accentColor = 'blue', customAccentColor = '#3B82F6', uiDensity = 'standard', update = false, baseUrl = 'http://127.0.0.1:1420/' }) {
   await mkdir(outputDir, {recursive:true}); await viewport.set({width,height});
   const results = [];
   for (const item of cases.filter(item => !pages || pages.includes(item.page))) {
-    const url = `${baseUrl}?harness=visual&page=${item.page}&theme=${theme}&locale=${locale}`;
+    const params = new URLSearchParams({ harness:'visual', page:item.page, theme, locale, accentColor, customAccentColor, uiDensity });
+    const url = `${baseUrl}?${params.toString()}`;
     const screenshots = []; const observations = [];
     for (let run = 0; run < 2; run++) {
       if (await tab.url() === url) await tab.reload(); else await tab.goto(url);
       await viewport.set({width,height});
       await prepare(tab, item, locale);
+      await new Promise(resolve => setTimeout(resolve, 350));
       observations.push(await tab.playwright.evaluate(() => ({
         width: innerWidth, height: innerHeight, dpr: devicePixelRatio,
-        theme: document.documentElement.dataset.theme, locale: document.documentElement.lang,
+        theme: document.documentElement.dataset.theme, locale: document.documentElement.lang, density: document.documentElement.dataset.density,
         overflow: document.documentElement.scrollWidth > innerWidth,
         fonts: document.fonts.status,
       })));
       const observed = observations.at(-1);
-      if (observed.width !== width || observed.height !== height || observed.theme !== theme || observed.locale !== locale || observed.overflow || observed.fonts !== 'loaded') throw new Error(`${item.page}: capture condition mismatch ${JSON.stringify(observed)}`);
+      if (observed.width !== width || observed.height !== height || observed.theme !== theme || observed.locale !== locale || observed.density !== uiDensity || observed.overflow || observed.fonts !== 'loaded') throw new Error(`${item.page}: capture condition mismatch ${JSON.stringify(observed)}`);
       screenshots.push(await tab.screenshot({fullPage:false}));
     }
     const name = `${item.page}-${theme}-${locale}-${width}x${height}.jpg`;

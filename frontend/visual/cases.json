@@ -40,6 +40,14 @@
     "reference": "view=home&modal=del"
   },
   {
+    "page": "delete-group",
+    "steps": [
+      "group-manager",
+      "delete-production-group"
+    ],
+    "reference": null
+  },
+  {
     "page": "host-key",
     "steps": [
       "select",
@@ -72,12 +80,50 @@
     "reference": "view=home&modal=err"
   },
   {
+    "page": "disconnect",
+    "steps": [
+      "select",
+      "connect",
+      "disconnect"
+    ],
+    "reference": null
+  },
+  {
+    "page": "disconnect-transfer",
+    "steps": [
+      "select",
+      "connect",
+      "files",
+      "terminal",
+      "disconnect"
+    ],
+    "reference": null
+  },
+  {
+    "page": "credential-reveal",
+    "steps": [
+      "server-menu",
+      "edit",
+      "credential-actions",
+      "reveal-credential"
+    ],
+    "reference": null
+  },
+  {
     "page": "terminal",
     "steps": [
       "select",
       "connect"
     ],
     "reference": "view=workspace&select=web-01&term=inline"
+  },
+  {
+    "page": "quick-monitor",
+    "steps": [
+      "select",
+      "connect"
+    ],
+    "reference": null
   },
   {
     "page": "terminal-light",
@@ -176,6 +222,14 @@
     "reference": "view=settings&sec=general"
   },
   {
+    "page": "settings-security",
+    "steps": [
+      "settings",
+      "security"
+    ],
+    "reference": null
+  },
+  {
     "page": "settings-appearance",
     "steps": [
       "settings",
@@ -187,8 +241,7 @@
     "page": "settings-terminal",
     "steps": [
       "settings",
-      "terminal-section",
-      "terminal-settings"
+      "terminal-section"
     ],
     "reference": "view=settings&sec=termSec"
   },
@@ -196,8 +249,7 @@
     "page": "settings-terminal-image",
     "steps": [
       "settings",
-      "terminal-section",
-      "terminal-settings"
+      "terminal-section"
     ],
     "reference": null
   },

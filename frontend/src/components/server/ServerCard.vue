@@ -13,9 +13,9 @@ const t = (key: ServerMessage) => serverText(key, props.language);
 
 <template>
   <article class="server-home-card" :aria-label="server.name">
+    <BaseButton class="server-card-open-target" :aria-label="`${t('view')} ${server.name}${state ? ` · ${connectionStateText(state, language)}` : ` · ${t('notConnected')}`}`" @click="$emit('select', server.id)" />
     <span class="server-home-dot" role="img" :class="state ? `connection-dot-${state}` : undefined" :aria-label="state ? connectionStateText(state, language) : t('notConnected')"></span>
     <div class="server-home-details"><strong>{{ server.name }}</strong><span>{{ server.username }}@{{ server.host }}</span><span v-if="state">{{ connectionStateText(state, language) }}</span></div>
-    <BaseButton :aria-label="`${t('view')} ${server.name}`" @click="$emit('select', server.id)">{{ t('view') }}</BaseButton>
-    <BaseDropdownMenu :label="`${t('more')} ${server.name}`" :items="[{id: 'edit', label: t('edit'), ariaLabel: `${t('edit')} ${server.name}`, disabled: readOnly}, {id: 'remove', danger:true, label: t('remove'), ariaLabel: `${t('remove')} ${server.name}`, disabled: readOnly}]" @action="$event === 'edit' ? $emit('edit', server.id) : $emit('remove', server)" />
+    <div class="server-card-actions"><BaseDropdownMenu :label="`${t('more')} ${server.name}`" :items="[{id: 'edit', label: t('edit'), ariaLabel: `${t('edit')} ${server.name}`, disabled: readOnly}, {id: 'remove', danger:true, label: t('remove'), ariaLabel: `${t('remove')} ${server.name}`, disabled: readOnly}]" @action="$event === 'edit' ? $emit('edit', server.id) : $emit('remove', server)" /></div>
   </article>
 </template>

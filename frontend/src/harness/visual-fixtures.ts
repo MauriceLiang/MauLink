@@ -8,6 +8,8 @@ import type { SftpTransferSnapshot } from '../../../contracts/v1/SftpTransferSna
 import type { TerminalChunk } from '../../../contracts/v1/TerminalChunk';
 import type { TerminalSnapshot } from '../../../contracts/v1/TerminalSnapshot';
 import type { TerminalThemeMode } from '../../../contracts/v1/TerminalThemeMode';
+import type { AccentColor } from '../../../contracts/v1/AccentColor';
+import type { UiDensity } from '../../../contracts/v1/UiDensity';
 import type { IpcTransport } from '../ipc/client';
 import { createMockIpc } from '../ipc/mock';
 import { defaultSettings } from '../terminal/preferences';
@@ -16,6 +18,7 @@ import { shellAppInfo, shellGroups, shellServers } from './shell-fixtures';
 import { fixtureError } from './server-fixtures';
 import { monitorFixture } from './monitor-fixtures';
 import { networkFixture, preflightFixture } from './network-fixtures';
+import { createCredentialRevealMock } from './credential-reveal-fixtures';
 import cases from '../../visual/cases.json';
 import fileData from '../../visual/files.json';
 
@@ -26,10 +29,20 @@ const visualBackgroundImage: BackgroundImageAsset = { id: visualBackgroundImageI
 const terminalThemeModes: Record<string, TerminalThemeMode> = {
   'terminal-light': 'light', 'terminal-dark': 'dark', 'terminal-custom': 'customColor', 'terminal-image': 'image', 'settings-terminal-image': 'image',
 };
-export interface VisualConfig { page: string; theme: 'light' | 'dark'; locale: 'zh-CN' | 'en'; }
+export interface VisualConfig { page: string; theme: 'light' | 'dark'; locale: 'zh-CN' | 'en'; accentColor: AccentColor; customAccentColor: string | null; uiDensity: UiDensity; }
 export function visualConfig(params: URLSearchParams): VisualConfig {
   const page = params.get('page') ?? 'servers';
-  return { page: cases.some(value => value.page === page) ? page : 'servers', theme: params.get('theme') === 'dark' ? 'dark' : 'light', locale: params.get('locale') === 'en' ? 'en' : 'zh-CN' };
+  const accent = params.get('accentColor');
+  const accentColor: AccentColor = ['blue', 'indigo', 'purple', 'green', 'orange', 'red', 'custom'].includes(accent ?? '') ? accent as AccentColor : 'blue';
+  const customAccentColor = params.get('customAccentColor');
+  return {
+    page: cases.some(value => value.page === page) ? page : 'servers',
+    theme: params.get('theme') === 'dark' ? 'dark' : 'light',
+    locale: params.get('locale') === 'en' ? 'en' : 'zh-CN',
+    accentColor,
+    customAccentColor: accentColor === 'custom' && /^#[\da-f]{6}$/i.test(customAccentColor ?? '') ? customAccentColor : null,
+    uiDensity: params.get('uiDensity') === 'compact' ? 'compact' : 'standard',
+  };
 }
 // Each visual document gets isolated front-end preferences; persistent browser data is untouched.
 export function createVisualStorage(): Storage {
@@ -54,6 +67,7 @@ export const visualTranscript = 'Last login: Sun Sep 28 09:12:04 on ttys001\r\n$
 // Every visible value is fixed. Ordinary production stores/pollers still run against this isolated transport.
 export function createVisualMock(config: VisualConfig) {
   const servers = config.page === 'empty' ? [] : structuredClone(shellServers);
+  if (config.page === 'credential-reveal' && servers[0]) servers[0].hasSavedCredential = true;
   if (config.page === 'server-overview' && servers[0]) {
     servers[0].hasSavedCredential = true;
     servers[0].host = '8.8.8.8';
@@ -63,10 +77,10 @@ export function createVisualMock(config: VisualConfig) {
   const terminalThemeMode = terminalThemeModes[config.page] ?? defaultSettings.terminalThemeMode;
   const terminalCustomColors = config.page === 'terminal-custom' ? { background: '#241A36', foreground: '#F4ECFF', cursor: '#C084FC', selection: '#8B5CF6' } : defaultSettings.terminalCustomColors;
   const terminalBackgroundImage = { ...defaultSettings.terminalBackgroundImage, imageId: terminalThemeMode === 'image' ? visualBackgroundImageId : null };
-  let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale, terminalThemeMode, terminalCustomColors, terminalBackgroundImage }, revision: 1, updatedAtMs: visualEpoch };
+  let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale, accentColor: config.accentColor, customAccentColor: config.customAccentColor, uiDensity: config.uiDensity, terminalThemeMode, terminalCustomColors, terminalBackgroundImage }, revision: 1, updatedAtMs: visualEpoch };
   let connection: ConnectionSnapshot = { connectionId: 'visual-connection', serverId: 'web-01', mode: 'workspace', state: config.page === 'server-overview' ? 'closed' : 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
   const terminals = new Map<string, TerminalSnapshot>(); let terminalNumber = 0; let output: Channel<TerminalChunk> | undefined;
-  const files = structuredClone(visualFiles); const tasks = config.page === 'transfer' ? visualTransfers(connection.connectionId) : [];
+  const files = structuredClone(visualFiles); const tasks = ['transfer', 'disconnect-transfer'].includes(config.page) ? visualTransfers(connection.connectionId) : [];
   let geoip: GeoIpDatabaseStatus = { location: null, asn: null, automaticUpdates: false, updateIntervalDays: 30, lastCheckedAtMs: null, lastError: null };
   const databaseInfo = (kind: string, source: 'dbIp' | 'local') => ({ fileName: `${source}-${kind}.mmdb`, databaseType: `${source}-${kind}`, buildAtMs: visualEpoch, source, available: true });
   const snapshot = () => structuredClone(connection);
@@ -75,6 +89,19 @@ export function createVisualMock(config: VisualConfig) {
     group_list: () => config.page === 'empty' ? [] : structuredClone(shellGroups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_appearance_list: () => [],
+    server_appearance_get: ({ serverId }) => ({
+      serverId,
+      labelColor: null,
+      environment: null,
+      terminalOverrideEnabled: false,
+      terminalAppearance: {
+        themeMode: 'followApp',
+        customColors: { background: '#111318', foreground: '#EAECF0', cursor: '#3B82F6', selection: '#3B82F6' },
+        backgroundImage: { imageId: null, fit: 'cover', position: 'center', imageOpacity: 100, overlayKind: 'dark', overlayOpacity: 45, blurPx: 0 },
+      },
+      revision: 0,
+      updatedAtMs: visualEpoch,
+    }),
     server_get: ({ id }) => { const server = servers.find(value => value.id === id); if (!server) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.serverNotFound'); return structuredClone(server); },
     server_runtime_stats_get: ({ serverId }) => ({ serverId, lastSuccessAtMs: config.page === 'server-overview' ? visualEpoch - 60 * 60 * 1000 : null, lastFailureAtMs: null, lastPreflightAtMs: config.page === 'server-overview' ? visualEpoch - 2 * 60 * 60 * 1000 : null, lastPreflightLatencyMs: config.page === 'server-overview' ? 47 : null, lastFailureCode: null, updatedAtMs: visualEpoch }),
     background_image_get: ({ imageId }) => {
@@ -132,6 +159,12 @@ export function createVisualMock(config: VisualConfig) {
     monitor_get_history: ({ connectionId, metric }) => ({ connectionId, metric, samples: Array.from({ length: 24 }, (_, index) => ({ sampledAtMs: visualEpoch - (23 - index) * 5000, value: metric === 'cpuUsage' ? 15 + index % 7 * 2 : metric === 'networkReceiveRate' ? 100000 + index % 5 * 10000 : metric === 'networkTransmitRate' ? 30000 + index % 3 * 1000 : 25 + index % 4 })) }),
     workspace_set_activity: () => undefined,
   });
-  const clientTransport: IpcTransport = { invoke<T>(command: string, args?: Record<string, unknown>) { if (command === 'terminal_open') output = args?.outputChannel as Channel<TerminalChunk>; return transport.invoke<T>(command, args); } };
+  const credentialReveal = createCredentialRevealMock();
+  const credentialRevealCommands = new Set(['reveal_policy_get', 'reveal_policy_enable_protected', 'reveal_policy_enable_direct', 'reveal_policy_set_deny', 'reveal_policy_change_password', 'reveal_policy_recover', 'credential_reveal']);
+  const clientTransport: IpcTransport = { invoke<T>(command: string, args?: Record<string, unknown>) {
+    if (command === 'terminal_open') output = args?.outputChannel as Channel<TerminalChunk>;
+    if (credentialRevealCommands.has(command)) return credentialReveal.transport.invoke<T>(command, args);
+    return transport.invoke<T>(command, args);
+  } };
   return clientTransport;
 }

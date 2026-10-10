@@ -16,13 +16,14 @@ import BaseAlertDialog from '../components/base/BaseAlertDialog.vue';
 import BaseAlert from '../components/base/BaseAlert.vue';
 import BaseToastViewport from '../components/base/BaseToastViewport.vue';
 import { useToast } from '../composables/useToast';
-const theme=ref('light'); const selection=ref<string>(); const text=ref(''); const checked=ref(false); const enabled=ref(false); const advanced=ref(false); const dialog=ref(false); const alert=ref(false); const busy=ref(false); const action=ref('未执行'); const count=ref(0); const slowMotion=ref(false);
+const theme=ref(new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light'); const selection=ref<string>(); const text=ref(''); const checked=ref(false); const enabled=ref(false); const advanced=ref(false); const dialog=ref(false); const alert=ref(false); const busy=ref(false); const action=ref('未执行'); const count=ref(0); const slowMotion=ref(false);
 const toast=useToast();
 const menu=[{id:'disabled',label:'不可用项',disabled:true},{id:'edit',label:'编辑'},{id:'delete',label:'删除',danger:true}];
 watch(theme,value=>{document.documentElement.dataset.theme=value;},{immediate:true});
 </script>
 <template>
   <main class="interaction-harness" :class="{ 'is-slow-motion': slowMotion }"><h1>Reka UI · 交互验收</h1><p>DEV 组件预览，无真实 IPC、服务器或文件操作。Tab / Shift+Tab、方向键、Enter、Space、Esc 均可验收。</p>
+    <section class="button-design-system"><h2>按钮总览</h2><div class="interaction-row"><BaseButton variant="primary">主操作</BaseButton><BaseButton variant="secondary">次级操作</BaseButton><BaseButton variant="softPrimary">柔和入口</BaseButton><BaseButton variant="danger">危险操作</BaseButton><BaseButton variant="ghost">轻操作</BaseButton><BaseIconButton label="图标操作"><BaseIcon name="info" /></BaseIconButton></div><div class="interaction-row"><BaseButton variant="primary" size="sm">小</BaseButton><BaseButton variant="primary" size="md">中</BaseButton><BaseButton variant="primary" size="lg">大</BaseButton><BaseIconButton size="sm" label="小图标"><BaseIcon name="info" /></BaseIconButton><BaseIconButton size="md" label="中图标"><BaseIcon name="info" /></BaseIconButton><BaseIconButton size="lg" label="大图标"><BaseIcon name="info" /></BaseIconButton></div></section>
     <section class="motion-qa"><h2>动效 QA</h2><BaseSwitch v-model="slowMotion" label="Slow Motion" /><p>用于放慢下方 Select、Menu、Popover、Dialog、Toast 和基础控件动效。</p></section>
     <BaseSelect v-model="theme" label="主题" :options="[{value:'light',label:'Light'},{value:'dark',label:'Dark'},{value:'system',label:'System'}]" />
     <section><h2>按钮与字段</h2><div class="interaction-row"><BaseButton @click="count++">普通按钮</BaseButton><BaseButton variant="primary">主要按钮</BaseButton><BaseButton variant="danger">危险按钮</BaseButton><BaseButton disabled @click="count++">禁用按钮</BaseButton><BaseButton loading>加载按钮</BaseButton><BaseIconButton label="说明"><BaseIcon name="info" /></BaseIconButton><output>动作次数 {{ count }}</output></div><BaseInput v-model="text" label="输入" /><BaseInput v-model="text" label="错误输入" error="示例错误" /><BaseInput v-model="text" label="禁用输入" disabled /></section>

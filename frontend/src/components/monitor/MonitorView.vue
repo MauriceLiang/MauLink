@@ -8,6 +8,7 @@ import type { MonitorHistoryMetric } from "../../../../contracts/v1/MonitorHisto
 import { effectiveStatus, formatSize, metricValue, percent, rate, loadValue, qualityLabel, uptime } from "../../monitor/view";
 import { presentError } from "../../errors/presenter";
 import BaseButton from "../base/BaseButton.vue";
+import BaseIcon from "../base/BaseIcon.vue";
 import MonitorChart from "./MonitorChart.vue";
 const t = messages(monitorMessages);
 const props = defineProps<{ store: MonitorStore; connectionId: string; quick?: boolean; ready: boolean }>();
@@ -42,6 +43,6 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
     </article><article v-if="!quick" class="monitor-card monitor-system" :aria-label="t('systemInformation')" :data-quality="effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)"><div class="monitor-card-heading"><h3>{{ t('systemInformation') }}</h3><span>{{ qualityLabel(effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)) }}</span></div>
       <dl><dt>{{ t('host') }}</dt><dd>{{ metricValue(snapshot?.system.hostname ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('system') }}</dt><dd>{{ metricValue(snapshot?.system.os ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('kernel') }}</dt><dd>{{ metricValue(snapshot?.system.kernel ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ metricValue(snapshot?.system.architecture ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('uptime') }}</dt><dd>{{ metricValue(uptime(snapshot?.uptime.seconds), snapshot?.uptime.quality) }} · {{ qualityLabel(effectiveStatus(snapshot?.uptime.quality, !!store.error.value || !ready)) }}</dd></dl>
     </article></div>
-    <BaseButton v-if="quick" class="monitor-open-full" :disabled="!ready" @click="emit('full')">{{ t('openFullMonitor') }}</BaseButton>
+    <BaseButton v-if="quick" variant="softPrimary" size="md" block class="monitor-open-full" :disabled="!ready" @click="emit('full')"><BaseIcon name="monitor" />{{ t('openFullMonitor') }}</BaseButton>
   </section>
 </template>

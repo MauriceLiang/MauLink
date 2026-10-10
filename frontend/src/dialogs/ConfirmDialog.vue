@@ -38,10 +38,10 @@ async function reload() {
 </script>
 
 <template>
-  <BaseAlertDialog :open="!!server" :title="t('deleteTitle')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
-    <p>{{ server?.name }}</p><p>{{ t('deleteNote') }}</p>
+  <BaseAlertDialog :open="!!server" size="standard" :title="t('deleteTitle')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
+    <div class="server-delete-summary"><strong>{{ server?.name }}</strong><p>{{ t('deleteNote') }}</p></div>
     <p v-if="error" role="alert" class="server-form-error">{{ error }}</p>
-    <BaseButton v-if="conflict" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>
-    <template #footer><BaseButton data-dialog-cancel :disabled="busy" @click="$emit('close')">{{ t('cancel') }}</BaseButton><BaseButton variant="danger" :loading="busy" @click="remove">{{ t('remove') }}</BaseButton></template>
+    <BaseButton v-if="conflict" size="md" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>
+    <template #footer><BaseButton data-dialog-cancel size="md" :disabled="busy" @click="$emit('close')">{{ t('cancel') }}</BaseButton><BaseButton size="md" variant="danger" :loading="busy" @click="remove">{{ t('remove') }}</BaseButton></template>
   </BaseAlertDialog>
 </template>

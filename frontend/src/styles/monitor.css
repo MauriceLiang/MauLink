@@ -39,5 +39,6 @@
 .quick-monitor .monitor-card { padding: 12px 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; }
 .quick-monitor .monitor-value { margin: 8px 0 0; font-size: 15px; }
 .quick-monitor .monitor-chart { margin-top: 8px; height: 24px; }
-.quick-monitor .monitor-open-full { margin-top: 12px; width: 100%; min-height: 30px; font-size: 11px; }
+.quick-monitor .monitor-open-full { margin-top: 12px; }
+.monitor-open-full .base-icon { width: 16px; height: 16px; }
 @media (max-width: 1100px) { .monitor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .terminal-main { grid-template-columns: minmax(0, 1fr) 190px; } .terminal-workspace.is-monitor { grid-template-rows: auto minmax(0, 1fr); } }

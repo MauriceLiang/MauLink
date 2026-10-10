@@ -61,6 +61,35 @@ describe("application shell", () => {
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });
 
+  it("uses the same add-server flow for primary and sidebar soft-primary CTAs", async () => {
+    const serversMock = createMockIpc({
+      app_get_info: () => shellAppInfo,
+      group_list: () => shellGroups,
+      server_list: () => ({ items: shellServers, nextCursor: null }),
+      server_appearance_list: () => [],
+    });
+    const wrapper = mountShell(serversMock);
+    await flushPromises();
+    const addButtons = wrapper.findAll('button').filter(element => element.text().includes('添加服务器'));
+    expect(addButtons).toHaveLength(2);
+    expect(addButtons[0]!.classes()).toContain('base-button--primary');
+    expect(addButtons[1]!.classes()).toContain('base-button--softPrimary');
+    for (const add of addButtons) {
+      await add.trigger('click');
+      await flushPromises();
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('添加服务器');
+      [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(element => element.textContent?.trim() === '取消')!.click();
+      await flushPromises();
+    }
+
+    const readOnly = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(serversMock), readOnly: true } });
+    wrappers.push(readOnly);
+    await flushPromises();
+    const readOnlyAdds = readOnly.findAll('button').filter(element => element.text().includes('添加服务器'));
+    expect(readOnlyAdds).toHaveLength(2);
+    expect(readOnlyAdds.every(element => (element.element as HTMLButtonElement).disabled)).toBe(true);
+  });
+
   it("applies saved density and sidebar width preferences to the shell", async () => {
     const wrapper = mountShell(createMockIpc({
       settings_get: () => ({

@@ -40,6 +40,7 @@ docs/screenshots/readme/*
 !docs/screenshots/readme/capture-*.json
 !docs/refactor/
 docs/refactor/*
+!docs/refactor/modal-button-unification-report.md
 !docs/refactor/screenshots/
 docs/refactor/screenshots/*
 !docs/refactor/screenshots/color-v1-review/
@@ -52,6 +53,8 @@ docs/refactor/screenshots/color-v1-review/*
 docs/refactor/screenshots/color-v1-review/*-candidate.jpg
 docs/refactor/screenshots/color-v1-review/*-repeat.jpg
 docs/refactor/screenshots/color-v1-review/.capture-*.json
+!docs/refactor/screenshots/modal-button-v1-evidence/
+!docs/refactor/screenshots/modal-button-v1-evidence/**
 
 # IDE state
 .idea/

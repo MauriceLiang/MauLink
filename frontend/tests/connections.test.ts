@@ -126,7 +126,7 @@ describe('secure connection flow', () => {
   it('restores focus to a current action when a security dialog closes and its original trigger disappeared', async () => {
     const mock = createConnectionMock(() => 'changed');
     const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(mock.transport) } }); wrappers.push(wrapper);
-    await flushPromises(); await ui().get('[aria-label="查看 Web-01"]').trigger('click');
+    await flushPromises(); await ui().get('[aria-label="查看 Web-01 · 尚未连接"]').trigger('click');
     button(wrapper, '连接服务器').element.focus(); await button(wrapper, '连接服务器').trigger('click'); await flushPromises();
     await vi.waitFor(() => expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(true));
     await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();

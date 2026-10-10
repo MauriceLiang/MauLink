@@ -191,7 +191,7 @@ async function saveWithSudo() {
 </script>
 
 <template>
-  <BaseDialog :open="open" :title="entry.name" :busy="saving || openingLinkedFile" panel-class="file-editor-dialog" initial-focus=".file-editor-mode" @close="requestClose">
+  <BaseDialog :open="open" size="large" :title="entry.name" :busy="saving || openingLinkedFile" panel-class="file-editor-dialog" initial-focus=".file-editor-mode" @close="requestClose">
     <p class="file-editor-path"><code>{{ entry.path }}</code></p>
     <BaseAlert v-if="error && !elevationRequired" class="file-editor-error">{{ presentError(error).message }}</BaseAlert>
     <BaseAlert v-if="linkNotice" class="file-editor-error">{{ linkNotice }}</BaseAlert>
@@ -231,14 +231,14 @@ async function saveWithSudo() {
       </template>
     </template>
   </BaseDialog>
-  <BaseDialog :open="linkConfirmationOpen" :title="t('markdownLinkConfirmTitle')" :busy="openingLinkedFile" panel-class="file-editor-link-dialog" initial-focus=".markdown-link-cancel" @close="cancelLinkedFilePreview">
+  <BaseDialog :open="linkConfirmationOpen" size="compact" :title="t('markdownLinkConfirmTitle')" :busy="openingLinkedFile" panel-class="file-editor-link-dialog" initial-focus=".markdown-link-cancel" @close="cancelLinkedFilePreview">
     <p>{{ t('markdownLinkConfirmBody', { path: pendingLinkPath ?? '' }) }}</p>
     <template #footer>
       <BaseButton class="markdown-link-cancel" :disabled="openingLinkedFile" @click="cancelLinkedFilePreview">{{ t('cancel') }}</BaseButton>
       <BaseButton variant="primary" :disabled="openingLinkedFile || !pendingLinkPath" :loading="openingLinkedFile" @click="previewLinkedFile">{{ t('markdownLinkPreview') }}</BaseButton>
     </template>
   </BaseDialog>
-  <BaseDialog :open="sudoDialog" :title="t('sudoSaveTitle')" :busy="saving" panel-class="file-editor-sudo-dialog" initial-focus=".file-editor-sudo-password" @close="closeSudoDialog">
+  <BaseDialog :open="sudoDialog" size="compact" :title="t('sudoSaveTitle')" :busy="saving" panel-class="file-editor-sudo-dialog" initial-focus=".file-editor-sudo-password" @close="closeSudoDialog">
     <p>{{ t('sudoSaveDescription') }}</p>
     <BaseAlert v-if="sudoError" class="file-editor-error">{{ presentError(sudoError).message }}</BaseAlert>
     <BaseInput v-model="sudoPassword" class="file-editor-sudo-password" :label="t('sudoPasswordLabel')" type="password" autocomplete="off" :disabled="saving" @keydown.enter.prevent="saveWithSudo" />

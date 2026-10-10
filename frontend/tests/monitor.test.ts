@@ -67,6 +67,22 @@ describe('one shared monitor controller', () => {
   });
 });
 describe('truthful monitor presentation', () => {
+  it('renders the Quick Monitor entry as a full-width soft-primary action only while ready', async () => {
+    const { store } = controller();
+    store.activate('conn-a', true);
+    await flushPromises();
+    const quick = view(store, true);
+    const openFull = quick.get('.monitor-open-full');
+    expect(openFull.classes()).toContain('base-button--softPrimary');
+    expect(openFull.classes()).toContain('base-button--block');
+    await openFull.trigger('click');
+    expect(quick.emitted('full')).toHaveLength(1);
+    await quick.setProps({ ready: false });
+    expect(quick.get('.monitor-open-full').element).toHaveProperty('disabled', true);
+    await quick.get('.monitor-open-full').trigger('click');
+    expect(quick.emitted('full')).toHaveLength(1);
+  });
+
   it.each(['ok', 'warmingUp', 'stale', 'unsupported', 'error'] as const)('maps %s identically in Quick and Full Monitor', async status => {
     const { store } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, status) }); store.activate('conn-a', true); await flushPromises(); const quick = view(store, true); const full = view(store);
     expect(quick.get('[aria-label="CPU 使用率"] .monitor-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text()); expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe(status);
@@ -78,7 +94,7 @@ describe('truthful monitor presentation', () => {
   });
   it('updates charts and cards without rerendering the workspace xterm host', async () => {
     vi.useFakeTimers(); let renders = 0; const host = defineComponent({ props: ['id', 'controller', 'active'], setup: props => () => { renders++; return h('div', { 'data-terminal-id': props.id }); } });
-    const wrapper = mount(MonitorHarness, { attachTo: document.body, global: { stubs: { XtermHost: host, Teleport: true } } }); wrappers.push(wrapper); await flushPromises(); await wrapper.get('[aria-label="查看 Web-01"]').trigger('click'); await wrapper.findAll('button').find(value => value.text() === '连接服务器')!.trigger('click'); await flushPromises();
+    const wrapper = mount(MonitorHarness, { attachTo: document.body, global: { stubs: { XtermHost: host, Teleport: true } } }); wrappers.push(wrapper); await flushPromises(); await wrapper.get('[aria-label="查看 Web-01 · 尚未连接"]').trigger('click'); await wrapper.findAll('button').find(value => value.text() === '连接服务器')!.trigger('click'); await flushPromises();
     await wrapper.findAll('button').find(value => value.text() === '监控')!.trigger('click'); await flushPromises();
     // Isolate monitor updates from the existing 1.4-second connection snapshot polling.
     const baseline = renders; expect(baseline).toBeGreaterThan(0);

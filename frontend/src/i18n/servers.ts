@@ -65,7 +65,7 @@ const messages = {
   deleteTitle: ["删除服务器？", "Delete server?"],
   deleteNote: ["将删除此服务器配置及系统安全存储中的凭据。此操作无法撤销。", "This deletes the server profile and its system credential. This cannot be undone."],
   groupName: ["分组名称", "Group name"], groupSaved: ["分组已保存。", "Group saved."],
-  deleteGroup: ["删除分组", "Delete group"], groupRemoved: ["分组已删除，服务器已移至未分组。", "Group deleted. Its servers are now ungrouped."],
+  deleteGroup: ["删除分组", "Delete group"], groupDeleteTitle: ["删除分组？", "Delete group?"], groupRemoved: ["分组已删除，服务器已移至未分组。", "Group deleted. Its servers are now ungrouped."],
   groupDeleteNote: ["删除分组不会删除服务器，它们将移至未分组。", "Deleting a group keeps its servers and moves them to Ungrouped."],
   hostRequired: ["请输入有效的主机地址。", "Enter a valid host."], userRequired: ["请输入 SSH 用户名。", "Enter an SSH username."],
   nameInvalid: ["名称过长或包含无效字符。", "The name is too long or contains invalid characters."],

@@ -4,13 +4,15 @@
 
 2026-10-01 的 MauLink Blue 配色已由用户在 app 中确认。当前界面参考位于 `docs/refactor/screenshots/color-v1-review/`：中文 Light / Dark 1440×920 各 29 个场景，英文 Light / Dark 860×640 各 12 个场景，共 82 个组合。新增服务器概览、浅色/深色/自定义色/图片终端主题及终端图片设置场景。使用下面的 `captureCases` 时将 `outputDir` 指向该目录，并选择已有的视口 / 语言 / 页面组合；默认模式仍要求截图与已确认参考一致。
 
-旧配色的 Phase 10 / 11 / 12 截图归档已从当前仓库清理，阶段报告保留当时的验收结论。当前 82 张已确认基线供视觉回归使用，详见 [颜色系统验收](../../docs/refactor/color-system-v1.md)。
+2026-10-09 的弹窗与按钮改造截图单独保存在 `docs/refactor/screenshots/modal-button-v1-evidence/`，包含改造前关键截图和改造后的 35 个中文浅色页面、12 个中文深色核心页面、6 个英文窄屏页面、5 个自定义红色紧凑页面以及浅/深按钮总览。该套证据不覆盖或改变已确认的 MauLink Blue 基线；各条件的 manifest 记录独立刷新哈希、CSS 视口、DPR、主题、语言、密度、字体加载和溢出状态。
+
+旧配色的 Phase 10 / 11 / 12 截图归档已从当前仓库清理，阶段报告保留当时的验收结论。当前 82 张已确认基线供视觉回归使用，详见[前端视觉验收记录](../../design-qa.md#视觉对照结论)。
 
 入口：`http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN`。
 
-`cases.json` 为稳定 test route 清单：URL 固定 fixture，`steps` 固定真实 UI 操作顺序。例如 add-server URL 先加载固定首页，再由脚本点击“添加服务器”；不会使用 DOM 注入、假事件、原生 Tauri 或真实 SSH。它不是新的产品路由。普通手动打开时也可按这些步骤进入目标页面。
+`cases.json` 为稳定 test route 清单，共 35 个场景：URL 固定 fixture，`steps` 固定真实 UI 操作顺序。例如 add-server URL 先加载固定首页，再由脚本点击“添加服务器”；不会使用 DOM 注入、假事件、原生 Tauri 或真实 SSH。它不是新的产品路由。普通手动打开时也可按这些步骤进入目标页面。按钮变体总览由 `?harness=interaction&theme=light|dark` 提供。
 
-23 个场景包括空首页、有服务器首页、新增/编辑/删除、首次/变化 Host Key、认证、连接失败、终端、专注、文件/删除确认、传输、Monitor 成功/不可用、四类设置、Palette、Context Menu、Toast。数据来自 Typed Mock IPC，读写隔离于正式资料。DEV 页面以全新内存 Storage 隔离选中即复制偏好，不修改原有浏览器持久数据；每次 reload 重置。不支持的操作显式失败，不降级为 Native IPC。
+35 个场景覆盖空首页、服务器列表与概览、增删改、首次/变化 Host Key、认证、连接失败与断开、凭据查看、终端、专注、文件/传输、Monitor 成功/不可用、设置分类、Palette、Context Menu 和 Toast。数据来自 Typed Mock IPC，读写隔离于正式资料。DEV 页面以全新内存 Storage 隔离选中即复制偏好，不修改原有浏览器持久数据；每次 reload 重置。不支持的操作显式失败，不降级为 Native IPC。
 
 固定条件：Light/Dark × zh-CN/en × CSS 1440×920/860×640，现场 DPR=1。截图保存前读取实际 CSS 尺寸、DPR、theme、lang、font loading 与横向溢出；不把 `viewport.set()` 的请求值当作实测值。当前环境为 macOS 浏览器，系统字体，无外部 font/network fixture。文件日期按浏览器所在 Asia/Shanghai 时区格式化；换字体、浏览器、DPR 或时区需单独建环境基线。
 
