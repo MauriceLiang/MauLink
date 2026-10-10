@@ -2,10 +2,29 @@ import { ref, shallowRef } from "vue";
 import type { MonitorSnapshot } from "../../../contracts/v1/MonitorSnapshot";
 import type { MonitorHistoryMetric } from "../../../contracts/v1/MonitorHistoryMetric";
 import type { MonitorHistorySample } from "../../../contracts/v1/MonitorHistorySample";
+import type { MonitorMetricQuality } from "../../../contracts/v1/MonitorMetricQuality";
 import type { AppError } from "../../../contracts/v1/AppError";
 import type { createMonitorApi } from "../ipc/monitor";
 import { mapError } from "../errors/mapper";
 export const historyMetrics: Record<MonitorHistoryMetric, keyof Omit<MonitorSnapshot, 'connectionId'>> = { cpuUsage: 'cpu', memoryUsage: 'memory', diskUsage: 'disk', networkReceiveRate: 'network', networkTransmitRate: 'network', loadOneMinute: 'load' };
+function retainLastSample<T extends { quality: MonitorMetricQuality }>(current: T, previous: T): T {
+  if (current.quality.status !== 'warmingUp' || previous.quality.sampledAtMs === null ||
+    (previous.quality.status !== 'ok' && previous.quality.status !== 'stale')) return current;
+  return { ...previous, quality: { ...previous.quality, status: 'stale' } } as T;
+}
+function retainWarmingMetrics(current: MonitorSnapshot, previous: MonitorSnapshot | null): MonitorSnapshot {
+  if (!previous || current.connectionId !== previous.connectionId) return current;
+  return {
+    ...current,
+    cpu: retainLastSample(current.cpu, previous.cpu),
+    memory: retainLastSample(current.memory, previous.memory),
+    disk: retainLastSample(current.disk, previous.disk),
+    network: retainLastSample(current.network, previous.network),
+    load: retainLastSample(current.load, previous.load),
+    uptime: retainLastSample(current.uptime, previous.uptime),
+    system: retainLastSample(current.system, previous.system),
+  };
+}
 export function createMonitorStore(api: ReturnType<typeof createMonitorApi>) {
   const snapshot = shallowRef<MonitorSnapshot | null>(null);
   const histories = shallowRef<Partial<Record<MonitorHistoryMetric, MonitorHistorySample[]>>>({});
@@ -39,7 +58,7 @@ export function createMonitorStore(api: ReturnType<typeof createMonitorApi>) {
     try {
       const value = await (manual ? api.refresh({ connectionId: id }) : api.getSnapshot({ connectionId: id }));
       if (!current(token, id)) return false;
-      snapshot.value = value; error.value = null;
+      snapshot.value = retainWarmingMetrics(value, snapshot.value); error.value = null;
       if (manual || Date.now() - lastHistory >= 5000) await history(token, id);
       return true;
     } catch (reason) { if (current(token, id)) error.value = mapError(reason); return false; }

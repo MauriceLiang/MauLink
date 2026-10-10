@@ -13,6 +13,7 @@ import MonitorChart from "./MonitorChart.vue";
 const t = messages(monitorMessages);
 const props = defineProps<{ store: MonitorStore; connectionId: string; ready: boolean }>();
 const emit = defineEmits<{ full: [] }>();
+const cpuChartDomain = [0, 100] as const;
 
 const snapshot = computed(() => {
   const value = props.store.snapshot.value;
@@ -41,9 +42,13 @@ const collectionStateKey = {
 
 const statusFor = (quality?: MonitorMetricQuality) =>
   effectiveStatus(quality, fetchFailed.value || !props.ready);
+const quickQualityLabel = (status: MonitorMetricQuality['status']) =>
+  status === 'warmingUp' ? t('quickNoData') : qualityLabel(status);
+const quickMetricValue = (value: string, quality?: MonitorMetricQuality) =>
+  !quality || quality.status === 'warmingUp' ? '—' : metricValue(value, quality);
 const cpuQuality = computed(() => snapshot.value?.cpu.quality);
 const cpuStatus = computed(() => statusFor(cpuQuality.value));
-const cpuText = computed(() => metricValue(percent(snapshot.value?.cpu.usagePercent), cpuQuality.value));
+const cpuText = computed(() => quickMetricValue(percent(snapshot.value?.cpu.usagePercent), cpuQuality.value));
 const cpuHistory = computed(() => snapshot.value ? props.store.histories.value.cpuUsage ?? [] : []);
 const cpuHistoryFailed = computed(() => !!props.store.historyErrors.value.cpuUsage);
 const validCpuHistory = computed(() => cpuHistory.value.filter(sample => Number.isFinite(sample.value)));
@@ -52,20 +57,18 @@ const showCpuTrend = computed(() =>
   !cpuHistoryFailed.value && validCpuHistory.value.length >= 2,
 );
 const cpuTrendText = computed(() =>
-  cpuHistoryFailed.value || cpuStatus.value === 'stale' || cpuStatus.value === 'unsupported' || cpuStatus.value === 'error'
-    ? t('quickTrendUnavailable')
-    : t('quickTrendWaiting'),
+  cpuHistoryFailed.value || cpuStatus.value !== 'ok' ? t('quickTrendUnavailable') : t('quickTrendWaiting'),
 );
 
 const memoryStatus = computed(() => statusFor(snapshot.value?.memory.quality));
-const memoryText = computed(() => metricValue(percent(snapshot.value?.memory.usedPercent), snapshot.value?.memory.quality));
+const memoryText = computed(() => quickMetricValue(percent(snapshot.value?.memory.usedPercent), snapshot.value?.memory.quality));
 const diskStatus = computed(() => statusFor(snapshot.value?.disk.quality));
-const diskText = computed(() => metricValue(percent(snapshot.value?.disk.usedPercent), snapshot.value?.disk.quality));
+const diskText = computed(() => quickMetricValue(percent(snapshot.value?.disk.usedPercent), snapshot.value?.disk.quality));
 const networkStatus = computed(() => statusFor(snapshot.value?.network.quality));
-const receiveText = computed(() => metricValue(rate(snapshot.value?.network.receivedBytesPerSecond), snapshot.value?.network.quality));
-const transmitText = computed(() => metricValue(rate(snapshot.value?.network.transmittedBytesPerSecond), snapshot.value?.network.quality));
+const receiveText = computed(() => quickMetricValue(rate(snapshot.value?.network.receivedBytesPerSecond), snapshot.value?.network.quality));
+const transmitText = computed(() => quickMetricValue(rate(snapshot.value?.network.transmittedBytesPerSecond), snapshot.value?.network.quality));
 const loadStatus = computed(() => statusFor(snapshot.value?.load.quality));
-const loadText = computed(() => metricValue(loadValue(snapshot.value?.load.oneMinute), snapshot.value?.load.quality));
+const loadText = computed(() => quickMetricValue(loadValue(snapshot.value?.load.oneMinute), snapshot.value?.load.quality));
 
 const latestSample = computed(() => {
   const data = snapshot.value;
@@ -76,7 +79,7 @@ const latestSample = computed(() => {
   return times.length ? Math.max(...times) : null;
 });
 const timeText = computed(() => {
-  if (latestSample.value === null) return t('awaitingSamples');
+  if (latestSample.value === null) return t('quickNoData');
   const time = new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
@@ -102,12 +105,13 @@ const timeText = computed(() => {
       <article class="quick-monitor-hero" :aria-label="t('cpuUsage')" :data-quality="cpuStatus">
         <div class="quick-monitor-hero-head">
           <span>{{ t('cpuUsage') }}</span>
-          <small v-if="cpuStatus !== 'ok'">{{ qualityLabel(cpuStatus) }}</small>
+          <small v-if="cpuStatus !== 'ok'">{{ quickQualityLabel(cpuStatus) }}</small>
         </div>
         <strong class="quick-monitor-hero-value">{{ cpuText }}</strong>
         <MonitorChart
           v-if="showCpuTrend"
           :samples="validCpuHistory"
+          :domain="cpuChartDomain"
           :label="t('quickCpuTrendLabel')"
         />
         <p v-else class="quick-monitor-trend-placeholder">{{ cpuTrendText }}</p>
@@ -119,7 +123,7 @@ const timeText = computed(() => {
             <dt class="quick-monitor-metric-label">{{ t('memory') }}</dt>
             <dd class="quick-monitor-metric-value">{{ memoryText }}</dd>
           </dl>
-          <span v-if="memoryStatus !== 'ok'" class="quick-monitor-metric-quality">{{ qualityLabel(memoryStatus) }}</span>
+          <span v-if="memoryStatus !== 'ok'" class="quick-monitor-metric-quality">{{ quickQualityLabel(memoryStatus) }}</span>
         </div>
 
         <div class="quick-monitor-metric" data-metric="disk" :data-quality="diskStatus">
@@ -127,13 +131,13 @@ const timeText = computed(() => {
             <dt class="quick-monitor-metric-label">{{ t('rootFilesystem') }}</dt>
             <dd class="quick-monitor-metric-value">{{ diskText }}</dd>
           </dl>
-          <span v-if="diskStatus !== 'ok'" class="quick-monitor-metric-quality">{{ qualityLabel(diskStatus) }}</span>
+          <span v-if="diskStatus !== 'ok'" class="quick-monitor-metric-quality">{{ quickQualityLabel(diskStatus) }}</span>
         </div>
 
         <div class="quick-monitor-metric quick-monitor-metric--network" data-metric="network" :data-quality="networkStatus">
           <div class="quick-monitor-metric-main">
             <span class="quick-monitor-metric-label">{{ t('networkRate') }}</span>
-            <span v-if="networkStatus !== 'ok'" class="quick-monitor-metric-quality">{{ qualityLabel(networkStatus) }}</span>
+            <span v-if="networkStatus !== 'ok'" class="quick-monitor-metric-quality">{{ quickQualityLabel(networkStatus) }}</span>
           </div>
           <dl class="quick-monitor-network-values">
             <div>
@@ -152,7 +156,7 @@ const timeText = computed(() => {
             <dt class="quick-monitor-metric-label">{{ t('systemLoad') }}</dt>
             <dd class="quick-monitor-metric-value">{{ loadText }}</dd>
           </dl>
-          <span v-if="loadStatus !== 'ok'" class="quick-monitor-metric-quality">{{ qualityLabel(loadStatus) }}</span>
+          <span v-if="loadStatus !== 'ok'" class="quick-monitor-metric-quality">{{ quickQualityLabel(loadStatus) }}</span>
         </div>
       </div>
 

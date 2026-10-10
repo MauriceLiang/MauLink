@@ -13,6 +13,7 @@ import QuickMonitorPanel from "./QuickMonitorPanel.vue";
 const t = messages(monitorMessages);
 const props = defineProps<{ store: MonitorStore; connectionId: string; quick?: boolean; ready: boolean }>();
 const emit = defineEmits<{ full: [] }>();
+const cpuChartDomain = [0, 100] as const;
 const snapshot = computed(() => props.store.snapshot.value?.connectionId === props.connectionId ? props.store.snapshot.value : null);
 const samples = (name: MonitorHistoryMetric) => snapshot.value ? props.store.histories.value[name] ?? [] : [];
 const cards = computed(() => {
@@ -40,7 +41,7 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
       <div class="monitor-card-heading"><h3>{{ card.label }}</h3><span>{{ qualityLabel(effectiveStatus(card.quality, !!store.error.value || !ready)) }}</span></div>
       <strong class="monitor-value">{{ metricValue(card.value, card.quality) }}</strong>
       <p v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'">{{ card.detail }}</p>
-      <MonitorChart v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :label="t('history', {name: card.label})" />
+      <MonitorChart v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :domain="card.key === 'cpu' ? cpuChartDomain : undefined" :label="t('history', {name: card.label})" />
     </article><article class="monitor-card monitor-system" :aria-label="t('systemInformation')" :data-quality="effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)"><div class="monitor-card-heading"><h3>{{ t('systemInformation') }}</h3><span>{{ qualityLabel(effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)) }}</span></div>
       <dl><dt>{{ t('host') }}</dt><dd>{{ metricValue(snapshot?.system.hostname ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('system') }}</dt><dd>{{ metricValue(snapshot?.system.os ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('kernel') }}</dt><dd>{{ metricValue(snapshot?.system.kernel ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ metricValue(snapshot?.system.architecture ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('uptime') }}</dt><dd>{{ metricValue(uptime(snapshot?.uptime.seconds), snapshot?.uptime.quality) }} · {{ qualityLabel(effectiveStatus(snapshot?.uptime.quality, !!store.error.value || !ready)) }}</dd></dl>
     </article></div>

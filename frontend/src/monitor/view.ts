@@ -20,9 +20,12 @@ export function uptime(value?: string | null) {
   const days = Math.floor(seconds / 86400); const hours = Math.floor(seconds % 86400 / 3600); const minutes = Math.floor(seconds % 3600 / 60);
   return days ? t('days', {days, hours}) : t('hours', {hours, minutes});
 }
-export function sparkline(samples: MonitorHistorySample[], width = 220, height = 42) {
+export function sparkline(samples: MonitorHistorySample[], width = 220, height = 42, domain?: readonly [number, number]) {
   const values = samples.slice(-120).filter(sample => Number.isFinite(sample.value)); if (!values.length) return '';
-  const min = Math.min(...values.map(sample => sample.value)); const max = Math.max(...values.map(sample => sample.value));
+  const min = domain?.[0] ?? Math.min(...values.map(sample => sample.value)); const max = domain?.[1] ?? Math.max(...values.map(sample => sample.value));
   if (values.length === 1) return `M 0 ${height / 2} L ${width} ${height / 2}`;
-  return values.map((sample, index) => `${index ? 'L' : 'M'} ${(index / (values.length - 1) * width).toFixed(1)} ${(height - 2 - (max === min ? .5 : (sample.value - min) / (max - min)) * (height - 4)).toFixed(1)}`).join(' ');
+  return values.map((sample, index) => {
+    const ratio = max === min ? .5 : (Math.max(min, Math.min(max, sample.value)) - min) / (max - min);
+    return `${index ? 'L' : 'M'} ${(index / (values.length - 1) * width).toFixed(1)} ${(height - 2 - ratio * (height - 4)).toFixed(1)}`;
+  }).join(' ');
 }

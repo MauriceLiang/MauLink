@@ -28,13 +28,14 @@
 .monitor-card p { color: var(--color-text-secondary); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .monitor-card[aria-label="网络速率"] .monitor-value { font-size: 15px; }
 .monitor-chart { width: 100%; height: 42px; overflow: visible; transition: opacity var(--motion-normal) var(--ease-standard); }
-.monitor-chart path { fill: none; stroke: var(--color-primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; animation: monitor-line-in calc(var(--motion-slow) + var(--motion-fast)) var(--ease-enter); }
+.monitor-chart path { fill: none; stroke: var(--color-primary); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; animation: monitor-line-in calc(var(--motion-slow) + var(--motion-fast)) var(--ease-enter); }
+.monitor-chart-guide { stroke: var(--color-border); stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
 @keyframes monitor-line-in { from { opacity: .35; stroke-dashoffset: 1; } to { opacity: 1; stroke-dashoffset: 0; } }
 .monitor-chart .is-secondary { stroke: var(--color-primary-hover); }
 .monitor-system dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; font-size: 12px; }
 .monitor-system dt { color: var(--color-text-secondary); }.monitor-system dd { margin: 0; overflow-wrap: anywhere; }
 .monitor-notice { color: var(--color-danger); font-size: 12px; overflow-wrap: anywhere; line-height: 1.6; }
-.quick-monitor-layout { display: flex; min-width: 0; min-height: 100%; flex-direction: column; gap: 12px; }
+.quick-monitor-layout { display: flex; width: 100%; min-width: 0; height: 100%; min-height: 100%; flex-direction: column; gap: 12px; }
 .quick-monitor-header { display: grid; min-width: 0; gap: 4px; }
 .quick-monitor-heading-row { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
 .quick-monitor-heading-row h2 { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
@@ -48,7 +49,7 @@
 .quick-monitor-hero-head { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; color: var(--color-text-secondary); font-size: 11px; }
 .quick-monitor-hero-head small { color: var(--color-warning); font-size: 10px; text-align: right; }
 .quick-monitor-hero-value { display: block; min-width: 0; font-size: 25px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
-.quick-monitor-hero .monitor-chart { width: 100%; height: 28px; margin: 0; }
+.quick-monitor-hero .monitor-chart { width: 100%; height: 36px; margin: 0; }
 .quick-monitor-trend-placeholder { min-height: 28px; margin: 0; color: var(--color-text-tertiary); font-size: 10px; line-height: 28px; }
 .quick-monitor-secondary { display: grid; min-width: 0; gap: 4px; }
 .quick-monitor-metric { display: grid; min-width: 0; min-height: 44px; align-content: center; gap: 3px; padding: 6px 2px; }
@@ -61,7 +62,7 @@
 .quick-monitor-network-values > div { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
 .quick-monitor-network-values dt { color: var(--color-text-secondary); }
 .quick-monitor-network-values dd { min-width: 0; margin: 0; color: var(--color-text-primary); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
-.quick-monitor-footer { min-width: 0; margin-top: auto; padding-top: 8px; }
+.quick-monitor-footer { position: sticky; bottom: 0; min-width: 0; margin-top: auto; padding-top: 8px; }
 .quick-monitor-footer .base-button { max-width: 100%; }
 .monitor-open-full .base-icon { width: 16px; height: 16px; }
 @media (max-width: 1100px) { .monitor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .terminal-main { grid-template-columns: minmax(0, 1fr) 190px; } .terminal-workspace.is-monitor { grid-template-rows: auto minmax(0, 1fr); } .quick-monitor { padding: 12px; } .quick-monitor-hero { padding: 10px; } .quick-monitor-heading-row { align-items: flex-start; } .quick-monitor-hero-value { font-size: 23px; } .quick-monitor-metric-value { font-size: 13px; } }

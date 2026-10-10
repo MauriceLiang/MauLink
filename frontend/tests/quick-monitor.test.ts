@@ -167,7 +167,21 @@ describe('Quick Monitor presentation', () => {
     expect(wrapper.attributes('data-collection-state')).toBe(status === 'warmingUp' ? 'waiting' : 'unavailable');
     expect(wrapper.get('.quick-monitor-hero-value').text()).not.toContain('0%');
     expect(wrapper.find('svg.monitor-chart').exists()).toBe(false);
-    expect(wrapper.text()).toContain(status === 'warmingUp' ? '正在采样' : '不支持');
+    expect(wrapper.text()).not.toContain('正在采样');
+    expect(wrapper.text()).toContain(status === 'warmingUp' ? '暂无数据' : '不支持');
+  });
+
+  it('keeps the last valid metrics as stale while the next snapshot warms up', async () => {
+    let status: MonitorQualityStatus = 'ok';
+    const { store } = controller({ snapshot: connectionId => monitorFixture(connectionId, status, 1_700_000_000_000) });
+    const wrapper = await panel(store);
+    status = 'warmingUp';
+    await store.refresh();
+
+    expect(wrapper.attributes('data-collection-state')).toBe('stale');
+    expect(wrapper.get('.quick-monitor-hero').attributes('data-quality')).toBe('stale');
+    expect(wrapper.get('.quick-monitor-hero-value').text()).toBe('24.5%');
+    expect(wrapper.text()).not.toContain('正在采样');
   });
 
   it('keeps other valid values visible when one metric fails', async () => {
@@ -218,7 +232,7 @@ describe('Quick Monitor presentation', () => {
     const wrapper = await panel(store, { ready: false });
     expect(wrapper.attributes('data-collection-state')).toBe('disconnected');
     expect(wrapper.text()).not.toContain('24.5%');
-    expect(wrapper.get('.quick-monitor-time').text()).toBe('等待采样');
+    expect(wrapper.get('.quick-monitor-time').text()).toBe('暂无数据');
     expect(wrapper.get('.monitor-open-full').element).toHaveProperty('disabled', true);
   });
 
@@ -226,14 +240,14 @@ describe('Quick Monitor presentation', () => {
     const { store } = controller();
     const wrapper = await panel(store);
     expect(wrapper.find('svg.monitor-chart').exists()).toBe(true);
-    expect(wrapper.get('svg.monitor-chart').attributes('aria-label')).toBe('CPU 最近 2 分钟相对趋势');
+    expect(wrapper.get('svg.monitor-chart').attributes('aria-label')).toBe('CPU 最近 2 分钟使用率');
   });
 
   it('shows a trend placeholder for missing or invalid history samples', async () => {
     const { store } = controller({ history: () => [{ sampledAtMs: 1, value: Number.NaN }] });
     const wrapper = await panel(store);
     expect(wrapper.find('svg.monitor-chart').exists()).toBe(false);
-    expect(wrapper.get('.quick-monitor-trend-placeholder').text()).toBe('趋势采集中');
+    expect(wrapper.get('.quick-monitor-trend-placeholder').text()).toBe('暂无趋势数据');
   });
 
   it('keeps the current CPU value when its history request fails', async () => {

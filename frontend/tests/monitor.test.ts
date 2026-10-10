@@ -83,14 +83,19 @@ describe('truthful monitor presentation', () => {
     expect(quick.emitted('full')).toHaveLength(1);
   });
 
-  it.each(['ok', 'warmingUp', 'stale', 'unsupported', 'error'] as const)('maps %s identically in Quick and Full Monitor', async status => {
+  it.each(['ok', 'warmingUp', 'stale', 'unsupported', 'error'] as const)('renders %s consistently across Quick and Full Monitor', async status => {
     const { store } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, status) }); store.activate('conn-a', true); await flushPromises(); const quick = view(store, true); const full = view(store);
-    expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text()); expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe(status);
+    if (status === 'warmingUp') expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe('—');
+    else expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text());
+    expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe(status);
     if (status === 'unsupported' || status === 'warmingUp' || status === 'error') expect(full.get('[aria-label="CPU 使用率"] .monitor-value').text()).not.toContain('0%');
+    if (status === 'warmingUp') expect(full.text()).not.toContain('正在采样');
+    if (status !== 'unsupported' && status !== 'error') expect(full.get('[aria-label="CPU 使用率"] .monitor-chart').findAll('.monitor-chart-guide')).toHaveLength(2);
   });
   it('formats valid zero, missing, huge metadata, uptime and bounded history without NaN', () => {
     expect(formatSize('4294967296')).toBe('4.0 GiB'); expect(percent(0)).toBe('0.0%'); expect(rate(0)).toBe('0 B/s'); expect(percent(null)).toBe('—'); expect(uptime('90061')).toBe('1 天 1 小时'); expect(metricValue('99%', monitorFixture('a', 'unsupported').cpu.quality)).toBe('不支持');
     expect(sparkline([])).toBe(''); expect(sparkline([{ sampledAtMs: 0, value: NaN }])).toBe(''); expect(sparkline([{ sampledAtMs: 0, value: 0 }])).not.toContain('NaN');
+    expect(sparkline([{ sampledAtMs: 0, value: 0.1 }, { sampledAtMs: 1, value: 0.5 }], 220, 42, [0, 100])).toBe('M 0.0 40.0 L 220.0 39.8');
   });
   it('updates charts and cards without rerendering the workspace xterm host', async () => {
     vi.useFakeTimers(); let renders = 0; const host = defineComponent({ props: ['id', 'controller', 'active'], setup: props => () => { renders++; return h('div', { 'data-terminal-id': props.id }); } });
