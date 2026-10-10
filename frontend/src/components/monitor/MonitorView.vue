@@ -8,8 +8,8 @@ import type { MonitorHistoryMetric } from "../../../../contracts/v1/MonitorHisto
 import { effectiveStatus, formatSize, metricValue, percent, rate, loadValue, qualityLabel, uptime } from "../../monitor/view";
 import { presentError } from "../../errors/presenter";
 import BaseButton from "../base/BaseButton.vue";
-import BaseIcon from "../base/BaseIcon.vue";
 import MonitorChart from "./MonitorChart.vue";
+import QuickMonitorPanel from "./QuickMonitorPanel.vue";
 const t = messages(monitorMessages);
 const props = defineProps<{ store: MonitorStore; connectionId: string; quick?: boolean; ready: boolean }>();
 const emit = defineEmits<{ full: [] }>();
@@ -28,8 +28,9 @@ const cards = computed(() => {
 const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value => value.quality?.sampledAtMs ?? 0), snapshot.value.system.quality.sampledAtMs ?? 0, snapshot.value.uptime.quality.sampledAtMs ?? 0) : 0);
 </script>
 <template>
-  <section :class="quick ? 'quick-monitor' : 'full-monitor'" :aria-label="quick ? 'Quick Monitor' : 'Full Monitor'">
-    <header><div><h2>{{ quick ? 'Quick Monitor' : t('serverOverview') }}</h2><p v-if="!quick">{{ t('historyNote') }}</p></div><BaseButton v-if="!quick" :disabled="!ready || store.pending.value" :loading="store.refreshing.value" @click="store.refresh()">{{ t('refreshNow') }}</BaseButton></header>
+  <QuickMonitorPanel v-if="quick" :store="store" :connection-id="connectionId" :ready="ready" @full="emit('full')" />
+  <section v-else class="full-monitor" :aria-label="t('fullMonitorTitle')">
+    <header><div><h2>{{ t('serverOverview') }}</h2><p>{{ t('historyNote') }}</p></div><BaseButton :disabled="!ready || store.pending.value" :loading="store.refreshing.value" @click="store.refresh()">{{ t('refreshNow') }}</BaseButton></header>
     <p v-if="!ready" class="monitor-notice" role="status">{{ snapshot ? t('connectionEndedLastSampleRetained') : t('connectionEndedNoSamplesAvailable') }}</p>
     <BaseAlert v-if="store.error.value" class="monitor-notice" >{{ presentError(store.error.value).message }}<span v-if="snapshot"> {{ t('snapshotNote') }}</span></BaseAlert>
     <BaseAlert v-if="store.activityError.value" class="monitor-notice" >{{ t('syncFailed') }}{{ presentError(store.activityError.value).message }}</BaseAlert>
@@ -38,11 +39,10 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
     <div class="monitor-grid"><article v-for="card in cards" :key="card.key" :aria-label="card.label" class="monitor-card" :data-quality="effectiveStatus(card.quality, !!store.error.value || !ready)">
       <div class="monitor-card-heading"><h3>{{ card.label }}</h3><span>{{ qualityLabel(effectiveStatus(card.quality, !!store.error.value || !ready)) }}</span></div>
       <strong class="monitor-value">{{ metricValue(card.value, card.quality) }}</strong>
-      <p v-if="!quick && card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'">{{ card.detail }}</p>
-      <MonitorChart v-if="(!quick || card.key === 'cpu') && card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :label="t('history', {name: card.label})" />
-    </article><article v-if="!quick" class="monitor-card monitor-system" :aria-label="t('systemInformation')" :data-quality="effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)"><div class="monitor-card-heading"><h3>{{ t('systemInformation') }}</h3><span>{{ qualityLabel(effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)) }}</span></div>
+      <p v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'">{{ card.detail }}</p>
+      <MonitorChart v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :label="t('history', {name: card.label})" />
+    </article><article class="monitor-card monitor-system" :aria-label="t('systemInformation')" :data-quality="effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)"><div class="monitor-card-heading"><h3>{{ t('systemInformation') }}</h3><span>{{ qualityLabel(effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)) }}</span></div>
       <dl><dt>{{ t('host') }}</dt><dd>{{ metricValue(snapshot?.system.hostname ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('system') }}</dt><dd>{{ metricValue(snapshot?.system.os ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('kernel') }}</dt><dd>{{ metricValue(snapshot?.system.kernel ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ metricValue(snapshot?.system.architecture ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('uptime') }}</dt><dd>{{ metricValue(uptime(snapshot?.uptime.seconds), snapshot?.uptime.quality) }} · {{ qualityLabel(effectiveStatus(snapshot?.uptime.quality, !!store.error.value || !ready)) }}</dd></dl>
     </article></div>
-    <BaseButton v-if="quick" variant="softPrimary" size="md" block class="monitor-open-full" :disabled="!ready" @click="emit('full')"><BaseIcon name="monitor" />{{ t('openFullMonitor') }}</BaseButton>
   </section>
 </template>

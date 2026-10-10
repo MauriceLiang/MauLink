@@ -28,7 +28,7 @@ describe('one shared monitor controller', () => {
   });
   it('polls a shared snapshot once per cycle and batches history at five-second cadence', async () => {
     vi.useFakeTimers(); const { store, get, history } = controller(); store.activate('conn-a', true); await flushPromises();
-    const quick = view(store, true); const full = view(store); expect(quick.get('[aria-label="CPU 使用率"] .monitor-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text());
+    const quick = view(store, true); const full = view(store); expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text());
     expect(get).toHaveBeenCalledTimes(1); expect(history).toHaveBeenCalledTimes(6); await vi.advanceTimersByTimeAsync(4000); expect(get).toHaveBeenCalledTimes(5); expect(history).toHaveBeenCalledTimes(6);
     await vi.advanceTimersByTimeAsync(1000); expect(history).toHaveBeenCalledTimes(12); expect(history).toHaveBeenCalledWith(expect.objectContaining({ fromMs: expect.any(Number), toMs: expect.any(Number), limit: 120 }));
   });
@@ -85,7 +85,7 @@ describe('truthful monitor presentation', () => {
 
   it.each(['ok', 'warmingUp', 'stale', 'unsupported', 'error'] as const)('maps %s identically in Quick and Full Monitor', async status => {
     const { store } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, status) }); store.activate('conn-a', true); await flushPromises(); const quick = view(store, true); const full = view(store);
-    expect(quick.get('[aria-label="CPU 使用率"] .monitor-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text()); expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe(status);
+    expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe(full.get('[aria-label="CPU 使用率"] .monitor-value').text()); expect(full.get('[aria-label="CPU 使用率"]').attributes('data-quality')).toBe(status);
     if (status === 'unsupported' || status === 'warmingUp' || status === 'error') expect(full.get('[aria-label="CPU 使用率"] .monitor-value').text()).not.toContain('0%');
   });
   it('formats valid zero, missing, huge metadata, uptime and bounded history without NaN', () => {
