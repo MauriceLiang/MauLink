@@ -73,6 +73,14 @@ describe('transfer metadata and authoritative cancellation', () => {
     const upload = vi.fn(); const store = createTransferStore(apiFor({ sftp_upload: upload }), async () => null); disposals.push(store.dispose);
     expect(await store.start('upload', 'conn-a', '/fixture', () => true)).toBe(false); expect(upload).not.toHaveBeenCalled(); expect(store.snapshots.value).toHaveLength(0);
   });
+  it('blocks a new transfer before opening the file picker while the updater install gate is held', async () => {
+    const upload = vi.fn(); const picker = vi.fn(async () => ({ token: 'opaque', displayName: 'a.txt', purpose: 'upload' as const, expiresAtMs: Date.now() + 120000 }));
+    const store = createTransferStore(apiFor({ sftp_upload: upload }), picker, undefined, () => false); disposals.push(store.dispose);
+
+    expect(await store.start('upload', 'conn-a', '/fixture', () => true)).toBe(false);
+    expect(picker).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
   it('rejects a directory download before opening the picker', async () => {
     const { store, picker } = tasks({ sftp_stat: () => ({ name: 'folder', path: '/folder', fileType: 'directory', sizeBytes: null, modifiedAtMs: null, isSymlink: false, permissions: null }) });
     expect(await store.start('download', 'conn-a', '/folder', () => true)).toBe(false); expect(picker).not.toHaveBeenCalled(); expect(store.errors.value['conn-a']?.messageKey).toBe('errors.sftpTransferFileTypeUnsupported');
