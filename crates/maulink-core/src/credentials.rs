@@ -25,6 +25,7 @@ use crate::{
 };
 
 const CREDENTIAL_QUEUE_CAPACITY: usize = 16;
+#[cfg(any(target_os = "macos", windows))]
 const DEFAULT_SERVICE: &str = "io.maulink.desktop.credentials";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -283,6 +284,7 @@ impl SecureStore for NativeSecureStore {
     }
 }
 
+#[cfg(any(target_os = "macos", windows))]
 fn map_keyring_initialization_error(error: keyring_core::Error) -> AppError {
     map_secure_store_error(map_keyring_error(error))
 }
