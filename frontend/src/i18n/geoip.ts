@@ -1,7 +1,12 @@
 export const geoIpMessages = {
   retry: ['重新读取状态', 'Reload status'],
   title: ['离线 IP 数据库', 'Offline IP databases'],
-  intro: ['一键下载免费的位置与 ASN 数据库，无需账号。也可导入已有的 MMDB 文件；IP 查询在本机完成。', 'Download free location and ASN databases without an account, or import an MMDB file. IP lookups run locally.'],
+  intro: ['可下载免费的位置与 ASN 数据库，也可导入已有的 MMDB 文件；选择本地查询时无需向在线服务发送 IP。', 'Download free location and ASN databases, or import existing MMDB files. Local lookup does not send IPs to an online service.'],
+  lookupMode: ['IP 信息查询方式', 'IP information lookup method'],
+  lookupLocalDatabase: ['使用本地数据库', 'Use local database'],
+  lookupOnline: ['在线查询（ipwho.is）', 'Query online (ipwho.is)'],
+  lookupLocalNote: ['服务器 IP 只在本机数据库中查询，不会发送到 GeoIP 在线服务。', 'Server IPs are looked up only in the local database and are not sent to an online GeoIP service.'],
+  lookupOnlineNote: ['查看服务器网络信息时，MauLink 会通过 HTTPS 将解析到的公网 IP 和界面语言发送给 ipwho.is。私有、环回及保留地址不会发送；域名仍由系统 DNS 解析。', 'When viewing server network information, MauLink sends the resolved public IP and interface language to ipwho.is over HTTPS. Private, loopback and reserved addresses are not sent; hostnames still use the system DNS resolver.'],
   location: ['位置数据库', 'Location database'], asn: ['ASN 数据库', 'ASN database'],
   notConfigured: ['未配置', 'Not configured'], unavailable: ['文件不可用', 'File unavailable'], loading: ['正在读取数据库状态…', 'Loading database status…'],
   install: ['一键下载配置', 'Download and set up'], updateNow: ['立即检查更新', 'Check for updates'], import: ['导入 MMDB 文件', 'Import MMDB file'], delete: ['删除数据库', 'Delete databases'],

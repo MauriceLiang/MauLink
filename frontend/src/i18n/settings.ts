@@ -8,7 +8,7 @@ export const settingsMessages = {
   securityDescription: ['管理凭据查看保护和本地安全策略。', 'Manage credential reveal protection and local security policy.'],
   appearanceDescription: ['调整主题、界面密度、侧栏宽度和通知位置。', 'Adjust theme, density, sidebar width and notification position.'],
   filesDescription: ['设置文件列表中的大小信息显示方式。', 'Choose how file sizes appear in file lists.'],
-  networkDescription: ['管理网络信息数据库及其更新状态。', 'Manage network data and its update status.'],
+  networkDescription: ['选择本地或在线 IP 查询，并管理离线数据库。', 'Choose local or online IP lookups and manage offline databases.'],
   terminalDescription: ['设置终端字体、主题、背景和输入行为。', 'Configure terminal font, theme, background and input behavior.'],
   languageDescription: ['选择 MauLink 界面使用的语言。', 'Choose the language used by the MauLink interface.'],
   backToWorkspace: ['返回工作区', 'Back to workspace'],

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import type { GeoIpDatabaseStatus } from '../../../../contracts/v1/GeoIpDatabaseStatus';
+import type { GeoIpLookupMode } from '../../../../contracts/v1/GeoIpLookupMode';
 import type { GeoIpApi } from '../../ipc/geoip';
 import { locale, messages } from '../../i18n/locale';
 import { geoIpMessages } from '../../i18n/geoip';
@@ -9,8 +10,8 @@ import { presentError } from '../../errors/presenter';
 import BaseButton from '../base/BaseButton.vue';
 import BaseSelect from '../base/BaseSelect.vue';
 import BaseAlert from '../base/BaseAlert.vue';
-const props = defineProps<{ api: GeoIpApi }>();
-const emit = defineEmits<{ changed: []; busy: [value: boolean] }>();
+const props = withDefaults(defineProps<{ api: GeoIpApi; lookupMode?: GeoIpLookupMode; disabled?: boolean }>(), { lookupMode: 'localDatabase', disabled: false });
+const emit = defineEmits<{ changed: []; busy: [value: boolean]; 'update:lookupMode': [value: GeoIpLookupMode] }>();
 const t = messages(geoIpMessages);
 const status = ref<GeoIpDatabaseStatus | null>(null);
 const busy = ref(false);
@@ -39,6 +40,8 @@ onMounted(load);
 <template>
   <section class="geoip-settings" :aria-label="t('title')" :aria-busy="busy || loading">
     <h3>{{ t('title') }}</h3>
+    <BaseSelect :model-value="lookupMode" :label="t('lookupMode')" :disabled="disabled || busy || loading" :options="[{value:'localDatabase',label:t('lookupLocalDatabase')},{value:'online',label:t('lookupOnline')}]" @update:model-value="emit('update:lookupMode', $event as GeoIpLookupMode)" />
+    <p class="geoip-note">{{ t(lookupMode === 'online' ? 'lookupOnlineNote' : 'lookupLocalNote') }}</p>
     <p class="geoip-intro">{{ t('intro') }}</p>
     <div class="geoip-status">
       <template v-if="status">

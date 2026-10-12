@@ -221,7 +221,7 @@ defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy
           </fieldset>
           <section v-show="section === 'terminal'" class="settings-workspace-section"><TerminalSettingsSection ref="terminalSection" :settings="draft" :saved-settings="savedSettings" :copy-on-select="copyOnSelect" :reset-key="resetKey" :busy="preferences.busy.value || !preferences.record.value" :background-images="backgroundImages" @update:settings="updateTerminalSettings" @update:copy-on-select="copyOnSelect = $event" /></section>
           <SecuritySettingsSection v-if="section === 'security' && credentialReveal" :active="active" :api="credentialReveal" />
-          <GeoIpSettingsSection v-if="section === 'network' && geoip" :api="geoip" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />
+          <GeoIpSettingsSection v-if="section === 'network' && geoip" v-model:lookup-mode="draft.geoIpLookupMode" :api="geoip" :disabled="preferences.busy.value || !preferences.record.value" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />
         </form>
         <BaseAlert v-if="preferences.error.value && regularSection" role="alert">{{ preferences.error.value }}</BaseAlert>
         <BaseButton v-if="preferences.error.value && regularSection" variant="secondary" :disabled="busy" @click="reloadDialogOpen = true">{{ t('reload') }}</BaseButton>

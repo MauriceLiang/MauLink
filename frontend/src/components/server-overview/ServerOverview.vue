@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
 import type { NetworkInspection } from "../../../../contracts/v1/NetworkInspection";
 import type { NetworkScope } from "../../../../contracts/v1/NetworkScope";
+import type { GeoIpLookupMode } from "../../../../contracts/v1/GeoIpLookupMode";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import type { ServerRuntimeStats } from "../../../../contracts/v1/ServerRuntimeStats";
 import { locale, messages } from "../../i18n/locale";
@@ -23,7 +24,7 @@ import type { createServerRuntimeStatsApi } from "../../ipc/server-runtime-stats
 import RecentActivityCard from "./RecentActivityCard.vue";
 import type { ConnectionTestToastResult } from "../../app/connection-test-toast";
 
-const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean; databaseRevision?: number }>();
+const props = defineProps<{ server: ServerProfile; store: ConnectionStore; hostKeyApi: ReturnType<typeof createHostKeysApi>; networkApi: ReturnType<typeof createNetworkApi>; preflightApi: ReturnType<typeof createPreflightApi>; runtimeStatsApi: ReturnType<typeof createServerRuntimeStatsApi>; readOnly: boolean; geoIpLookupMode?: GeoIpLookupMode; databaseRevision?: number }>();
 const emit = defineEmits<{ back: []; edit: [id: string]; remove: [server: ServerProfile]; copy: [kind: "address" | "ssh", value: string]; openSettings: []; testResult: [result: ConnectionTestToastResult] }>();
 const t = messages(serverOverviewMessages);
 const overviewSections = ["connection", "network", "security", "route", "activity"] as const;
@@ -229,7 +230,7 @@ onBeforeUnmount(() => { preflightRequestVersion += 1; runtimeStatsRequestVersion
           <ConnectionInfoCard :server="server" embedded />
         </div>
         <div :id="sectionPanelId('network')" v-show="activeSection === 'network'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('network')">
-          <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" embedded @open-settings="emit('openSettings')" @summary-change="onNetworkSummary" />
+          <NetworkInfoCard :server="server" :api="networkApi" :database-revision="databaseRevision" :lookup-mode="geoIpLookupMode ?? 'localDatabase'" embedded @open-settings="emit('openSettings')" @summary-change="onNetworkSummary" />
         </div>
         <div :id="sectionPanelId('security')" v-show="activeSection === 'security'" class="server-overview-section-panel" role="region" :aria-labelledby="sectionButtonId('security')">
           <HostIdentityCard :server="server" :api="hostKeyApi" embedded @summary-change="onTrustSummary" />

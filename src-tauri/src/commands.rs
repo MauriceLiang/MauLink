@@ -541,7 +541,12 @@ pub async fn network_inspect(
         request_id,
         state
             .network
-            .inspect(&payload.host, payload.detailed, payload.language)
+            .inspect(
+                &payload.host,
+                payload.detailed,
+                payload.language,
+                state.settings.current().value.geo_ip_lookup_mode,
+            )
             .await,
     )
 }
