@@ -82,6 +82,34 @@ jobs:
           --ci
           -- --locked
 
+      - name: Verify Windows GUI executable subsystem
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'target/${{ matrix.target }}/release/maulink.exe'
+          & ./tools/check-windows-gui-subsystem.ps1 -Path $exe
+
+          $negative = Join-Path $env:TEMP 'maulink-pe-cui-negative-test.exe'
+          try {
+            [byte[]]$data = [IO.File]::ReadAllBytes((Resolve-Path $exe).ProviderPath)
+            $pe = [BitConverter]::ToInt32($data, 0x3C)
+            $optional = $pe + 24
+            $data[$optional + 68] = 3
+            $data[$optional + 69] = 0
+            [IO.File]::WriteAllBytes($negative, $data)
+            $rejected = $false
+            try {
+              & ./tools/check-windows-gui-subsystem.ps1 -Path $negative
+            } catch {
+              $rejected = $true
+              Write-Host "Expected CUI rejection: $($_.Exception.Message)"
+            }
+            if (-not $rejected) { throw 'PE regression test failed: CUI was accepted' }
+          } finally {
+            Remove-Item -LiteralPath $negative -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Inspect Windows MSI ProductVersion
         if: runner.os == 'Windows'
         shell: pwsh

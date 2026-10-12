@@ -165,6 +165,13 @@ jobs:
           --bundles msi
           --ci
           -- --locked
+      - name: Verify Windows GUI executable subsystem
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./tools/check-windows-gui-subsystem.ps1 `
+            -Path "target/${{ matrix.target }}/release/maulink.exe"
       - name: Verify MSI ProductVersion
         if: runner.os == 'Windows'
         shell: pwsh
