@@ -225,23 +225,34 @@ pub struct NativeSecureStore {
 impl NativeSecureStore {
     pub fn new() -> Result<Self, AppError> {
         #[cfg(target_os = "macos")]
-        let store = apple_native_keyring_store::keychain::Store::new()
-            .map_err(map_keyring_initialization_error)?;
+        {
+            let store = apple_native_keyring_store::keychain::Store::new()
+                .map_err(map_keyring_initialization_error)?;
+
+            Ok(Self {
+                store,
+                service: DEFAULT_SERVICE.to_owned(),
+            })
+        }
 
         #[cfg(windows)]
-        let store = windows_native_keyring_store::store::Store::new()
-            .map_err(map_keyring_initialization_error)?;
+        {
+            let store = windows_native_keyring_store::store::Store::new()
+                .map_err(map_keyring_initialization_error)?;
+
+            Ok(Self {
+                store,
+                service: DEFAULT_SERVICE.to_owned(),
+            })
+        }
 
         #[cfg(not(any(target_os = "macos", windows)))]
-        return Err(AppError::new(
-            ErrorCode::CredentialAccessDenied,
-            "errors.credentialPlatformUnsupported",
-        ));
-
-        Ok(Self {
-            store,
-            service: DEFAULT_SERVICE.to_owned(),
-        })
+        {
+            Err(AppError::new(
+                ErrorCode::CredentialAccessDenied,
+                "errors.credentialPlatformUnsupported",
+            ))
+        }
     }
 
     fn entry(&self, credential_id: &str) -> Result<Entry, SecureStoreError> {

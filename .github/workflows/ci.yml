@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend / typecheck / unit / build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Type check
+        run: npm --prefix frontend run type-check
+      - name: Unit tests
+        run: npm --prefix frontend run test
+      - name: Vite build
+        run: npm --prefix frontend run build
+      - name: Release version checker tests
+        run: node --test tools/check-release-version.test.mjs
+      - name: MSI version mapping tests
+        run: node --test tools/msi-version.test.mjs
+      - name: Visual manifest checks (not screenshot capture)
+        run: |
+          node --test frontend/visual/capture.test.mjs
+          node frontend/visual/verify.mjs
+
+  rust-core:
+    name: Rust Core / fmt / clippy / test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy core
+        run: cargo clippy -p maulink-core --all-targets --locked -- -D warnings
+      - name: Core unit tests
+        run: cargo test -p maulink-core --locked
+
+  desktop-check:
+    name: Desktop check / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check Tauri desktop integration
+        run: cargo check -p maulink-desktop --locked

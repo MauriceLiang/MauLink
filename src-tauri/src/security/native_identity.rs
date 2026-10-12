@@ -173,13 +173,13 @@ mod platform {
     use tauri::Manager;
     use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
     use windows::{
-        Foundation::IAsyncOperation,
         Security::Credentials::UI::{
             UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
         },
         Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize},
         core::{HSTRING, factory},
     };
+    use windows_future::IAsyncOperation;
 
     use super::*;
 
@@ -239,8 +239,8 @@ mod platform {
         let operation: IAsyncOperation<UserConsentVerificationResult> =
             unsafe { interop.RequestVerificationForWindowAsync(hwnd, &message) }
                 .map_err(|_| OsIdentityError::Unavailable)?;
-        let result =
-            tauri::async_runtime::block_on(operation).map_err(|_| OsIdentityError::Failed)?;
+        let result = tauri::async_runtime::block_on(async { operation.await })
+            .map_err(|_| OsIdentityError::Failed)?;
         match result {
             UserConsentVerificationResult::Verified => Ok(()),
             UserConsentVerificationResult::Canceled => Err(OsIdentityError::Cancelled),

@@ -1,0 +1,201 @@
+name: Build and Draft Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release tag and source
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Tag must point to an approved release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            git fetch origin dev/app-updates:refs/remotes/origin/dev/app-updates
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/dev/app-updates
+          else
+            git fetch origin main:refs/remotes/origin/main
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          fi
+      - name: Manifest and tag versions must agree
+        run: node tools/check-release-version.mjs "$GITHUB_REF_NAME"
+      - name: Frontend checks
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run type-check
+          npm --prefix frontend run test
+          npm --prefix frontend run build
+          node --test tools/check-release-version.test.mjs
+          node --test tools/msi-version.test.mjs
+          node --test frontend/visual/capture.test.mjs
+          node frontend/visual/verify.mjs
+      - name: Rust format and core tests
+        run: |
+          cargo fmt --all -- --check
+          cargo test -p maulink-core --locked
+
+  build:
+    name: Package / ${{ matrix.kind }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: macos-arm64
+            os: macos-15
+            target: aarch64-apple-darwin
+            bundle: dmg
+          - kind: macos-x64
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundle: dmg
+          - kind: windows-x64
+            os: windows-2025
+            target: x86_64-pc-windows-msvc
+            bundle: msi
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: core.longpaths
+          GIT_CONFIG_VALUE_0: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Install pinned Tauri CLI
+        run: cargo install tauri-cli --version 2.12.0 --locked
+      - name: Build ad-hoc signed-for-testing macOS DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+        run: cargo tauri build --target ${{ matrix.target }} --bundles dmg --ci -- --locked
+      - name: Generate Windows MSI version override
+        if: runner.os == 'Windows'
+        shell: bash
+        run: node tools/write-msi-config.mjs "$GITHUB_REF_NAME"
+      - name: Build Windows MSI
+        if: runner.os == 'Windows'
+        run: >-
+          cargo tauri build
+          --config src-tauri/tauri.release-windows.conf.json
+          --target ${{ matrix.target }}
+          --bundles msi
+          --ci
+          -- --locked
+      - name: Verify MSI ProductVersion
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msis = @(Get-ChildItem -Path "target/${{ matrix.target }}/release/bundle/msi" -Filter '*.msi' -File)
+          if ($msis.Count -ne 1) { throw "Expected one MSI, got $($msis.Count)" }
+          $expected = (Get-Content 'src-tauri/tauri.release-windows.conf.json' -Raw | ConvertFrom-Json).bundle.windows.wix.version
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $database = $installer.OpenDatabase($msis[0].FullName, 0)
+          $view = $database.OpenView("SELECT Value FROM Property WHERE Property = 'ProductVersion'")
+          $view.Execute()
+          $record = $view.Fetch()
+          if ($null -eq $record) { throw 'MSI ProductVersion missing' }
+          $actual = $record.StringData(1)
+          $view.Close()
+          if ($actual -ne $expected) { throw "MSI ProductVersion mismatch: actual=$actual expected=$expected" }
+          "MSI ProductVersion verified: $actual" | Write-Host
+      - name: Collect and rename one expected installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          source_dir="target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}"
+          files=("$source_dir"/*.${{ matrix.bundle }})
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "Expected exactly one ${{ matrix.bundle }} under $source_dir, got ${#files[@]}"
+            exit 1
+          fi
+          mkdir -p release-out
+          version="${GITHUB_REF_NAME#v}"
+          cp "${files[0]}" "release-out/MauLink_${version}_${{ matrix.target }}.${{ matrix.bundle }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: maulink-${{ matrix.kind }}
+          path: release-out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-draft:
+    name: Publish GitHub Release as DRAFT
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: maulink-*
+          path: release-dist
+          merge-multiple: true
+      - name: Ensure exact expected release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(release-dist/*)
+          if [ "${#files[@]}" -ne 3 ]; then
+            echo "Expected 3 installers, got ${#files[@]}"
+            exit 1
+          fi
+          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_aarch64-apple-darwin.dmg"
+          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_x86_64-apple-darwin.dmg"
+          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_x86_64-pc-windows-msvc.msi"
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-dist
+          sha256sum -- *.dmg *.msi > SHA256SUMS
+      - name: Create draft release with all assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_flags=(--draft --verify-tag --title "MauLink ${GITHUB_REF_NAME}" \
+            --notes "Cross-platform test packages. macOS builds are ad-hoc signed and NOT notarized; Windows MSI is not Authenticode signed. Validate before publishing.")
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            release_flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${release_flags[@]}" release-dist/*

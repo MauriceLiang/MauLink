@@ -30,7 +30,8 @@ describe('offline GeoIP settings', () => {
     button('一键下载配置').click(); await flushPromises();
     expect(update).toHaveBeenCalledExactlyOnceWith({});
     expect(wrapper.text()).toContain('City.mmdb');
-    document.querySelector<HTMLElement>('[role=combobox]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    const frequencyField = wrapper.findAll('.base-field').find(field => field.get('label').text() === '自动更新频率')!;
+    frequencyField.get<HTMLElement>('[role=combobox]').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     await flushPromises();
     const option = [...document.querySelectorAll<HTMLElement>('[role=option]')].find(value => value.textContent?.trim() === '每周')!;
     option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await flushPromises();
