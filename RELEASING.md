@@ -123,7 +123,8 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 
 - `v0.1.1-rc.1`：负责人已授权并推送。分支可达性和版本一致性校验 PASS；前端单测 `files.test.ts` 有 1 项在 GitHub Runner 上超过 5 秒而超时，验证 job 失败，三个平台构建均跳过，未创建 Draft Release。
 - `v0.1.1-rc.2`：版本、分支可达性、前端检查和版本脚本检查 PASS；Linux Core 测试因 `credentials.rs` 中不支持平台分支仍引用未定义的 `store` 而编译失败（E0425），三个平台构建跳过，未创建 Draft Release。既有 `rc.2` Tag 保持不变。
-- `v0.1.1-rc.3`：修复 `NativeSecureStore::new()` 的平台条件编译；macOS `cargo fmt --all -- --check` 与 `cargo check --workspace --locked` PASS。Core 测试本机运行时有 3 项因沙箱禁止绑定本地 TCP 端口失败，其余 103 项通过、1 项忽略；Web visual Harness 成功打开。Linux Runner 和跨平台安装包构建待新 Tag 验证。
+- `v0.1.1-rc.3`：发布版本和分支检查、前端检查、Linux Core fmt/test 全部 PASS，确认凭据存储条件编译修复生效。Windows 打包 job 在 checkout 时被 `docs/refactor/screenshots/color-v1-review/` 下超长清单文件名阻断，未进入 Windows MSI 构建；三平台构建未全部通过，未创建 Draft Release。既有 `rc.3` Tag 保持不变。
+- `v0.1.1-rc.4`：为安装依赖前的 Windows checkout 注入 `core.longpaths=true`，处理 RC3 发现的文件名长度限制；分支检查、Windows 检出和跨平台安装包构建待新 Tag 验证。
 - macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。
 - macOS Intel DMG：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
 - Windows x64 MSI：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
