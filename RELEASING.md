@@ -122,10 +122,11 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 ### 发布结果
 
 - `v0.1.1-rc.1`：负责人已授权并推送。分支可达性和版本一致性校验 PASS；前端单测 `files.test.ts` 有 1 项在 GitHub Runner 上超过 5 秒而超时，验证 job 失败，三个平台构建均跳过，未创建 Draft Release。
-- `v0.1.1-rc.2`：已同步到所有版本清单；对应前端测试超时从 5 秒调至 10 秒，本地完整 Vitest 273 项通过。待推送该修正后创建新 Tag；不会移动或重写 `rc.1`。
+- `v0.1.1-rc.2`：版本、分支可达性、前端检查和版本脚本检查 PASS；Linux Core 测试因 `credentials.rs` 中不支持平台分支仍引用未定义的 `store` 而编译失败（E0425），三个平台构建跳过，未创建 Draft Release。既有 `rc.2` Tag 保持不变。
+- `v0.1.1-rc.3`：修复 `NativeSecureStore::new()` 的平台条件编译；macOS `cargo fmt --all -- --check` 与 `cargo check --workspace --locked` PASS。Core 测试本机运行时有 3 项因沙箱禁止绑定本地 TCP 端口失败，其余 103 项通过、1 项忽略；Web visual Harness 成功打开。Linux Runner 和跨平台安装包构建待新 Tag 验证。
 - macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。
-- macOS Intel DMG：`v0.1.1-rc.2` GitHub Actions 待触发；附件名、大小待真实 Runner 构建后记录。
-- Windows x64 MSI：`v0.1.1-rc.2` GitHub Actions 待触发；附件名、大小待真实 Runner 构建后记录。
+- macOS Intel DMG：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
+- Windows x64 MSI：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
 - Draft Release URL：无。
 - 公开发行状态：未公开；工作流只创建 Draft，发布需负责人审查确认。
@@ -141,6 +142,6 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - `npm ci` 审计提示当前依赖树有 2 项 advisories（1 low、1 high）；本次没有升级依赖，需单独评估和修复。
 - Apple Silicon Mac、Intel Mac、Windows x64 真机、覆盖安装保留数据：均 NOT RUN。
 - GitHub PR 运行：由负责人创建 PR 后验证并按需配置 required checks。
-- 首次测试 Tag：`v0.1.1-rc.1` 已经负责人确认并推送；若重试，使用下一个 RC 序号，不覆写既有 Tag。
+- 测试 Tag：`v0.1.1-rc.1`、`v0.1.1-rc.2` 已推送且保留原值；下一次验证使用 `v0.1.1-rc.3`，不覆写既有 Tag。
 - 公开稳定发行前：负责人确认许可证和第三方依赖许可；仓库目前缺少许可证文本。
 - 签名、公证、Windows 可信签名和 Updater：后续阶段，需用户提供相应账户配置或密钥管理方案。
