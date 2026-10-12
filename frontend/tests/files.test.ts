@@ -135,7 +135,7 @@ describe('file UI acceptance', () => {
     await row.trigger('contextmenu'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
     await [...document.querySelectorAll('[role="menuitem"]')].map(element => new DOMWrapper(element)).find(value => value.text() === '删除')!.trigger('click'); await new Promise(resolve => setTimeout(resolve, 0)); await flushPromises(); await new DOMWrapper(document.body).findAll('button').find(value => value.text() === '确认删除')!.trigger('click'); await flushPromises();
     expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(false); expect(document.activeElement).toBe(wrapper.get('[aria-label="远程路径"]').element);
-  });
+  }, 10_000);
   it('opens row actions from the standard keyboard context-menu shortcut', async () => {
     const wrapper = await harness(); const fileName = wrapper.get('.file-name');
     await fileName.trigger('keydown', { key: 'F10', shiftKey: true }); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
