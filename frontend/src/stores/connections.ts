@@ -9,10 +9,11 @@ import { mapError } from "../errors/mapper";
 
 export const isFinished = (snapshot: ConnectionSnapshot) => ["closed", "failed", "cancelled"].includes(snapshot.state);
 
-export function createConnectionStore(api: ReturnType<typeof createConnectionApi>) {
+export function createConnectionStore(api: ReturnType<typeof createConnectionApi>, canStart: () => boolean = () => true) {
   const snapshots = shallowRef<Record<string, ConnectionSnapshot>>({});
   const errors = shallowRef<Record<string, AppError | null>>({});
   const busy = ref<Record<string, boolean>>({});
+  const starting = ref(0);
   const answered = ref<string[]>([]);
   const draftIdentities = shallowRef<Record<string, { username: string; host: string }>>({});
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -71,21 +72,27 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
   }
   async function start(server: ServerProfile) {
     const current = snapshots.value[server.id];
-    if (challenge.value || (current && !isFinished(current))) return;
-    await run(server.id, async () => {
-      const next = await api.start({ source: { kind: "saved", serverId: server.id, expectedRevision: server.revision }, mode: "workspace" });
-      accept(server.id, next);
-    });
+    if (!canStart() || challenge.value || (current && !isFinished(current))) return;
+    starting.value++;
+    try {
+      await run(server.id, async () => {
+        const next = await api.start({ source: { kind: "saved", serverId: server.id, expectedRevision: server.revision }, mode: "workspace" });
+        accept(server.id, next);
+      });
+    } finally { starting.value--; }
   }
   async function startDraftTest(profile: ServerProfileDraft, credential: string | null, savedProfile?: { serverId: string; expectedRevision: number; useSavedCredential: boolean }) {
-    if (draftTestActive.value || challenge.value) return null;
+    if (!canStart() || draftTestActive.value || challenge.value) return null;
     const source = savedProfile
       ? { kind: "draftWithSavedProfile" as const, profile, ...savedProfile, credential }
       : { kind: "draft" as const, profile, credential };
-    const snapshot = await api.start({ source, mode: "test" });
-    draftIdentities.value = { ...draftIdentities.value, [snapshot.connectionId]: { username: profile.username, host: profile.host } };
-    accept(snapshot.connectionId, snapshot);
-    return snapshot;
+    starting.value++;
+    try {
+      const snapshot = await api.start({ source, mode: "test" });
+      draftIdentities.value = { ...draftIdentities.value, [snapshot.connectionId]: { username: profile.username, host: profile.host } };
+      accept(snapshot.connectionId, snapshot);
+      return snapshot;
+    } finally { starting.value--; }
   }
   function identityForChallenge(id: string) { return draftIdentities.value[id] ?? null; }
   async function cancel(id: string) {
@@ -125,6 +132,6 @@ export function createConnectionStore(api: ReturnType<typeof createConnectionApi
     setError(id, null);
   }
   function dispose() { disposed = true; timers.forEach(clearTimeout); timers.clear(); }
-  return { snapshots, errors, busy, challenge, draftTestActive, start, startDraftTest, identityForChallenge, cancel, disconnect, respondHostKey, respondAuthentication, refresh, dismiss, dispose };
+  return { snapshots, errors, busy, starting, challenge, draftTestActive, start, startDraftTest, identityForChallenge, cancel, disconnect, respondHostKey, respondAuthentication, refresh, dismiss, dispose };
 }
 export type ConnectionStore = ReturnType<typeof createConnectionStore>;

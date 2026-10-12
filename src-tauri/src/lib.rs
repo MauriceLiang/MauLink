@@ -5,6 +5,7 @@ mod geoip;
 mod security;
 mod server_appearance;
 mod state;
+mod updater;
 
 use std::fs;
 
@@ -37,8 +38,14 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let context = tauri::generate_context!();
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init());
+    if updater::is_configured(context.config().plugins.0.get("updater")) {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+    builder
         .setup(|app| {
             let app_data_directory = app.path().app_data_dir()?;
             fs::create_dir_all(&app_data_directory)?;
@@ -208,9 +215,17 @@ pub fn run() {
             background_image_get,
             background_image_delete,
         ])
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building MauLink")
         .run(|app_handle, event| match event {
+            tauri::RunEvent::Ready => {
+                eprintln!(
+                    "MauLink ready: main window visible={:?}",
+                    app_handle
+                        .get_webview_window("main")
+                        .map(|window| window.is_visible())
+                );
+            }
             tauri::RunEvent::Exit => {
                 if let Some(state) = app_handle.try_state::<DesktopState>() {
                     let core = state.core.clone();

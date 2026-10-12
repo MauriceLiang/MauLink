@@ -124,6 +124,26 @@
 .settings-workspace-section { display: grid; gap: 14px; animation: settings-section-in var(--motion-normal) var(--ease-enter); }
 .settings-workspace-section > h2 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
 .settings-workspace-section > p { margin: 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; }
+.update-settings { display: grid; gap: 12px; margin-top: 24px; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.update-settings:focus { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
+.update-settings__heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
+.update-settings__heading h2, .update-settings__heading p, .update-settings__notes h3, .update-settings__notes p { margin: 0; }
+.update-settings__heading h2 { font-size: 14px; font-weight: 600; }
+.update-settings__heading p { max-width: 560px; margin-top: 5px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.55; }
+.update-settings__version { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 11.5px; }
+.update-settings__version code { color: var(--color-text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.update-settings__status { margin: 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.55; }
+.update-settings__notes { display: grid; gap: 6px; min-width: 0; padding: 11px 12px; border-radius: var(--radius-md); background: var(--color-bg-subtle); }
+.update-settings__notes h3 { font-size: 12px; font-weight: 600; }
+.update-settings__notes p { overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.update-settings__progress { display: grid; gap: 6px; color: var(--color-text-secondary); font-size: 11px; }
+.update-settings__progress-track { position: relative; height: 8px; overflow: hidden; border-radius: 99px; background: var(--color-bg-subtle); }
+.update-settings__progress-fill { height: 100%; border-radius: inherit; background: var(--color-primary); transition: width 160ms ease-out; }
+.update-settings__progress-fill.is-indeterminate { width: 36%; animation: update-progress-indeterminate 1.2s ease-in-out infinite alternate; }
+.update-settings__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.update-install-confirm__activity { display: grid; gap: 5px; margin: 12px 0 0; padding-left: 18px; color: var(--color-text-secondary); font-size: 12px; }
+@keyframes update-progress-indeterminate { from { transform: translateX(-8%); } to { transform: translateX(190%); } }
+@media (prefers-reduced-motion: reduce) { .update-settings__progress-fill.is-indeterminate { animation: none; transform: translateX(8%); } }
 .settings-workspace [role="alert"] { margin-top: 14px; }
 .settings-workspace .settings-security > h3, .settings-workspace .geoip-settings > h3 { display: none; }
 .settings-workspace > .base-dialog { max-width: min(460px, calc(100vw - 32px)); }

@@ -1,6 +1,6 @@
 # MauLink 构建与发布
 
-本文说明 MauLink 的 PR 检查、跨平台安装包构建和 GitHub Draft Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。packaging-smoke.yml 在 PR 或手动触发时只构建并检查三个平台的安装包，上传短期测试产物，不创建 Tag 或 Release。Linux、Windows ARM64、可信代码签名、公证和应用内更新均不在本期支持范围。
+本文说明 MauLink 的 PR 检查、跨平台安装包构建和 GitHub Draft Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。packaging-smoke.yml 在 PR 或手动触发时只构建并检查三个平台的安装包，上传短期测试产物，不创建 Tag 或 Release。Linux、Windows ARM64、可信代码签名和公证不在本期支持范围。应用内更新界面与本地交互已接入，但没有真实更新地址和受信公钥，在线更新尚未启用；详见 [UPDATING.md](UPDATING.md)。
 
 ## 首次启用
 
@@ -89,12 +89,12 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 
 所有平台产物、SHA256SUMS 和发布说明均通过检查后，负责人在 GitHub Releases 页面打开 Draft，核对 Tag、三个架构附件、哈希和签名状态，补充该版本实际变更说明，并在真实设备验收后决定是否点击 **Publish release**。发布公开版本还需负责人确认许可证与第三方依赖许可；当前仓库尚未提供许可证文本，需在首次公开稳定发行前处理。
 
-发现问题时保持 Draft，不发布。若已公开，保留既有 Tag 与旧版本附件，撤回或标记有问题的 Release，并通过修复 PR 与新版本 Tag 发布修复；不要覆写旧 Tag。回退前备份应用数据，并确认数据库迁移是否允许旧应用读取；不要因降级而删除或重建本地数据库和凭据。Updater 尚未启用，回退由用户手动安装先前可信版本完成。
+发现问题时保持 Draft，不发布。若已公开，保留既有 Tag 与旧版本附件，撤回或标记有问题的 Release，并通过修复 PR 与新版本 Tag 发布修复；不要覆写旧 Tag。回退前备份应用数据，并确认数据库迁移是否允许旧应用读取；不要因降级而删除或重建本地数据库和凭据。真实更新源配置完成前，回退由用户手动安装先前可信版本完成。
 
 ## 后续阶段
 
 - **签名与公证**：需要用户办理 Apple Developer ID、公证权限及 Windows Authenticode 签名方案，并将材料仅配置在受保护的 GitHub Secrets / Environment。取得实际设备验证结果后再修改发布流程。不得将证书或私钥放入仓库、日志或聊天。
-- **Tauri Updater**：单独设计和验收 runtime、签名密钥、公钥、权限、平台归档、更新 metadata 与用户交互。用户提供并安全保管 Updater 私钥前，不开启自动检查或安装更新，也不生成伪造 `.sig` / `latest.json`。
+- **Tauri Updater**：插件、最小权限、显式检查/下载/安装状态机和 SSH/SFTP 安全确认已接入；当前版本不含更新 endpoint 与公钥，因此检查在线更新会明确提示尚未配置。启用前仍需负责人确认 Stable/Preview HTTPS 托管、亲自生成并安全保管签名私钥、提供公钥文本并完成签名发布流水线和真机升级验收。不得生成伪造 `.sig` / `latest.json`。详见 [UPDATING.md](UPDATING.md)。
 - Linux、Windows ARM64、Portable ZIP 和 Universal macOS 包均需另行确认范围和真实设备验收。
 
 ## MauLink CI/CD 验收报告

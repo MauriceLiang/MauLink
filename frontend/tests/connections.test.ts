@@ -31,6 +31,41 @@ describe('secure connection flow', () => {
     await vi.advanceTimersByTimeAsync(300); expect(store.snapshots.value[server.id]?.state).toBe('ready');
     store.dispose(); await vi.advanceTimersByTimeAsync(3000); expect(get).toHaveBeenCalledOnce();
   });
+  it('blocks new SSH starts while the updater holds the install gate', async () => {
+    let canStart = false;
+    const start = vi.fn(() => ({ ...initial, state: 'ready' as const }));
+    const store = createConnectionStore(createConnectionApi(createIpcClient(createMockIpc({ connection_start: start }))), () => canStart);
+    stores.push(store);
+
+    await store.start(server);
+    expect(start).not.toHaveBeenCalled();
+    canStart = true;
+    await store.start(server);
+    expect(start).toHaveBeenCalledOnce();
+  });
+  it('tracks a connection start until its first snapshot arrives', async () => {
+    let resolve!: (snapshot: ConnectionSnapshot) => void;
+    const store = storeFor(createMockIpc({ connection_start: () => new Promise<ConnectionSnapshot>(done => { resolve = done; }) }));
+    const pending = store.start(server);
+    expect(store.starting.value).toBe(1);
+    resolve(initial);
+    await pending;
+    expect(store.starting.value).toBe(0);
+    expect(store.snapshots.value[server.id]).toEqual(initial);
+  });
+  it('tracks a draft connection test until its first snapshot arrives', async () => {
+    let resolve!: (snapshot: ConnectionSnapshot) => void;
+    const store = storeFor(createMockIpc({ connection_start: () => new Promise<ConnectionSnapshot>(done => { resolve = done; }) }));
+    const pending = store.startDraftTest({
+      name: null, host: 'fixture.example.test', port: 22, username: 'root', authType: 'password',
+      requireAuthentication: true, privateKeyToken: null, groupId: null, connectTimeoutMs: 15000,
+      keepaliveIntervalSeconds: 30, jumpHost: null, jumpPort: 22, proxyType: null, proxyHost: null, proxyPort: null,
+    }, null);
+    expect(store.starting.value).toBe(1);
+    resolve({ ...initial, mode: 'test' });
+    await pending;
+    expect(store.starting.value).toBe(0);
+  });
   it('does not allow a late poll to undo a successful native cancel', async () => {
     let resolve!: (value: ConnectionSnapshot) => void;
     const cancel = vi.fn(() => ({ ...initial, state: 'cancelled' as const }));

@@ -55,17 +55,26 @@ import LocalBackendStatus from "./LocalBackendStatus.vue";
 import WelcomeView from "./WelcomeView.vue";
 import ServerOverview from "../components/server-overview/ServerOverview.vue";
 import { serverOverviewMessages } from "../i18n/server-overview";
+import { updaterMessages } from "../i18n/updater";
+import UpdateInstallConfirmDialog from "../components/update/UpdateInstallConfirmDialog.vue";
+import { createNativeUpdaterAdapter, createUnsupportedUpdaterAdapter } from "../updater/updater-adapter";
+import { inspectInstallActivity } from "../updater/install-safety";
+import { createUpdaterController } from "../updater/updater-controller";
+import type { UpdaterAdapter } from "../updater/updater-types";
 import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
 const t = messages(shellMessages);
 
-const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string }>(), { readOnly: false });
+const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
+const updateInstallGate = ref(false);
+const updaterAdapter = props.updaterAdapter ?? (props.readOnly ? createUnsupportedUpdaterAdapter() : createNativeUpdaterAdapter());
+const updaterController = createUpdaterController(updaterAdapter, () => info.value?.version ?? '—');
 const store = createServerStore(createServerApi(props.client));
 const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));
 const runtimeStats = createServerRuntimeStatsApi(props.client);
 const { servers, groups, pending, error, query, filtered } = store;
-const connections = createConnectionStore(createConnectionApi(props.client));
+const connections = createConnectionStore(createConnectionApi(props.client), () => !updateInstallGate.value);
 const hostKeys = createHostKeysApi(props.client);
 const network = createNetworkApi(props.client);
 const geoip = createGeoIpApi(props.client);
@@ -103,8 +112,9 @@ const terminalPreferences = createTerminalPreferences(createSettingsApi(props.cl
 const backgroundImages = createBackgroundImagesApi(props.client, props.backgroundImageAssetUrl);
 terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
 const sftp = createSftpApi(props.client);
-const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory);
+const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory, () => !updateInstallGate.value);
 const activeTransfers = computed(() => transfers.snapshots.value.filter(task => !transferFinished(task)).length);
+const updateActivity = computed(() => inspectInstallActivity(connections.snapshots.value, transfers.snapshots.value, transfers.starting.value, terminals.tabs.value, connections.starting.value > 0));
 const monitor = createMonitorStore(createMonitorApi(props.client));
 const workspaceViews = ref<Record<string, string>>({});
 const focused = ref(false);
@@ -124,6 +134,8 @@ watch(serverAppearances.appearances, values => {
 const paletteOpen = ref(false);
 const settingsWorkspaceRef = ref<InstanceType<typeof SettingsWorkspace> | null>(null);
 const settingsSidebarBusy = ref(false);
+const updateInstallDialogOpen = ref(false);
+const updateInstallBusy = ref(false);
 let pendingSettingsAction: (() => void | Promise<void>) | null = null;
 function requestSettingsLeave(action: () => void | Promise<void> = () => {}) {
   if (!settingsOpen.value) { void action(); return; }
@@ -157,10 +169,128 @@ const editingId = ref<string | null>(null);
 const manageGroups = ref(false);
 const deleteTarget = ref<ServerProfile | null>(null);
 const toast = useToast();
+const updaterText = messages(updaterMessages);
 const selected = computed(() => servers.value.find(server => server.id === selectedId.value));
 const backendState = computed(() => pending.value ? "pending" : error.value ? "error" : "ready");
 const shortcut = computed(() => info.value?.platform === "windows" ? "Ctrl K" : "⌘ K");
 const canManage = computed(() => !props.readOnly && !pending.value && !error.value);
+
+function cancelUpdateInstall() {
+  if (updateInstallBusy.value) return;
+  updateInstallDialogOpen.value = false;
+  updaterController.cancelInstallRequest();
+}
+
+async function disconnectForUpdate() {
+  const sessions = Object.entries(connections.snapshots.value).filter(([, snapshot]) => !isFinished(snapshot));
+  const openTerminals = terminals.tabs.value.filter(tab => tab.state !== 'closed' && tab.state !== 'failed');
+  await Promise.all(openTerminals.filter(tab => tab.state !== 'opening' && tab.state !== 'closing').map(tab => terminals.close(tab.id)));
+  await Promise.all(sessions.map(async ([id, snapshot]) => {
+    if (snapshot.state === 'ready') await connections.disconnect(id);
+    else await connections.cancel(id);
+  }));
+
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const activity = updateActivity.value;
+    if (activity.activeConnections.length === 0 && activity.activeTerminals.length === 0) return true;
+    const ids = Object.entries(connections.snapshots.value).filter(([, snapshot]) => !isFinished(snapshot)).map(([id]) => id);
+    const connectionIds = new Set([...activity.activeConnections.map(snapshot => snapshot.connectionId), ...activity.activeTerminals.map(tab => tab.connectionId)]);
+    await Promise.all(ids.map(id => connections.refresh(id)));
+    await Promise.all([...connectionIds].map(id => terminals.refreshConnection(id)));
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  return false;
+}
+
+async function beginUpdateInstall(disconnectSessions: boolean) {
+  if (updateInstallBusy.value) return;
+  updateInstallBusy.value = true;
+  updateInstallGate.value = true;
+  let nativeInstallStarted = false;
+  try {
+    const settingsReady = await settingsWorkspaceRef.value?.prepareForUpdateInstall();
+    if (!settingsReady) {
+      updaterController.cancelInstallRequest();
+      updateInstallDialogOpen.value = false;
+      toast.error(updaterText('settingsSaveFailed'));
+      return;
+    }
+
+    let activity = updateActivity.value;
+    if (activity.connectionsStarting) {
+      updaterController.cancelInstallRequest();
+      updateInstallDialogOpen.value = false;
+      toast.error(updaterText('connectionStarting'));
+      return;
+    }
+    if (activity.activeTransfers.length > 0 || activity.transfersStarting) {
+      updaterController.cancelInstallRequest();
+      updateInstallDialogOpen.value = false;
+      toast.error(updaterText('transfersActive'));
+      return;
+    }
+    if (activity.activeConnections.length > 0 || activity.activeTerminals.length > 0) {
+      if (!disconnectSessions) {
+        updateInstallDialogOpen.value = true;
+        return;
+      }
+      if (!(await disconnectForUpdate())) throw new Error('session-close-failed');
+      activity = updateActivity.value;
+      if (activity.activeConnections.length > 0 || activity.activeTerminals.length > 0) throw new Error('session-close-failed');
+    }
+    if (activity.connectionsStarting) throw new Error('connection-starting');
+    if (activity.activeTransfers.length > 0 || activity.transfersStarting) throw new Error('transfers-active');
+
+    const platform = info.value?.platform;
+    if (!platform) throw new Error('unsupported-platform');
+    await updaterController.installConfirmed(platform);
+    nativeInstallStarted = updaterController.adapterKind === 'native' && updaterController.state.value.phase === 'installing';
+    if (!nativeInstallStarted) updateInstallDialogOpen.value = false;
+  } catch (error) {
+    updaterController.cancelInstallRequest();
+    updateInstallDialogOpen.value = false;
+    toast.error(error instanceof Error && error.message === 'transfers-active' ? updaterText('transfersActive')
+      : error instanceof Error && error.message === 'unsupported-platform' ? updaterText('onlyDesktop')
+        : error instanceof Error && error.message === 'connection-starting' ? updaterText('connectionStarting')
+          : updaterText('sessionCloseFailed'));
+  } finally {
+    if (!nativeInstallStarted) {
+      updateInstallBusy.value = false;
+      updateInstallGate.value = false;
+    }
+  }
+}
+
+function requestUpdateInstall() {
+  if (updaterController.state.value.phase !== 'confirmingInstall' || updateInstallBusy.value) return;
+  const activity = updateActivity.value;
+  if (activity.connectionsStarting) {
+    updaterController.cancelInstallRequest();
+    toast.error(updaterText('connectionStarting'));
+    return;
+  }
+  if (activity.activeTransfers.length > 0 || activity.transfersStarting) {
+    updaterController.cancelInstallRequest();
+    toast.error(updaterText('transfersActive'));
+    return;
+  }
+  if (activity.activeConnections.length > 0 || activity.activeTerminals.length > 0) {
+    updateInstallDialogOpen.value = true;
+    return;
+  }
+  void beginUpdateInstall(false);
+}
+
+function deferUpdateInstall() { toast.info(updaterText('installDeferred')); }
+
+async function openUpdatesFromAbout() {
+  about.value = false;
+  await nextTick();
+  openSettings('general');
+  await nextTick();
+  document.querySelector<HTMLButtonElement>('#settings-updates button')?.focus();
+}
 
 function openEditor(id: string | null = null) {
   if (!canManage.value) return;
@@ -249,6 +379,7 @@ async function load() {
   error.value = null;
   try {
     info.value = await props.client.getInfo();
+    updaterController.setCurrentVersion(info.value.version);
     await store.load();
     await serverAppearances.load();
   } catch (failure) {
@@ -275,7 +406,7 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); if (!props.readOnly) void terminalPreferences.load(); });
-onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); connections.dispose(); terminals.dispose(); transfers.dispose(); monitor.dispose(); });
+onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void updaterController.dispose(); connections.dispose(); terminals.dispose(); transfers.dispose(); monitor.dispose(); });
 </script>
 
 <template>
@@ -285,7 +416,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <SettingsSidebar v-if="settingsOpen" :section="settingsInitialSection" :has-geo-ip="!!geoip" :busy="settingsSidebarBusy" @update:section="settingsInitialSection = $event" @back="requestSettingsLeave()" />
       <Sidebar v-else v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
       <main class="shell-main" :class="{ 'has-terminal-workspace': selectedWorkspace && !settingsOpen }" :aria-busy="pending">
-        <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @database-changed="databaseRevision++" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" />
+        <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" :updater="updaterController" :current-version="info?.version ?? '—'" :update-install-busy="updateInstallBusy" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @database-changed="databaseRevision++" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" @update-install-request="requestUpdateInstall" @update-install-deferred="deferUpdateInstall" />
         <template v-else>
           <BaseEmptyState v-if="pending" :title="t('loadingLocalData')" />
           <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
@@ -302,7 +433,9 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
     <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
+      <template #footer><BaseButton variant="secondary" @click="openUpdatesFromAbout">{{ updaterText('check') }}</BaseButton></template>
     </BaseDialog>
+    <UpdateInstallConfirmDialog :open="updateInstallDialogOpen" :busy="updateInstallBusy" :active-connections="updateActivity.activeConnections.length" :active-terminals="updateActivity.activeTerminals.length" @cancel="cancelUpdateInstall" @confirm="beginUpdateInstall(true)" />
     <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
     <CredentialRevealDialog :open="revealDialogOpen" :server="revealServer" :api="credentialReveal" @close="revealDialogOpen = false" @open-security="openSecurityFromReveal" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />

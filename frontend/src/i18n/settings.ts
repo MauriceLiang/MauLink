@@ -4,7 +4,7 @@ export const settingsMessages = {
   settings: ['设置', 'Settings'], sections: ['设置分类', 'Settings sections'], general: ['通用', 'General'], appearance: ['外观', 'Appearance'], files: ['文件', 'Files'], terminal: ['终端', 'Terminal'], language: ['语言', 'Language'],
   securityPrivacy: ['安全与隐私', 'Security & Privacy'],
   settingsWorkspaceLead: ['管理连接行为、隐私保护和应用偏好。', 'Manage connection behavior, privacy controls and app preferences.'],
-  generalDescription: ['设置断开连接时的确认行为。', 'Configure confirmation behavior when disconnecting.'],
+  generalDescription: ['设置断开连接时的确认行为和软件更新。', 'Configure disconnect confirmations and software updates.'],
   securityDescription: ['管理凭据查看保护和本地安全策略。', 'Manage credential reveal protection and local security policy.'],
   appearanceDescription: ['调整主题、界面密度、侧栏宽度和通知位置。', 'Adjust theme, density, sidebar width and notification position.'],
   filesDescription: ['设置文件列表中的大小信息显示方式。', 'Choose how file sizes appear in file lists.'],

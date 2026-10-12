@@ -18,8 +18,10 @@ import BaseSwitch from '../../components/base/BaseSwitch.vue';
 import BaseDialog from '../../components/base/BaseDialog.vue';
 import GeoIpSettingsSection from '../../components/server-overview/GeoIpSettingsSection.vue';
 import SecuritySettingsSection from '../../components/security/SecuritySettingsSection.vue';
+import UpdateSettingsSection from '../../components/update/UpdateSettingsSection.vue';
 import TerminalSettingsSection from './TerminalSettingsSection.vue';
 import type { SettingsSection } from './settings-navigation';
+import type { UpdaterController } from '../../updater/updater-types';
 import logoLight from '../../assets/app-icon-light.png';
 import logoDark from '../../assets/app-icon-dark.png';
 
@@ -28,10 +30,13 @@ const props = defineProps<{
   section: SettingsSection;
   preferences: TerminalPreferences;
   backgroundImages: BackgroundImagesApi;
+  updater?: UpdaterController;
+  currentVersion?: string;
+  updateInstallBusy?: boolean;
   geoip?: GeoIpApi;
   credentialReveal?: CredentialRevealApi;
 }>();
-const emit = defineEmits<{ 'update:section': [section: SettingsSection]; leave: []; leaveCancelled: []; saved: []; databaseChanged: []; busyChange: [busy: boolean] }>();
+const emit = defineEmits<{ 'update:section': [section: SettingsSection]; leave: []; leaveCancelled: []; saved: []; databaseChanged: []; busyChange: [busy: boolean]; updateInstallRequest: []; updateInstallDeferred: [] }>();
 const t = messages(settingsMessages);
 const savedSettings = ref<AppSettings>(cloneSettings(defaultSettings));
 const draft = reactive<AppSettings>(cloneSettings(defaultSettings));
@@ -170,18 +175,22 @@ function saveSettings() {
   );
   return task;
 }
-async function requestLeave() {
+async function commitPendingSettings() {
   if (!autoSaveReady.value || databaseBusy.value || terminalSection.value?.busy || (props.preferences.busy.value && !activeSave)) {
-    emit('leaveCancelled');
-    return;
+    return false;
   }
   clearAutoSaveTimer();
-  if (activeSave && !(await activeSave)) { emit('leaveCancelled'); return; }
-  if (dirty.value && !(await saveSettings())) { emit('leaveCancelled'); return; }
-  if (dirty.value) { emit('leaveCancelled'); return; }
-  if (terminalSection.value && !(await terminalSection.value.commit())) { emit('leaveCancelled'); return; }
+  if (activeSave && !(await activeSave)) return false;
+  if (dirty.value && !(await saveSettings())) return false;
+  if (dirty.value) return false;
+  if (terminalSection.value && !(await terminalSection.value.commit())) return false;
+  return true;
+}
+async function requestLeave() {
+  if (!(await commitPendingSettings())) { emit('leaveCancelled'); return; }
   emit('leave');
 }
+async function prepareForUpdateInstall() { return commitPendingSettings(); }
 async function confirmReload() {
   reloadDialogOpen.value = false;
   autoSaveReady.value = false;
@@ -196,7 +205,7 @@ async function confirmReload() {
   await nextTick();
   autoSaveReady.value = true;
 }
-defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy() { return databaseBusy.value; } });
+defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.value; }, get databaseBusy() { return databaseBusy.value; } });
 </script>
 
 <template>
@@ -219,6 +228,7 @@ defineExpose({ requestLeave, get busy() { return busy.value; }, get databaseBusy
             <section v-else-if="section === 'files'" class="settings-workspace-section"><div class="settings-file-size-master"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /></div><div v-if="draft.showSizeColumn" class="settings-file-size-options"><BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><div><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div></div></section>
             <section v-else-if="section === 'language'" class="settings-workspace-section"><BaseSelect v-model="draft.language" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" /><p>{{ t('languageNote') }}</p></section>
           </fieldset>
+          <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :install-busy="updateInstallBusy" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />
           <section v-show="section === 'terminal'" class="settings-workspace-section"><TerminalSettingsSection ref="terminalSection" :settings="draft" :saved-settings="savedSettings" :copy-on-select="copyOnSelect" :reset-key="resetKey" :busy="preferences.busy.value || !preferences.record.value" :background-images="backgroundImages" @update:settings="updateTerminalSettings" @update:copy-on-select="copyOnSelect = $event" /></section>
           <SecuritySettingsSection v-if="section === 'security' && credentialReveal" :active="active" :api="credentialReveal" />
           <GeoIpSettingsSection v-if="section === 'network' && geoip" v-model:lookup-mode="draft.geoIpLookupMode" :api="geoip" :disabled="preferences.busy.value || !preferences.record.value" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />

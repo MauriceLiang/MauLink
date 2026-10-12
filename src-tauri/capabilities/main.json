@@ -73,6 +73,10 @@
     "allow-local-file-select",
     "allow-background-image-import",
     "allow-background-image-get",
-    "allow-background-image-delete"
+    "allow-background-image-delete",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install",
+    "process:allow-restart"
   ]
 }

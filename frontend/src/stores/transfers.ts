@@ -11,7 +11,7 @@ export const transferFinished = (value: SftpTransferSnapshot) => ['completed', '
 const rank = { created: 0, transferring: 1, finalizing: 2, completed: 3, failed: 3, cancelled: 3 };
 const lessBytes = (a: string, b: string) => a.length === b.length ? a < b : a.length < b.length;
 
-export function createTransferStore(api: ReturnType<typeof createSftpApi>, select: (purpose: 'upload' | 'download') => Promise<SelectedLocalFile | null>, channelFactory: TransferChannelFactory = () => new Channel<SftpTransferSnapshot>()) {
+export function createTransferStore(api: ReturnType<typeof createSftpApi>, select: (purpose: 'upload' | 'download') => Promise<SelectedLocalFile | null>, channelFactory: TransferChannelFactory = () => new Channel<SftpTransferSnapshot>(), canStart: () => boolean = () => true) {
   const snapshots = shallowRef<SftpTransferSnapshot[]>([]);
   const errors = shallowRef<Record<string, AppError | null>>({});
   const starting = ref<Record<string, boolean>>({}); const cancelling = ref<string[]>([]);
@@ -51,7 +51,7 @@ export function createTransferStore(api: ReturnType<typeof createSftpApi>, selec
     catch (reason) { if (!disposed) setError(connectionId, reason); }
   }
   async function start(direction: 'upload' | 'download', connectionId: string, remotePath: string, allowed: () => boolean) {
-    if (disposed || starting.value[connectionId] || !allowed()) return false;
+    if (disposed || !canStart() || starting.value[connectionId] || !allowed()) return false;
     starting.value[connectionId] = true; setError(connectionId, null);
     let channel: Channel<SftpTransferSnapshot> | undefined;
     try {
@@ -59,9 +59,9 @@ export function createTransferStore(api: ReturnType<typeof createSftpApi>, selec
         const target = await api.stat({ connectionId, path: remotePath, followSymlink: true });
         if (target.fileType !== 'file') throw { ...mapError(null), code: 'VALIDATION_FAILED', messageKey: 'errors.sftpTransferFileTypeUnsupported' };
       }
-      if (disposed || !allowed()) return false;
+      if (disposed || !canStart() || !allowed()) return false;
       const local = await select(direction);
-      if (!local || disposed || !allowed()) return false;
+      if (!local || disposed || !canStart() || !allowed()) return false;
       channel = channelFactory(); channels.add(channel);
       const stream = channel;
       stream.onmessage = value => {
