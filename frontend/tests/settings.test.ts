@@ -88,23 +88,27 @@ describe('shared SettingsService preferences', () => {
   it('previews terminal themes with static DOM and saves custom colors through SettingsService', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{}); const wrapper=mounted(TerminalSettingsDialog,{open:false,preferences}); await wrapper.setProps({open:true}); await flushPromises();
     expect(document.querySelector('[role="img"][aria-label="终端主题静态预览"]')).not.toBeNull(); expect(document.querySelector('.xterm')).toBeNull();
-    document.querySelector<HTMLInputElement>('input[name="terminalThemeMode"][value="customColor"]')!.click(); await flushPromises();
+    document.querySelector<HTMLElement>('[role="radio"][value="customColor"]')!.click(); await flushPromises();
     for (const [label,color] of [['背景色','#102030'],['文字颜色','#E0E0E0'],['光标颜色','#33AAFF'],['选中颜色','#7755CC']]) {
-      const picker=document.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label}"]`)!; picker.value=color; picker.dispatchEvent(new Event('input',{bubbles:true}));
+      const trigger=[...document.querySelectorAll<HTMLButtonElement>('.base-color-trigger')].find(item=>item.textContent?.includes(label))!;
+      trigger.click(); await flushPromises();
+      const hex=document.querySelector<HTMLInputElement>('input[aria-label="十六进制颜色值"]')!; hex.value=color; hex.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises();
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await flushPromises();
     }
     await flushPromises(); expect(fixture.current().value.terminalThemeMode).toBe('followApp');
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
-    expect(fixture.current().value).toMatchObject({terminalThemeMode:'customColor',terminalCustomColors:{background:'#102030',foreground:'#e0e0e0',cursor:'#33aaff',selection:'#7755cc'}});
+    expect(fixture.current().value).toMatchObject({terminalThemeMode:'customColor',terminalCustomColors:{background:'#102030',foreground:'#E0E0E0',cursor:'#33AAFF',selection:'#7755CC'}});
   });
   it('imports and previews a background image draft before saving its ID and presentation settings', async () => {
     const fixture=createSettingsMock(); const preferences=createTerminalPreferences(createSettingsApi(createIpcClient(fixture.transport)),()=>{});
     const asset={id:'00000000-0000-4000-8000-000000000001',fileName:'wallpaper.webp',mediaType:'image/webp',width:1920,height:1080,byteLength:1234,createdAtMs:1};
     const images={select:vi.fn(async()=>asset),get:vi.fn(),resolve:vi.fn(async()=>({asset,src:'asset://background'})),delete:vi.fn(async()=>{})};
     const wrapper=mounted(TerminalSettingsDialog,{open:false,preferences,backgroundImages:images}); await wrapper.setProps({open:true}); await flushPromises();
-    document.querySelector<HTMLInputElement>('input[name="terminalThemeMode"][value="image"]')!.click(); await flushPromises();
+    document.querySelector<HTMLElement>('[role="radio"][value="image"]')!.click(); await flushPromises();
     button('选择图片').click(); await flushPromises();
-    expect(images.select).toHaveBeenCalledOnce(); expect(document.querySelector('.terminal-background-preview-image')).not.toBeNull();
-    const opacity=document.querySelector<HTMLInputElement>('input[type="range"][min="10"]')!; opacity.value='72'; opacity.dispatchEvent(new Event('input',{bubbles:true})); await flushPromises();
+    expect(images.select).toHaveBeenCalledOnce(); expect(document.querySelector('.terminal-appearance-preview-image')).not.toBeNull();
+    const opacity=document.querySelector<HTMLElement>('[role="slider"][aria-label="图片不透明度"]')!;
+    for (let index=0;index<28;index++) { opacity.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true})); await flushPromises(); }
     document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flushPromises();
     expect(fixture.current().value).toMatchObject({terminalThemeMode:'image',terminalBackgroundImage:{imageId:asset.id,imageOpacity:72}});
     expect(document.querySelector('.xterm')).toBeNull(); expect(wrapper.emitted('close')).toHaveLength(1);

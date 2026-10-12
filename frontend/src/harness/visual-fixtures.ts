@@ -117,6 +117,13 @@ export function createVisualMock(config: VisualConfig) {
     local_file_select: ({ purpose }) => purpose === 'geoIpDatabase' ? { token: 'visual-mmdb', displayName: 'local-City.mmdb', purpose, expiresAtMs: 4102444800000 } : null,
     network_inspect: ({ host, detailed, language }) => {
       const result = networkFixture(host, detailed);
+      if (detailed && result.scope === 'public' && settings.value.geoIpLookupMode === 'online') {
+        result.geo = language === 'en'
+          ? { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' }
+          : { countryCode: 'US', countryName: '美国', region: '加利福尼亚州', city: '山景城' };
+        result.asn = 'AS15169'; result.organization = 'Google LLC';
+        return result;
+      }
       if (detailed && result.scope === 'public' && geoip.location) {
         result.geo = language === 'en'
           ? { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' }

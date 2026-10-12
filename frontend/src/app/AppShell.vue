@@ -22,7 +22,7 @@ import { createBackgroundImagesApi } from "../ipc/background-images";
 import { createServerAppearanceApi } from "../ipc/server-appearance";
 import { createServerRuntimeStatsApi } from "../ipc/server-runtime-stats";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
-import { createTerminalPreferences } from "../terminal/preferences";
+import { createTerminalPreferences, defaultSettings } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createHostKeysApi } from "../ipc/host-keys";
@@ -291,7 +291,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
           <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
             <BaseButton @click="load">{{ t('retry') }}</BaseButton>
           </BaseEmptyState>
-          <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
+          <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
           <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
           <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="requestSettingsLeave(() => { about = true; })" @add="requestSettingsLeave(() => openEditor())" />
         </template>
@@ -303,7 +303,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
     <CredentialRevealDialog :open="revealDialogOpen" :server="revealServer" :api="credentialReveal" @close="revealDialogOpen = false" @open-security="openSecurityFromReveal" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />

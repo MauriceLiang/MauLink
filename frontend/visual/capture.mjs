@@ -78,7 +78,7 @@ async function prepare(tab, item, locale) {
     'delete-server':['删除服务器？','Delete server?'], 'host-key':['确认服务器身份','Verify server identity'],
     'delete-group':['删除分组？','Delete group?'], disconnect:['断开 SSH 连接？','Disconnect SSH?'],
     'disconnect-transfer':['停止该连接的传输任务后断开','Stop transfers for this connection before disconnecting'],
-    'credential-reveal':['当前禁止查看明文','Plaintext viewing is disabled'], 'quick-monitor':['Quick Monitor','Quick Monitor'],
+    'credential-reveal':['当前禁止查看明文','Plaintext viewing is disabled'], 'quick-monitor':['监控概览','Monitor overview'],
     'host-key-changed':['服务器身份发生变化','Server identity changed'], authentication:['输入 SSH 密码','Enter SSH password'],
     'connection-error':['服务器拒绝连接','Connection refused'], 'file-delete':['确认删除？','Confirm deletion?'],
     'settings-general':['断开连接前确认','Confirm before disconnecting'],

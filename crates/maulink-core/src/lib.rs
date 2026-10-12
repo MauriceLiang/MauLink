@@ -83,10 +83,10 @@ pub use server_runtime_stats::{
     ServerRuntimeStats, ServerRuntimeStatsPayload, ServerRuntimeStatsStore,
 };
 pub use settings::{
-    AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
-    SettingsUpdate, SidebarWidth, TerminalBackgroundFit, TerminalBackgroundImageSettings,
-    TerminalBackgroundOverlayKind, TerminalBackgroundPosition, TerminalCustomColors,
-    TerminalThemeMode, Theme, ToastPosition, UiDensity,
+    AccentColor, AppIconStyle, AppSettings, CursorStyle, GeoIpLookupMode, Language, SettingsRecord,
+    SettingsService, SettingsUpdate, SidebarWidth, TerminalBackgroundFit,
+    TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
+    TerminalCustomColors, TerminalThemeMode, Theme, ToastPosition, UiDensity,
 };
 pub use sftp::{SftpManager, SftpTransferManager};
 pub use ssh::{SshConnectionManager, SshConnector, SshSession};

@@ -9,7 +9,7 @@ use maulink_core::{
     ConnectionStartPayload, ConnectionStartSource, ConnectionState, CredentialDeleteResult,
     CredentialKind, CredentialReplaceResult, CredentialRevealPolicy, CredentialRevealResult,
     CredentialRevealTarget, CredentialUpdate, CursorStyle, DecimalU64, EmptyPayload,
-    EnableDirectPayload, EnableProtectedPayload, Group, GroupCreate, GroupUpdate,
+    EnableDirectPayload, EnableProtectedPayload, GeoIpLookupMode, Group, GroupCreate, GroupUpdate,
     GroupUpdatePayload, HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord,
     HostKeyRespondPayload, Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot,
     MonitorDiskSnapshot, MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric,
@@ -59,6 +59,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     UiDensity::export_all(&config)?;
     SidebarWidth::export_all(&config)?;
     ToastPosition::export_all(&config)?;
+    GeoIpLookupMode::export_all(&config)?;
     AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
     SettingsUpdate::export_all(&config)?;

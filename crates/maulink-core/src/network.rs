@@ -1,21 +1,25 @@
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    sync::Arc,
+    sync::{Arc, OnceLock},
     time::{Duration, Instant},
 };
 
+use serde::Deserialize;
 use tokio::{sync::RwLock, task::spawn_blocking, time::timeout};
 
 use crate::{
-    AppError, ErrorCode, Language, NetworkGeo, NetworkHostKind, NetworkInspection,
+    AppError, ErrorCode, GeoIpLookupMode, Language, NetworkGeo, NetworkHostKind, NetworkInspection,
     NetworkInspectionSource, NetworkIpVersion, NetworkScope,
 };
 
 const CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 const DNS_TIMEOUT: Duration = Duration::from_secs(5);
+const ONLINE_LOOKUP_TIMEOUT: Duration = Duration::from_secs(8);
 
-type InspectionCache = Arc<RwLock<HashMap<(String, bool, Language, u64), CachedInspection>>>;
+type InspectionCache =
+    Arc<RwLock<HashMap<(String, bool, Language, u64, GeoIpLookupMode), CachedInspection>>>;
+static ONLINE_LOOKUP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 #[derive(Clone, Default)]
 pub struct NetworkInspector {
@@ -42,6 +46,7 @@ impl NetworkInspector {
         host: &str,
         detailed: bool,
         language: Language,
+        lookup_mode: GeoIpLookupMode,
     ) -> Result<NetworkInspection, AppError> {
         let normalized_host = crate::host_keys::normalize_host(host)?;
         let key = (
@@ -51,6 +56,7 @@ impl NetworkInspector {
             self.geoip
                 .as_ref()
                 .map_or(0, crate::GeoIpDatabase::generation),
+            lookup_mode,
         );
         if let Some(cached) = self.cache.read().await.get(&key)
             && cached.expires_at > Instant::now()
@@ -61,13 +67,21 @@ impl NetworkInspector {
         let mut inspection = inspect_uncached(&normalized_host, detailed).await?;
         if detailed
             && inspection.scope == Some(NetworkScope::Public)
-            && let Some(database) = &self.geoip
             && let Some(address) = inspection
                 .primary_address
                 .as_ref()
                 .and_then(|address| address.parse().ok())
         {
-            database.enrich(address, language, &mut inspection)?;
+            match lookup_mode {
+                GeoIpLookupMode::LocalDatabase => {
+                    if let Some(database) = &self.geoip {
+                        database.enrich(address, language, &mut inspection)?;
+                    }
+                }
+                GeoIpLookupMode::Online => {
+                    enrich_online(address, language, &mut inspection).await?;
+                }
+            }
         }
         let now = Instant::now();
         let mut cache = self.cache.write().await;
@@ -81,6 +95,73 @@ impl NetworkInspector {
         );
         Ok(inspection)
     }
+}
+
+#[derive(Deserialize)]
+struct OnlineGeoIpResponse {
+    success: bool,
+    country_code: Option<String>,
+    country: Option<String>,
+    region: Option<String>,
+    city: Option<String>,
+    connection: Option<OnlineConnection>,
+}
+
+#[derive(Deserialize, Default)]
+struct OnlineConnection {
+    asn: Option<u64>,
+    org: Option<String>,
+    isp: Option<String>,
+}
+
+async fn enrich_online(
+    address: IpAddr,
+    language: Language,
+    inspection: &mut NetworkInspection,
+) -> Result<(), AppError> {
+    let language = match language {
+        Language::ZhCn => "zh-CN",
+        Language::En => "en",
+    };
+    let client = ONLINE_LOOKUP_CLIENT.get_or_init(reqwest::Client::new);
+    let lookup = timeout(ONLINE_LOOKUP_TIMEOUT, async {
+        let response = client
+            .get(format!("https://ipwho.is/{address}?lang={language}"))
+            .send()
+            .await
+            .map_err(|_| online_lookup_failed())?
+            .error_for_status()
+            .map_err(|_| online_lookup_failed())?;
+        let bytes = response.bytes().await.map_err(|_| online_lookup_failed())?;
+        serde_json::from_slice::<OnlineGeoIpResponse>(&bytes).map_err(|_| online_lookup_failed())
+    })
+    .await
+    .map_err(|_| online_lookup_failed())??;
+
+    if !lookup.success {
+        return Err(online_lookup_failed());
+    }
+
+    inspection.geo = NetworkGeo {
+        country_code: lookup.country_code.filter(|value| !value.is_empty()),
+        country_name: lookup.country.filter(|value| !value.is_empty()),
+        region: lookup.region.filter(|value| !value.is_empty()),
+        city: lookup.city.filter(|value| !value.is_empty()),
+    };
+    if let Some(connection) = lookup.connection {
+        inspection.asn = connection.asn.map(|value| format!("AS{value}"));
+        inspection.organization = connection
+            .org
+            .filter(|value| !value.is_empty())
+            .or_else(|| connection.isp.filter(|value| !value.is_empty()));
+    }
+    Ok(())
+}
+
+fn online_lookup_failed() -> AppError {
+    AppError::new(ErrorCode::Internal, "errors.geoIpOnlineLookupFailed")
+        .with_retry()
+        .with_stage("networkInspection")
 }
 
 async fn inspect_uncached(host: &str, detailed: bool) -> Result<NetworkInspection, AppError> {
@@ -349,7 +430,12 @@ mod tests {
     async fn classifies_ip_locally_and_does_not_resolve_domains_without_explicit_detail_request() {
         let inspector = NetworkInspector::default();
         let private = inspector
-            .inspect("192.168.1.10", false, Language::ZhCn)
+            .inspect(
+                "192.168.1.10",
+                false,
+                Language::ZhCn,
+                GeoIpLookupMode::LocalDatabase,
+            )
             .await
             .expect("private IP");
         assert_eq!(private.host_kind, NetworkHostKind::Ip);
@@ -361,7 +447,12 @@ mod tests {
         assert!(private.geo.country_code.is_none());
 
         let hostname = inspector
-            .inspect("localhost", false, Language::ZhCn)
+            .inspect(
+                "localhost",
+                false,
+                Language::ZhCn,
+                GeoIpLookupMode::LocalDatabase,
+            )
             .await
             .expect("hostname summary");
         assert_eq!(hostname.host_kind, NetworkHostKind::Hostname);
@@ -373,7 +464,12 @@ mod tests {
     #[tokio::test]
     async fn resolves_hostnames_only_when_detailed_inspection_is_requested() {
         let inspection = NetworkInspector::default()
-            .inspect("localhost", true, Language::ZhCn)
+            .inspect(
+                "localhost",
+                true,
+                Language::ZhCn,
+                GeoIpLookupMode::LocalDatabase,
+            )
             .await
             .expect("localhost resolves through the system resolver");
         assert_eq!(inspection.host_kind, NetworkHostKind::Hostname);

@@ -2,6 +2,7 @@
 import type { AccentColor } from "./AccentColor";
 import type { AppIconStyle } from "./AppIconStyle";
 import type { CursorStyle } from "./CursorStyle";
+import type { GeoIpLookupMode } from "./GeoIpLookupMode";
 import type { Language } from "./Language";
 import type { SidebarWidth } from "./SidebarWidth";
 import type { TerminalBackgroundImageSettings } from "./TerminalBackgroundImageSettings";
@@ -11,4 +12,4 @@ import type { Theme } from "./Theme";
 import type { ToastPosition } from "./ToastPosition";
 import type { UiDensity } from "./UiDensity";
 
-export type AppSettings = { theme: Theme, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, uiDensity: UiDensity, sidebarWidth: SidebarWidth, toastPosition: ToastPosition, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, terminalThemeMode: TerminalThemeMode, terminalCustomColors: TerminalCustomColors, terminalBackgroundImage: TerminalBackgroundImageSettings, terminalLineHeight: number, terminalCursorBlink: boolean, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };
+export type AppSettings = { theme: Theme, geoIpLookupMode: GeoIpLookupMode, appIconStyle: AppIconStyle, accentColor: AccentColor, customAccentColor: string | null, uiDensity: UiDensity, sidebarWidth: SidebarWidth, toastPosition: ToastPosition, language: Language, terminalFontFamily: string, terminalFontSize: number, terminalCursorStyle: CursorStyle, terminalScrollbackLines: number, terminalThemeMode: TerminalThemeMode, terminalCustomColors: TerminalCustomColors, terminalBackgroundImage: TerminalBackgroundImageSettings, terminalLineHeight: number, terminalCursorBlink: boolean, downloadDirectoryToken: string | null, confirmBeforeDisconnect: boolean, showSizeColumn: boolean, showFileSizes: boolean, showFolderSizes: boolean, };

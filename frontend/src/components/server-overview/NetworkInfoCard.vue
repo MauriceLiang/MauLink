@@ -2,13 +2,16 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { NetworkInspection } from "../../../../contracts/v1/NetworkInspection";
 import type { NetworkScope } from "../../../../contracts/v1/NetworkScope";
+import type { GeoIpLookupMode } from "../../../../contracts/v1/GeoIpLookupMode";
 import type { ServerProfile } from "../../../../contracts/v1/ServerProfile";
 import { locale, messages } from "../../i18n/locale";
 import { serverOverviewMessages } from "../../i18n/server-overview";
 import type { createNetworkApi } from "../../ipc/network";
+import { mapError } from "../../errors/mapper";
+import { presentError } from "../../errors/presenter";
 import BaseButton from "../base/BaseButton.vue";
 
-const props = withDefaults(defineProps<{ server: ServerProfile; api: ReturnType<typeof createNetworkApi>; databaseRevision?: number; embedded?: boolean }>(), { embedded: false });
+const props = withDefaults(defineProps<{ server: ServerProfile; api: ReturnType<typeof createNetworkApi>; databaseRevision?: number; lookupMode?: GeoIpLookupMode; embedded?: boolean }>(), { embedded: false, lookupMode: "localDatabase" });
 const emit = defineEmits<{
   openSettings: [];
   summaryChange: [summary: { serverId: string; host: string; port: number; status: "loading" } | { serverId: string; host: string; port: number; status: "error" } | { serverId: string; host: string; port: number; status: "ready"; inspection: NetworkInspection }];
@@ -17,6 +20,8 @@ type LoadState = { status: "loading" | "error"; detailed: boolean } | { status: 
 const t = messages(serverOverviewMessages);
 const state = ref<LoadState>({ status: "loading", detailed: true });
 const readyState = computed(() => state.value.status === "ready" ? state.value : null);
+const errorMessage = ref("");
+const privacyNote = computed(() => t(props.lookupMode === "online" ? "networkPrivacyOnlineNote" : "networkPrivacyNote"));
 let requestVersion = 0;
 
 function setState(next: LoadState, server: ServerProfile) {
@@ -29,12 +34,13 @@ function setState(next: LoadState, server: ServerProfile) {
 async function load(detailed: boolean) {
   const server = props.server;
   const version = ++requestVersion;
+  errorMessage.value = "";
   setState({ status: "loading", detailed }, server);
   try {
     const inspection = await props.api.inspect({ host: server.host, detailed, language: locale.value });
     if (version === requestVersion) setState({ status: "ready", detailed, inspection }, server);
-  } catch {
-    if (version === requestVersion) setState({ status: "error", detailed }, server);
+  } catch (reason) {
+    if (version === requestVersion) { errorMessage.value = presentError(mapError(reason)).message; setState({ status: "error", detailed }, server); }
   }
 }
 
@@ -73,7 +79,7 @@ function formatDate(timestamp: number) {
   return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-watch(() => [props.server.id, props.server.host, props.server.port, locale.value] as const, () => { void load(true); }, { immediate: true });
+watch(() => [props.server.id, props.server.host, props.server.port, locale.value, props.lookupMode] as const, () => { void load(true); }, { immediate: true });
 watch(() => props.databaseRevision, () => { void load(state.value.detailed); });
 onBeforeUnmount(() => { requestVersion += 1; });
 </script>
@@ -81,11 +87,11 @@ onBeforeUnmount(() => { requestVersion += 1; });
 <template>
   <section class="server-overview-card server-overview-network" :class="{ 'server-overview-card--embedded': embedded }" :aria-label="t('networkInformation')">
     <h2 v-if="!embedded">{{ t('networkInformation') }}</h2>
-    <p class="server-overview-network-note">{{ t('networkPrivacyNote') }}</p>
+    <p class="server-overview-network-note">{{ privacyNote }}</p>
     <div class="server-overview-network-state" :aria-live="state.status === 'loading' ? 'polite' : 'off'">
       <p v-if="state.status === 'loading'">{{ t('networkAnalysisLoading') }}</p>
       <template v-else-if="state.status === 'error'">
-        <p role="alert">{{ t('networkAnalysisFailed') }}</p>
+        <p role="alert">{{ errorMessage || t('networkAnalysisFailed') }}</p>
         <BaseButton @click="load(state.detailed)">{{ t('networkRetry') }}</BaseButton>
       </template>
       <template v-else-if="readyState">
@@ -111,6 +117,7 @@ onBeforeUnmount(() => { requestVersion += 1; });
             <div v-if="readyState.inspection.reverseDns" class="server-overview-info-item"><dt>{{ t('networkReverseDns') }}</dt><dd class="server-overview-mono">{{ readyState.inspection.reverseDns }}</dd></div>
             <div v-if="readyState.inspection.databaseUpdatedAtMs !== null" class="server-overview-info-item"><dt>{{ t('networkGeoDatabaseUpdated') }}</dt><dd>{{ formatDate(readyState.inspection.databaseUpdatedAtMs) }}</dd></div>
             <div class="server-overview-info-item"><dt>{{ t('networkSource') }}</dt><dd>{{ readyState.inspection.source === 'localAnalysis' ? t('networkLocalAnalysis') : t('networkSystemResolver') }}</dd></div>
+            <div v-if="hasGeoData" class="server-overview-info-item"><dt>{{ t('networkGeoSource') }}</dt><dd>{{ t(lookupMode === 'online' ? 'networkGeoSourceOnline' : 'networkGeoSourceLocal') }}</dd></div>
           </dl>
         </details>
         <p v-if="readyState.inspection.databaseSource === 'dbIp'" class="server-overview-attribution"><a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a></p>
