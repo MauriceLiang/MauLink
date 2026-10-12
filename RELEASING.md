@@ -117,11 +117,13 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 
 本地其他验证：两个工作流 YAML 均可解析，所有 Bash `run` 脚本通过 `bash -n`；Web visual Harness 的 `transfer / dark / zh-CN` 页面成功打开。视觉 manifest 校验报告 9 个 manifest、82 张截图，独立重复结果 byte-identical。
 
+本机 ARM64 安装包验证：PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.0_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载后确认内含 arm64 Mach-O，`codesign --verify --deep --strict` 通过。使用 `CI=true` 运行以匹配 GitHub Actions，并跳过本机 Finder AppleScript；包为 ad-hoc 签名、未公证。这是本机验收产物，不是 GitHub Release 附件。
+
 ### 发布结果
 
 - Tag：未创建；测试 Tag 需要负责人明确批准。
 - Validate job：NOT RUN；需负责人批准 Tag 后触发。
-- macOS ARM64 DMG：NOT RUN；附件名、大小待真实 Runner 构建后记录。
+- macOS ARM64 DMG：本机 PASS，见上方文件名和大小；GitHub Actions 附件 NOT RUN，待负责人批准测试 Tag 后记录。
 - macOS Intel DMG：NOT RUN；附件名、大小待真实 Runner 构建后记录。
 - Windows x64 MSI：NOT RUN；附件名、大小待真实 Runner 构建后记录。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
@@ -134,7 +136,7 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - 用户 Secrets：本次未使用或写入，未出现在日志。
 - 正式 Tauri identifier：`io.maulink.desktop`，检查器强制校验；未修改。
 - 测试配置：正式构建仅使用正式 `tauri.conf.json`；未采用 harness 或 frontend-v2 配置。
-- 签名状态：macOS 计划为 ad-hoc / 未公证；Windows unsigned；尚无实际安装包验证。
+- 签名状态：本机 ARM64 DMG 为 ad-hoc / 未公证，签名校验通过；Windows unsigned；真实设备安装尚未验证。
 - Tauri Updater：未启用。
 - `npm ci` 审计提示当前依赖树有 2 项 advisories（1 low、1 high）；本次没有升级依赖，需单独评估和修复。
 - Apple Silicon Mac、Intel Mac、Windows x64 真机、覆盖安装保留数据：均 NOT RUN。
