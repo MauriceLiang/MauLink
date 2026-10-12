@@ -65,7 +65,8 @@ export function visualTransfers(connectionId: string): SftpTransferSnapshot[] {
 export const visualTranscript = 'Last login: Sun Sep 28 09:12:04 on ttys001\r\n$ ls -la\r\ntotal 48\r\n-rw-r--r-- 1 root root 2154 Sep 28 08:59 package.json\r\n-rwxr-xr-x 1 root root 4830 Sep 27 18:20 deploy.sh\r\n$ ./deploy.sh --env production\r\n\x1b[32m[ ok ] Dependencies installed\r\n[ ok ] Release 2.14.0 activated\x1b[0m\r\n$ ';
 
 // Every visible value is fixed. Ordinary production stores/pollers still run against this isolated transport.
-export function createVisualMock(config: VisualConfig) {
+export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo.version) {
+  const appInfo = { ...shellAppInfo, version: appVersion };
   const servers = config.page === 'empty' ? [] : structuredClone(shellServers);
   if (config.page === 'credential-reveal' && servers[0]) servers[0].hasSavedCredential = true;
   if (config.page === 'server-overview' && servers[0]) {
@@ -85,7 +86,7 @@ export function createVisualMock(config: VisualConfig) {
   const databaseInfo = (kind: string, source: 'dbIp' | 'local') => ({ fileName: `${source}-${kind}.mmdb`, databaseType: `${source}-${kind}`, buildAtMs: visualEpoch, source, available: true });
   const snapshot = () => structuredClone(connection);
   const transport = createMockIpc({
-    app_get_info: () => shellAppInfo,
+    app_get_info: () => appInfo,
     group_list: () => config.page === 'empty' ? [] : structuredClone(shellGroups),
     server_list: () => ({ items: structuredClone(servers), nextCursor: null }),
     server_appearance_list: () => [],

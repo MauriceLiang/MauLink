@@ -33,7 +33,7 @@ use maulink_core::{
     TerminalChunk, TerminalCustomColors, TerminalIdPayload, TerminalOpenPayload,
     TerminalOpenResult, TerminalResizePayload, TerminalSize, TerminalSnapshot, TerminalState,
     TerminalThemeMode, TerminalWritePayload, TerminalWriteResult, Theme, ToastPosition, UiDensity,
-    WorkspaceActivityPayload,
+    UpdateChannel, WorkspaceActivityPayload,
 };
 use ts_rs::{Config, TS};
 
@@ -60,6 +60,7 @@ fn main() -> Result<(), ts_rs::ExportError> {
     SidebarWidth::export_all(&config)?;
     ToastPosition::export_all(&config)?;
     GeoIpLookupMode::export_all(&config)?;
+    UpdateChannel::export_all(&config)?;
     AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
     SettingsUpdate::export_all(&config)?;

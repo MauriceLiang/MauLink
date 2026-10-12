@@ -206,10 +206,19 @@ pub enum GeoIpLookupMode {
     Online,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum UpdateChannel {
+    Stable,
+    Preview,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme: Theme,
+    #[serde(default)]
+    pub update_channel: Option<UpdateChannel>,
     #[serde(default)]
     pub geo_ip_lookup_mode: GeoIpLookupMode,
     #[serde(default)]
@@ -253,6 +262,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             theme: Theme::System,
+            update_channel: None,
             geo_ip_lookup_mode: GeoIpLookupMode::LocalDatabase,
             app_icon_style: AppIconStyle::Light,
             accent_color: AccentColor::Blue,
@@ -566,6 +576,7 @@ mod tests {
 
         let value = AppSettings {
             theme: Theme::Dark,
+            update_channel: Some(UpdateChannel::Preview),
             app_icon_style: AppIconStyle::Dark,
             accent_color: AccentColor::Custom,
             custom_accent_color: Some("#12AbEf".to_owned()),
@@ -615,6 +626,31 @@ mod tests {
             .await
             .expect("reload settings");
         assert_eq!(reloaded.current().value, value);
+    }
+
+    #[test]
+    fn old_settings_without_an_update_channel_remain_compatible() {
+        let mut value = serde_json::to_value(AppSettings::default()).expect("settings JSON");
+        value
+            .as_object_mut()
+            .expect("settings object")
+            .remove("updateChannel");
+
+        let decoded: AppSettings = serde_json::from_value(value).expect("legacy settings");
+        assert_eq!(decoded.update_channel, None);
+
+        let preview = AppSettings {
+            update_channel: Some(UpdateChannel::Preview),
+            ..decoded
+        };
+        let encoded = serde_json::to_value(preview).expect("serialize channel");
+        assert_eq!(encoded["updateChannel"], "preview");
+        assert_eq!(
+            serde_json::from_value::<AppSettings>(encoded)
+                .expect("deserialize channel")
+                .update_channel,
+            Some(UpdateChannel::Preview)
+        );
     }
 
     #[test]

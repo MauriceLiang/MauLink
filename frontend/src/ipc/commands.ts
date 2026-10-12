@@ -85,6 +85,7 @@ import type { TerminalSnapshot } from "../../../contracts/v1/TerminalSnapshot";
 import type { TerminalWritePayload } from "../../../contracts/v1/TerminalWritePayload";
 import type { TerminalWriteResult } from "../../../contracts/v1/TerminalWriteResult";
 import type { WorkspaceActivityPayload } from "../../../contracts/v1/WorkspaceActivityPayload";
+import type { UpdateCheckResponse, UpdateDownloadEvent, UpdateOperationResult } from "../updater/updater-types";
 
 export interface CommandContracts {
   geoip_database_get: { payload: EmptyPayload; result: GeoIpDatabaseStatus };
@@ -151,6 +152,10 @@ export interface CommandContracts {
   terminal_close: { payload: TerminalIdPayload; result: TerminalSnapshot };
   settings_get: { payload: EmptyPayload; result: SettingsRecord };
   settings_update: { payload: SettingsUpdate; result: SettingsRecord };
+  updater_check: { payload: EmptyPayload; result: UpdateCheckResponse };
+  updater_download: { payload: EmptyPayload; result: UpdateOperationResult };
+  updater_install: { payload: EmptyPayload; result: UpdateOperationResult };
+  updater_cancel: { payload: EmptyPayload; result: void };
   local_file_select: { payload: LocalFileSelectPayload; result: SelectedLocalFile | null };
   background_image_import: { payload: BackgroundImageImportPayload; result: BackgroundImageAsset };
   background_image_get: { payload: BackgroundImagePayload; result: BackgroundImageGetResult };
@@ -165,6 +170,7 @@ export interface OutputChannels {
   terminal_open: Channel<TerminalChunk>;
   sftp_upload: Channel<SftpTransferSnapshot>;
   sftp_download: Channel<SftpTransferSnapshot>;
+  updater_download: Channel<UpdateDownloadEvent>;
 }
 
 export type CallArgs<C extends Command> = C extends keyof OutputChannels

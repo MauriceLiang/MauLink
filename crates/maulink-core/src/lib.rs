@@ -86,7 +86,7 @@ pub use settings::{
     AccentColor, AppIconStyle, AppSettings, CursorStyle, GeoIpLookupMode, Language, SettingsRecord,
     SettingsService, SettingsUpdate, SidebarWidth, TerminalBackgroundFit,
     TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
-    TerminalCustomColors, TerminalThemeMode, Theme, ToastPosition, UiDensity,
+    TerminalCustomColors, TerminalThemeMode, Theme, ToastPosition, UiDensity, UpdateChannel,
 };
 pub use sftp::{SftpManager, SftpTransferManager};
 pub use ssh::{SshConnectionManager, SshConnector, SshSession};

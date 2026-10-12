@@ -11,6 +11,7 @@ pub struct DesktopState {
     pub server_appearance: ServerAppearanceStore,
     pub runtime_stats: ServerRuntimeStatsStore,
     pub settings: SettingsService,
+    pub updater: crate::updater::UpdaterState,
     pub local_files: LocalFileRegistry,
     pub credentials: CredentialManager,
     pub credential_reveal: CredentialRevealService,

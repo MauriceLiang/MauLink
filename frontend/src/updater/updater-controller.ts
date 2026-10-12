@@ -1,25 +1,37 @@
 import { shallowRef } from 'vue';
+import {
+  channelForReleaseVersion,
+  classifyReleaseTransition,
+} from '../../../tools/release-channel.mjs';
 import { UpdaterAdapterError } from './updater-adapter';
-import type { PendingUpdate, UpdateDisplayState, UpdateErrorCode, UpdaterAdapter, UpdaterController } from './updater-types';
+import type {
+  PendingUpdate,
+  UpdateDisplayState,
+  UpdateErrorCode,
+  UpdateTransition,
+  UpdateChannel,
+  UpdaterAdapter,
+  UpdaterController,
+} from './updater-types';
 
 type Operation = 'check' | 'download' | 'install';
 
 function classifyError(error: unknown, operation: Operation): UpdateErrorCode {
   if (error instanceof UpdaterAdapterError) return error.code;
-  const message = error instanceof Error ? error.message.toLowerCase() : '';
-  if (/signature|minisign|verify/.test(message)) return 'signature';
-  if (/disk full|no space|storage|enospc/.test(message)) return 'storage';
-  if (/permission|denied|401|403/.test(message)) return 'permission';
-  if (/manifest|metadata|json|platform|version/.test(message)) return 'metadata';
-  if (/endpoint|public key|pubkey|not configured/.test(message)) return 'unsupported';
   if (operation === 'install') return 'install';
-  if (operation === 'check' || operation === 'download') return 'network';
   return 'unknown';
+}
+
+function installedChannel(version: string): UpdateChannel {
+  try { return channelForReleaseVersion(version); }
+  catch { return 'stable'; }
 }
 
 const initialState = (currentVersion: string, adapter: UpdaterAdapter): UpdateDisplayState => ({
   phase: adapter.kind === 'unsupported' ? 'unsupported' : 'idle',
   currentVersion,
+  installedChannel: installedChannel(currentVersion),
+  updateChannel: installedChannel(currentVersion),
   downloadedBytes: 0,
   ...(adapter.kind === 'unsupported' ? { errorCode: 'unsupported' as const } : {}),
 });
@@ -47,33 +59,129 @@ export function createUpdaterController(adapter: UpdaterAdapter, getCurrentVersi
   }
   function setError(error: unknown, stage: Operation) {
     const errorCode = classifyError(error, stage);
-    console.warn(`[updater:${stage}] operation failed (${errorCode})`, error);
+    console.warn(`[updater:${stage}] operation failed (${errorCode})`);
     updateState({ phase: errorCode === 'unsupported' ? 'unsupported' : 'error', errorCode });
+  }
+  function resetUpdateState(channel: UpdateChannel) {
+    updateState({
+      phase: adapter.kind === 'unsupported' ? 'unsupported' : 'idle',
+      updateChannel: channel,
+      currentVersion: getCurrentVersion(),
+      installedChannel: installedChannel(getCurrentVersion()),
+      latestVersion: undefined,
+      releaseNotes: undefined,
+      transition: undefined,
+      blockedReason: undefined,
+      downloadedBytes: 0,
+      totalBytes: undefined,
+      errorCode: adapter.kind === 'unsupported' ? 'unsupported' : undefined,
+    });
   }
 
   const controller: UpdaterController = {
     state,
     adapterKind: adapter.kind,
-    setCurrentVersion(version) { updateState({ currentVersion: version || '—' }); },
+    setCurrentVersion(version) {
+      const current = version || '—';
+      const currentChannel = installedChannel(current);
+      updateState({ currentVersion: current, installedChannel: currentChannel });
+      if (!pendingUpdate && !operation) updateState({ updateChannel: currentChannel });
+    },
+    async setChannel(channel) {
+      if (disposed || operation || state.value.phase === 'confirmingInstall' || state.value.phase === 'installing') return false;
+      if (state.value.updateChannel === channel) return true;
+      let cleanupError: unknown;
+      try {
+        await releasePendingUpdate();
+      } catch (error) {
+        cleanupError = error;
+      }
+      resetUpdateState(channel);
+      if (cleanupError) setError(cleanupError, 'check');
+      return true;
+    },
     async checkForUpdates() {
       if (disposed || state.value.phase === 'confirmingInstall' || state.value.phase === 'installing' || pendingUpdate) return;
       await run(async () => {
-        updateState({ phase: 'checking', errorCode: undefined, latestVersion: undefined, releaseNotes: undefined, downloadedBytes: 0, totalBytes: undefined, currentVersion: getCurrentVersion() });
+        updateState({
+          phase: 'checking',
+          errorCode: undefined,
+          latestVersion: undefined,
+          releaseNotes: undefined,
+          transition: undefined,
+          blockedReason: undefined,
+          downloadedBytes: 0,
+          totalBytes: undefined,
+          currentVersion: getCurrentVersion(),
+          installedChannel: installedChannel(getCurrentVersion()),
+        });
         try {
-          const update = await adapter.check();
+          const result = await adapter.check(state.value.updateChannel);
           if (disposed) {
-            if (update) await update.close();
+            if (result.kind === 'available') await result.update.close();
             return;
           }
-          if (!update) { updateState({ phase: 'upToDate' }); return; }
+          if (result.kind === 'notConfigured') {
+            updateState({ phase: 'unsupported', errorCode: 'unsupported' });
+            return;
+          }
+          if (result.kind === 'channelEmpty') { updateState({ phase: 'channelEmpty' }); return; }
+          if (result.kind === 'upToDate') {
+            updateState({ phase: 'upToDate', currentVersion: result.installedVersion });
+            return;
+          }
+          if (result.kind === 'blocked') {
+            updateState({
+              phase: 'blocked',
+              currentVersion: result.installedVersion,
+              latestVersion: result.targetVersion,
+              blockedReason: result.reason,
+            });
+            return;
+          }
+          if (result.kind === 'failed') {
+            setError(new UpdaterAdapterError(result.code), 'check');
+            return;
+          }
+
+          const update = result.update;
+          let transition: UpdateTransition;
+          try { transition = classifyReleaseTransition(update.currentVersion || getCurrentVersion(), update.version); }
+          catch {
+            await update.close();
+            setError(new UpdaterAdapterError('metadata'), 'check');
+            return;
+          }
+          if (transition === 'sameVersion') {
+            await update.close();
+            updateState({ phase: 'upToDate', currentVersion: update.currentVersion || getCurrentVersion() });
+            return;
+          }
+          if (transition === 'downgrade') {
+            await update.close();
+            updateState({
+              phase: 'blocked',
+              currentVersion: update.currentVersion || getCurrentVersion(),
+              latestVersion: update.version,
+              transition,
+              blockedReason: 'compatibilityUnverified',
+            });
+            return;
+          }
           pendingUpdate = update;
-          updateState({ phase: 'available', currentVersion: update.currentVersion || getCurrentVersion(), latestVersion: update.version, releaseNotes: update.body ?? undefined });
+          updateState({
+            phase: 'available',
+            currentVersion: update.currentVersion || getCurrentVersion(),
+            latestVersion: update.version,
+            releaseNotes: update.body ?? undefined,
+            transition,
+          });
         } catch (error) { setError(error, 'check'); }
       });
     },
     async downloadUpdate() {
       const update = pendingUpdate;
-      if (disposed || !update || state.value.phase !== 'available') return;
+      if (disposed || !update || state.value.phase !== 'available' || state.value.transition !== 'upgrade') return;
       await run(async () => {
         updateState({ phase: 'downloading', downloadedBytes: 0, totalBytes: undefined, errorCode: undefined });
         try {
@@ -96,14 +204,14 @@ export function createUpdaterController(adapter: UpdaterAdapter, getCurrentVersi
       });
     },
     requestInstall() {
-      if (!disposed && pendingUpdate && state.value.phase === 'downloaded') updateState({ phase: 'confirmingInstall' });
+      if (!disposed && pendingUpdate && state.value.transition === 'upgrade' && state.value.phase === 'downloaded') updateState({ phase: 'confirmingInstall' });
     },
     cancelInstallRequest() {
       if (!disposed && pendingUpdate && state.value.phase === 'confirmingInstall') updateState({ phase: 'downloaded' });
     },
     async installConfirmed(platform) {
       const update = pendingUpdate;
-      if (disposed || !update || state.value.phase !== 'confirmingInstall') return;
+      if (disposed || !update || state.value.phase !== 'confirmingInstall' || state.value.transition !== 'upgrade') return;
       await run(async () => {
         updateState({ phase: 'installing', errorCode: undefined });
         try {
@@ -120,7 +228,7 @@ export function createUpdaterController(adapter: UpdaterAdapter, getCurrentVersi
       if (disposed || operation || state.value.phase === 'installing' || state.value.phase === 'confirmingInstall') return;
       try {
         await releasePendingUpdate();
-        updateState({ phase: adapter.kind === 'unsupported' ? 'unsupported' : 'idle', latestVersion: undefined, releaseNotes: undefined, downloadedBytes: 0, totalBytes: undefined, errorCode: adapter.kind === 'unsupported' ? 'unsupported' : undefined });
+        resetUpdateState(state.value.updateChannel);
       } catch (error) { setError(error, 'check'); }
     },
     async dispose() {
