@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { AppSettings } from '../../../../contracts/v1/AppSettings';
 import type { AccentColor } from '../../../../contracts/v1/AccentColor';
 import type { ToastPosition } from '../../../../contracts/v1/ToastPosition';
+import type { UpdateChannel } from '../../../../contracts/v1/UpdateChannel';
+import { channelForReleaseVersion } from '../../../../tools/release-channel.mjs';
 import { messages } from '../../i18n/locale';
 import { settingsMessages } from '../../i18n/settings';
 import { defaultSettings, type TerminalPreferences } from '../../terminal/preferences';
@@ -48,6 +50,8 @@ const reloadDialogOpen = ref(false);
 const terminalSection = ref<InstanceType<typeof TerminalSettingsSection> | null>(null);
 const autoSaveReady = ref(false);
 const dirty = computed(() => JSON.stringify(draft) !== JSON.stringify(savedSettings.value) || copyOnSelect.value !== savedCopyOnSelect.value);
+const resolvedUpdateChannel = computed(() => resolveUpdateChannel(draft.updateChannel, props.currentVersion ?? '—'));
+const updateChannelSaved = computed(() => draft.updateChannel === savedSettings.value.updateChannel);
 const regularSection = computed(() => props.section !== 'security' && props.section !== 'network');
 const busy = computed(() => props.preferences.busy.value || databaseBusy.value || !!terminalSection.value?.busy);
 const accentColorKeys: Record<AccentColor, keyof typeof settingsMessages> = { blue: 'accentBlue', indigo: 'accentIndigo', purple: 'accentPurple', green: 'accentGreen', orange: 'accentOrange', red: 'accentRed', custom: 'accentCustom' };
@@ -106,6 +110,11 @@ function scheduleAutoSave(delay = 350) {
 function cloneSettings(value: AppSettings): AppSettings {
   return { ...value, terminalCustomColors: { ...value.terminalCustomColors }, terminalBackgroundImage: { ...value.terminalBackgroundImage } };
 }
+function resolveUpdateChannel(preference: UpdateChannel | null, version: string): UpdateChannel {
+  if (preference) return preference;
+  try { return channelForReleaseVersion(version); }
+  catch { return 'stable'; }
+}
 function resetDraft() {
   const value = props.preferences.record.value?.value ?? defaultSettings;
   savedSettings.value = cloneSettings(value);
@@ -120,6 +129,7 @@ async function activate() {
   autoSaveQueued = false;
   if (!props.preferences.record.value) await props.preferences.load();
   resetDraft();
+  await props.updater?.setChannel(resolvedUpdateChannel.value);
   await nextTick();
   autoSaveReady.value = true;
 }
@@ -159,7 +169,11 @@ async function persistSettings() {
   const terminalChanged = [...changedKeys].some(key => terminalSettingKeys.has(key));
   if (terminalChanged && terminalSection.value && !terminalSection.value.validate()) return false;
   if (!(await props.preferences.save(patch, copyChanged ? copyOnSelect.value : undefined))) return false;
-  savedSettings.value = cloneSettings(props.preferences.record.value?.value ?? { ...savedSettings.value, ...patch });
+  const persistedSettings = props.preferences.record.value?.value ?? { ...savedSettings.value, ...patch };
+  if (changedKeys.has('updateChannel')) {
+    await props.updater?.setChannel(resolveUpdateChannel(persistedSettings.updateChannel, props.currentVersion ?? '—'));
+  }
+  savedSettings.value = cloneSettings(persistedSettings);
   savedCopyOnSelect.value = props.preferences.copyOnSelect.value;
   if (!props.preferences.error.value) emit('saved');
   if (terminalChanged && terminalSection.value && !(await terminalSection.value.commit())) return false;
@@ -228,7 +242,7 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
             <section v-else-if="section === 'files'" class="settings-workspace-section"><div class="settings-file-size-master"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /></div><div v-if="draft.showSizeColumn" class="settings-file-size-options"><BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><div><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div></div></section>
             <section v-else-if="section === 'language'" class="settings-workspace-section"><BaseSelect v-model="draft.language" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" /><p>{{ t('languageNote') }}</p></section>
           </fieldset>
-          <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :install-busy="updateInstallBusy" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />
+          <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :channel="resolvedUpdateChannel" :channel-saved="updateChannelSaved" :install-busy="updateInstallBusy || preferences.busy.value || !preferences.record.value" @update:channel="draft.updateChannel = $event" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />
           <section v-show="section === 'terminal'" class="settings-workspace-section"><TerminalSettingsSection ref="terminalSection" :settings="draft" :saved-settings="savedSettings" :copy-on-select="copyOnSelect" :reset-key="resetKey" :busy="preferences.busy.value || !preferences.record.value" :background-images="backgroundImages" @update:settings="updateTerminalSettings" @update:copy-on-select="copyOnSelect = $event" /></section>
           <SecuritySettingsSection v-if="section === 'security' && credentialReveal" :active="active" :api="credentialReveal" />
           <GeoIpSettingsSection v-if="section === 'network' && geoip" v-model:lookup-mode="draft.geoIpLookupMode" :api="geoip" :disabled="preferences.busy.value || !preferences.record.value" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { toMsiProductVersion } from './msi-version.mjs';
+import { windowsReleaseConfig } from './msi-config.mjs';
 
 const mainPath = path.resolve('src-tauri/tauri.conf.json');
 const outputPath = path.resolve('src-tauri/tauri.release-windows.conf.json');
@@ -14,8 +14,8 @@ if (app.version !== normalized) {
   throw new Error('Tag/app version mismatch: ' + requested + ' != ' + app.version);
 }
 
-const productVersion = toMsiProductVersion(normalized);
-const overlay = { bundle: { windows: { wix: { version: productVersion } } } };
+const overlay = windowsReleaseConfig(normalized);
+const productVersion = overlay.bundle.windows.wix.version;
 fs.writeFileSync(outputPath, JSON.stringify(overlay, null, 2) + '\n', { flag: 'wx' });
 console.log('MSI mapping: ' + normalized + ' => ' + productVersion);
 console.log('Temporary Tauri override: ' + outputPath);

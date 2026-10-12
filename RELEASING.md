@@ -2,6 +2,8 @@
 
 本文说明 MauLink 的 PR 检查、跨平台安装包构建和自动 GitHub Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。Packaging Smoke 在 PR 或手动触发时构建并检查三个平台的安装包，上传保留 7 天的测试产物；版本递增的 PR 合并到 `main` 后，发布工作流会自动构建并公开 Release。Linux、Windows ARM64、可信代码签名和公证不在本期支持范围。应用内更新界面与本地交互已接入，但没有真实更新地址和受信公钥，在线更新尚未启用；详见 [UPDATING.md](UPDATING.md)。
 
+应用内更新功能 PR 不递增产品版本、不创建 Tag 或 Release。待真实更新地址、签名密钥托管和平台验收准备好后，由负责人另行安排版本递增发布；不要把本地构建或 Packaging Smoke 产物当作已公开的在线更新包。
+
 ## 首次启用
 
 1. 在 GitHub 仓库确认 `Settings → Actions → General` 允许本仓库工作流运行，并查看 Actions 使用量、缓存和 14 天构建产物保留所产生的费用或配额影响。
@@ -85,7 +87,7 @@ Release 会在自动检查、三平台构建和附件上传成功后公开。mac
 ## 后续阶段
 
 - **签名与公证**：需要用户办理 Apple Developer ID、公证权限及 Windows Authenticode 签名方案，并将材料仅配置在受保护的 GitHub Secrets / Environment。取得实际设备验证结果后再修改发布流程。不得将证书或私钥放入仓库、日志或聊天。
-- **Tauri Updater**：插件、最小权限、显式检查/下载/安装状态机和 SSH/SFTP 安全确认已接入；当前版本不含更新 endpoint 与公钥，因此检查在线更新会明确提示尚未配置。启用前仍需负责人确认 Stable/Preview HTTPS 托管、亲自生成并安全保管签名私钥、提供公钥文本并完成签名发布流水线和真机升级验收。不得生成伪造 `.sig` / `latest.json`。详见 [UPDATING.md](UPDATING.md)。
+- **Tauri Updater**：Stable/Preview 偏好、严格 SemVer、Rust 端渠道选择与候选检查、Mock 流程和安装安全门禁已实现。前端不再直接调用 JS updater 插件；Rust 受控命令仅在两个不同的 HTTPS endpoint 和非空公钥完整配置时启用。当前 `tauri.conf.json` 未配置更新地址或公钥，因此真实在线更新仍禁用。降级在下载前一律拦截，直到数据库兼容策略、备份和 Windows MSI/macOS 实机测试完成；MSI overlay 虽显式设置 `allowDowngrades=true`，不能据此宣称降级安装已验证。负责人仍需确认 Stable/Preview HTTPS 托管、亲自生成并安全保管签名私钥、配置受保护的发布 Environment，并完成签名归档、双索引和真机验收。不得生成伪造 `.sig` / `stable.json` / `preview.json`。详见 [UPDATING.md](UPDATING.md)。
 - Linux、Windows ARM64、Portable ZIP 和 Universal macOS 包均需另行确认范围和真实设备验收。
 
 ## 历史 CI/CD 验收报告（2026-10-12）

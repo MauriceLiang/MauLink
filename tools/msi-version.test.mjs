@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { toMsiProductVersion as convert } from './msi-version.mjs';
+import { windowsReleaseConfig } from './msi-config.mjs';
 
 const cases = [
   ['0.1.0', '0.1.999'],
@@ -52,6 +53,12 @@ test('MSI three-field order matches RC -> GA -> next RC', () => {
       sequence[index - 1] + ' must be earlier than ' + sequence[index],
     );
   }
+});
+
+test('Windows MSI release config explicitly keeps downgrade support and the existing version mapping', () => {
+  assert.deepEqual(windowsReleaseConfig('0.1.1-rc.8'), {
+    bundle: { windows: { allowDowngrades: true, wix: { version: '0.1.1008' } } },
+  });
 });
 
 function compare(left, right) {

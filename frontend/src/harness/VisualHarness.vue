@@ -8,12 +8,13 @@ import { visualConfig, createVisualMock, createVisualStorage } from './visual-fi
 import { createMockUpdaterAdapter, type MockUpdaterScenario } from '../updater/updater-adapter';
 const config = visualConfig(new URLSearchParams(location.search));
 const updateParam = new URLSearchParams(location.search).get('update');
-const updateScenario: MockUpdaterScenario = ['available', 'network-error', 'invalid-index', 'unsupported'].includes(updateParam ?? '') ? updateParam as MockUpdaterScenario : 'up-to-date';
+const updateScenario: MockUpdaterScenario = ['available', 'stable-to-preview-upgrade', 'downgrade', 'channel-empty', 'network-error', 'invalid-index', 'signature-error', 'unsupported'].includes(updateParam ?? '') ? updateParam as MockUpdaterScenario : 'up-to-date';
 const updaterAdapter = createMockUpdaterAdapter(updateScenario).adapter;
+const visualAppVersion = updateScenario === 'stable-to-preview-upgrade' ? '0.1.1' : updateScenario === 'downgrade' ? '0.1.2' : '0.1.1-rc.8';
 const visualAssetUrl = (path: string) => path;
 // Shadow storage only in this DEV document; reload restores the browser's native storage object.
 Object.defineProperty(window, 'localStorage', {value:createVisualStorage(), configurable:true});
-const client = createIpcClient(createVisualMock(config));
+const client = createIpcClient(createVisualMock(config, visualAppVersion));
 const terminalChannelFactory = () => ({ onmessage: (_value: TerminalChunk) => undefined }) as Channel<TerminalChunk>;
 const transferChannelFactory = () => ({ onmessage: (_value: SftpTransferSnapshot) => undefined }) as Channel<SftpTransferSnapshot>;
 document.title = 'MauLink · DEV deterministic Mock IPC';

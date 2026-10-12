@@ -68,7 +68,7 @@ const t = messages(shellMessages);
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
 const info = ref<AppInfo | null>(null);
 const updateInstallGate = ref(false);
-const updaterAdapter = props.updaterAdapter ?? (props.readOnly ? createUnsupportedUpdaterAdapter() : createNativeUpdaterAdapter());
+const updaterAdapter = props.updaterAdapter ?? (props.readOnly ? createUnsupportedUpdaterAdapter() : createNativeUpdaterAdapter(props.client));
 const updaterController = createUpdaterController(updaterAdapter, () => info.value?.version ?? '—');
 const store = createServerStore(createServerApi(props.client));
 const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));

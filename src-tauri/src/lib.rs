@@ -35,6 +35,7 @@ use maulink_core::{
 use server_appearance::{server_appearance_get, server_appearance_list, server_appearance_update};
 use state::DesktopState;
 use tauri::Manager;
+use updater::{updater_cancel, updater_check, updater_download, updater_install};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -128,6 +129,7 @@ pub fn run() {
                 server_appearance,
                 runtime_stats,
                 settings,
+                updater: updater::UpdaterState::default(),
                 local_files,
                 credentials,
                 credential_reveal,
@@ -210,6 +212,10 @@ pub fn run() {
             workspace_set_activity,
             settings_get,
             settings_update,
+            updater_check,
+            updater_download,
+            updater_install,
+            updater_cancel,
             local_file_select,
             background_image_import,
             background_image_get,

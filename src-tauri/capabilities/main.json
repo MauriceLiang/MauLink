@@ -74,9 +74,10 @@
     "allow-background-image-import",
     "allow-background-image-get",
     "allow-background-image-delete",
-    "updater:allow-check",
-    "updater:allow-download",
-    "updater:allow-install",
+    "allow-updater-check",
+    "allow-updater-download",
+    "allow-updater-install",
+    "allow-updater-cancel",
     "process:allow-restart"
   ]
 }

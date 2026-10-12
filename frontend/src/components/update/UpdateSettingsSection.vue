@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import BaseButton from '../base/BaseButton.vue';
+import BaseSelect from '../base/BaseSelect.vue';
 import { messages } from '../../i18n/locale';
 import { updaterMessages } from '../../i18n/updater';
-import type { UpdaterController, UpdateErrorCode } from '../../updater/updater-types';
+import type { UpdateChannel, UpdaterController, UpdateErrorCode } from '../../updater/updater-types';
 
-const props = defineProps<{ controller: UpdaterController; currentVersion: string; installBusy?: boolean }>();
-const emit = defineEmits<{ 'install-request': []; 'install-deferred': [] }>();
+const props = defineProps<{ controller: UpdaterController; currentVersion: string; channel: UpdateChannel; channelSaved?: boolean; installBusy?: boolean }>();
+const emit = defineEmits<{ 'update:channel': [channel: UpdateChannel]; 'install-request': []; 'install-deferred': [] }>();
 const t = messages(updaterMessages);
 const state = computed(() => props.controller.state.value);
+const channelOptions = computed(() => [
+  { value: 'stable', label: t('stableChannel') },
+  { value: 'preview', label: t('previewChannel') },
+]);
+const channelModel = computed({
+  get: () => props.channel,
+  set: (value: string) => {
+    if (value === 'stable' || value === 'preview') emit('update:channel', value);
+  },
+});
+const channelDisabled = computed(() => props.installBusy || ['checking', 'downloading', 'confirmingInstall', 'installing'].includes(state.value.phase));
 const percentage = computed(() => {
   const { downloadedBytes, totalBytes } = state.value;
   return totalBytes ? Math.min(100, Math.floor(downloadedBytes / totalBytes * 100)) : null;
@@ -22,8 +34,10 @@ function formatBytes(value: number) {
 function statusText() {
   switch (state.value.phase) {
     case 'checking': return t('checking');
+    case 'channelEmpty': return t('channelEmpty');
     case 'upToDate': return t('upToDate');
     case 'available': return t('foundUpdate', { version: state.value.latestVersion ?? '—' });
+    case 'blocked': return t('downgradeBlocked');
     case 'downloading': return t('downloading');
     case 'downloaded': return t('downloaded');
     case 'confirmingInstall': return t('confirmingInstall');
@@ -62,15 +76,24 @@ function deferInstall() { emit('install-deferred'); }
         <h2 id="update-settings-title">{{ t('title') }}</h2>
         <p>{{ t('description') }}</p>
       </div>
-      <div class="update-settings__version"><span>{{ t('currentVersion') }}</span><code>{{ currentVersion }}</code></div>
+      <div class="update-settings__version"><span>{{ t('currentVersion') }}</span><code>{{ currentVersion }}</code><span class="update-settings__installed-kind">{{ t(state.installedChannel === 'preview' ? 'installedPreview' : 'installedStable') }}</span></div>
     </div>
 
-    <p v-if="statusText()" class="update-settings__status" role="status" aria-live="polite">{{ statusText() }}</p>
-    <div v-if="state.phase === 'available' && state.releaseNotes" class="update-settings__notes">
+    <div class="update-settings__channel-row">
+      <BaseSelect v-model="channelModel" :label="t('updateChannel')" :options="channelOptions" :disabled="channelDisabled" />
+      <p>{{ channel === 'preview' ? t('previewWarning') : t('stableDescription') }}</p>
+    </div>
+    <p v-if="channelSaved !== false && state.phase === 'blocked'" class="update-settings__status" role="status" aria-live="polite">
+      {{ t('blockedVersion', { current: state.currentVersion, target: state.latestVersion ?? '—' }) }}
+    </p>
+
+    <p v-if="channelSaved === false" class="update-settings__status" role="status" aria-live="polite">{{ t('savingChannel') }}</p>
+    <p v-else-if="statusText()" class="update-settings__status" role="status" aria-live="polite">{{ statusText() }}</p>
+    <div v-if="channelSaved !== false && state.phase === 'available' && state.releaseNotes" class="update-settings__notes">
       <h3>{{ t('releaseNotes') }}</h3>
       <p>{{ state.releaseNotes }}</p>
     </div>
-    <div v-if="state.phase === 'downloading'" class="update-settings__progress">
+    <div v-if="channelSaved !== false && state.phase === 'downloading'" class="update-settings__progress">
       <div
         class="update-settings__progress-track"
         role="progressbar"
@@ -85,8 +108,8 @@ function deferInstall() { emit('install-deferred'); }
       <span>{{ percentage === null ? downloadedLabel : `${downloadedLabel} · ${percentage}%` }}</span>
     </div>
 
-    <div class="update-settings__actions">
-      <BaseButton v-if="['idle', 'upToDate', 'error'].includes(state.phase)" variant="secondary" :disabled="installBusy" @click="check">{{ t('check') }}</BaseButton>
+    <div v-if="channelSaved !== false" class="update-settings__actions">
+      <BaseButton v-if="['idle', 'upToDate', 'channelEmpty', 'blocked', 'error'].includes(state.phase)" variant="secondary" :disabled="installBusy" @click="check">{{ t('check') }}</BaseButton>
       <template v-else-if="state.phase === 'available'">
         <BaseButton variant="secondary" :disabled="installBusy" @click="dismiss">{{ t('later') }}</BaseButton>
         <BaseButton variant="primary" :disabled="installBusy" @click="download">{{ t('download') }}</BaseButton>
