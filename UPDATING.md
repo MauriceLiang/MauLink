@@ -4,7 +4,7 @@
 
 截至 2026-10-12，设置中的更新 UI、Tauri 插件注册、Mock Harness、下载状态机和安装前安全门禁已经实现。真实在线更新**尚未启用**：应用没有更新 HTTPS endpoint 或受信公钥配置；原有 `v0.1.1-rc.7` 安装包也不含本次新增的 updater runtime，无法通过应用内更新升级。启用前需要先手动安装首个带 updater 的完整安装包。
 
-目前不创建更新索引、不签名更新归档、不更改发布工作流、不发布 Release 或 Tag。缺少更新地址和公钥时，桌面应用会显示“此版本尚未配置受信任的更新来源”；浏览器 Harness 使用本地 Mock，绝不会调用真实 updater 或外部更新服务。
+应用内更新通道仍未启用：目前不创建更新索引，也不签名 Tauri updater 归档。通用安装包的 Release 流程单独维护；版本递增的 PR 合并到 `main` 后会自动构建并公开 Release。没有更新地址和公钥时，桌面应用会显示“此版本尚未配置受信任的更新来源”；浏览器 Harness 使用本地 Mock，绝不会调用真实 updater 或外部更新服务。
 
 ## 已实现部分
 
@@ -52,4 +52,4 @@ cargo check -p maulink-desktop --locked
 | P5 跨版本真机安装 | BLOCKED | 需要两个全新递增版本以及 macOS ARM64、Intel 和 Windows x64 真机。 |
 | P6 文档和交付 | IN PROGRESS | 本文及 `RELEASING.md` 已更新；代码交付后还需由负责人创建 PR 并查看 Actions。 |
 
-发布责任和已有 DMG/MSI、`SHA256SUMS`、Draft 流程见 [RELEASING.md](RELEASING.md)。
+发布责任和 DMG/MSI、`SHA256SUMS` 及自动 Release 流程见 [RELEASING.md](RELEASING.md)。
