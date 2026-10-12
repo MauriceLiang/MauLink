@@ -125,10 +125,11 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - `v0.1.1-rc.2`：版本、分支可达性、前端检查和版本脚本检查 PASS；Linux Core 测试因 `credentials.rs` 中不支持平台分支仍引用未定义的 `store` 而编译失败（E0425），三个平台构建跳过，未创建 Draft Release。既有 `rc.2` Tag 保持不变。
 - `v0.1.1-rc.3`：发布版本和分支检查、前端检查、Linux Core fmt/test、macOS ARM64 与 Intel DMG 全部 PASS，确认凭据存储条件编译修复生效。Windows checkout 被 `docs/refactor/screenshots/color-v1-review/` 下超长清单文件名阻断，未进入 MSI 构建；未创建 Draft Release。既有 `rc.3` Tag 保持不变。
 - `v0.1.1-rc.4`：Windows checkout 的 `core.longpaths=true` 修复生效；发布校验、前端、Linux Core、macOS ARM64 与 Intel DMG 全部 PASS。Windows MSI 编译失败：`native_identity.rs` 从错误模块导入 `IAsyncOperation`（E0432），并把 Tauri 的 `windows 0.61.3` HWND 传给直接依赖的 `windows 0.62.2` API（E0308）；未创建 Draft Release。既有 `rc.4` Tag 保持不变。
-- `v0.1.1-rc.5`：将 Windows API 依赖对齐至 `windows 0.61.3`，并从 `windows-future` 导入 `IAsyncOperation`；分支校验和 Windows MSI 构建待新 Tag 验证。
-- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。GitHub Actions `rc.3`、`rc.4` 构建 PASS；`rc.5` 待验证。
-- macOS Intel DMG：`v0.1.1-rc.3`、`rc.4` GitHub Actions 构建 PASS；`rc.5` 构建待验证。
-- Windows x64 MSI：`rc.3` 因 checkout 路径过长失败，`rc.4` 通过 checkout 后在 Rust 编译时报错；`rc.5` 构建待验证。
+- `v0.1.1-rc.5`：发布校验、前端、Linux Core 和 macOS ARM64 DMG PASS；Windows checkout 与 `windows` API 类型修复 PASS。Windows MSI 编译在把 `IAsyncOperation` 直接传给 `block_on` 时失败（E0277：该类型通过 `IntoFuture` 工作），Intel DMG 当时仍在构建；未创建 Draft Release。既有 `rc.5` Tag 保持不变。
+- `v0.1.1-rc.6`：将 `IAsyncOperation` 放入 async block 后再交给 `block_on`；Windows MSI 和 macOS Intel DMG 状态待新 Tag 验证。
+- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。GitHub Actions `rc.3`、`rc.4`、`rc.5` 构建 PASS；`rc.6` 待验证。
+- macOS Intel DMG：`v0.1.1-rc.3`、`rc.4` GitHub Actions 构建 PASS；`rc.5` 尚未完成，`rc.6` 待验证。
+- Windows x64 MSI：`rc.3` 因 checkout 路径过长失败，`rc.4` 通过 checkout 后首轮 Rust 编译时报错，`rc.5` 编译再次失败；`rc.6` 待验证。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
 - Draft Release URL：无。
 - 公开发行状态：未公开；工作流只创建 Draft，发布需负责人审查确认。
