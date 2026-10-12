@@ -29,12 +29,17 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Tag must point to a commit already merged into main
+      - name: Tag must point to an approved release branch
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main:refs/remotes/origin/main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            git fetch origin dev/app-updates:refs/remotes/origin/dev/app-updates
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/dev/app-updates
+          else
+            git fetch origin main:refs/remotes/origin/main
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          fi
       - name: Manifest and tag versions must agree
         run: node tools/check-release-version.mjs "$GITHUB_REF_NAME"
       - name: Frontend checks

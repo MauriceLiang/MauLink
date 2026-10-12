@@ -32,16 +32,16 @@ node tools/check-release-version.mjs v0.1.1-rc.1
 
 检查并提交 `Cargo.lock` 中 MauLink 自身 package 的版本变化；确认没有无关依赖升级。`check-release-version.mjs` 也检查严格的 `vX.Y.Z` / `vX.Y.Z-rc.N` SemVer 标签、npm lock 根版本以及正式应用标识 `io.maulink.desktop`。不要为测试构建更改正式标识、应用数据目录或凭据行为。
 
-版本 PR 合并且 CI 成功后，由仓库负责人检查版本和变更记录，再明确批准并推送版本 Tag。RC 示例：
+稳定版本 PR 合并且 CI 成功后，由仓库负责人检查版本和变更记录，再推送稳定版 Tag。稳定版 Tag 必须指向 `main` 历史中的提交。RC 测试包可以从已推送的 `dev/app-updates` 分支构建，以便在用户创建 PR 前验证跨平台打包；RC Tag 必须指向该分支历史中的提交，并会生成 Draft Release，不会公开发布。RC 示例：
 
 ```bash
-git switch main
-git pull --ff-only origin main
+git switch dev/app-updates
+git pull --ff-only origin dev/app-updates
 git tag v0.1.1-rc.1
 git push origin v0.1.1-rc.1
 ```
 
-正式版本按相同流程使用 `vX.Y.Z`。**不要移动或重写已经公开的 Tag。**本实施不创建版本 Tag；`release.yml` 仅由已存在的 `v*` Tag 触发，并会阻止不在 `main` 历史中的提交。
+正式版本使用 `vX.Y.Z`，并且只允许从 `main` 历史打 Tag。**不要移动或重写已经公开的 Tag。**`release.yml` 由 `v*` Tag 触发：RC 标签必须在 `dev/app-updates` 历史，稳定版本标签必须在 `main` 历史。
 
 ## 自动构建与 Draft Release
 
@@ -121,9 +121,9 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 
 ### 发布结果
 
-- Tag：未创建；测试 Tag 需要负责人明确批准。
-- Validate job：NOT RUN；需负责人批准 Tag 后触发。
-- macOS ARM64 DMG：本机 PASS，见上方文件名和大小；GitHub Actions 附件 NOT RUN，待负责人批准测试 Tag 后记录。
+- Tag：待推送版本同步提交后创建 `v0.1.1-rc.1`；负责人已明确批准。
+- Validate job：待推送测试 Tag 后触发。
+- macOS ARM64 DMG：本机 `0.1.0` PASS，见上方文件名和大小；本轮 GitHub Actions 附件待触发。
 - macOS Intel DMG：NOT RUN；附件名、大小待真实 Runner 构建后记录。
 - Windows x64 MSI：NOT RUN；附件名、大小待真实 Runner 构建后记录。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
@@ -141,6 +141,6 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - `npm ci` 审计提示当前依赖树有 2 项 advisories（1 low、1 high）；本次没有升级依赖，需单独评估和修复。
 - Apple Silicon Mac、Intel Mac、Windows x64 真机、覆盖安装保留数据：均 NOT RUN。
 - GitHub PR 运行：由负责人创建 PR 后验证并按需配置 required checks。
-- 首次测试 Tag：由负责人确认版本（例如 `v0.1.1-rc.1`）并明确批准后再推送。
+- 首次测试 Tag：负责人已确认 `v0.1.1-rc.1` 并授权；版本清单同步提交推送后创建。
 - 公开稳定发行前：负责人确认许可证和第三方依赖许可；仓库目前缺少许可证文本。
 - 签名、公证、Windows 可信签名和 Updater：后续阶段，需用户提供相应账户配置或密钥管理方案。
