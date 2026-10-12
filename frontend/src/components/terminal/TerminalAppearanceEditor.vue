@@ -112,16 +112,37 @@ function updateOverlay(value: TerminalBackgroundOverlayKind) { updateImage('over
       </details>
 
       <div class="terminal-appearance-image-grid">
-        <BaseSelect
-          :model-value="modelValue.backgroundImage.fit"
-          :label="t('imageFit')"
-          :disabled="disabled"
-          :options="[
-            { value: 'cover', label: t('fitCover') }, { value: 'contain', label: t('fitContain') },
-            { value: 'stretch', label: t('fitStretch') }, { value: 'original', label: t('fitOriginal') }, { value: 'tile', label: t('fitTile') },
-          ]"
-          @update:model-value="updateFit($event as TerminalBackgroundFit)"
-        />
+        <div class="terminal-appearance-image-controls">
+          <BaseSelect
+            class="terminal-appearance-fit-field"
+            :model-value="modelValue.backgroundImage.fit"
+            :label="t('imageFit')"
+            :disabled="disabled"
+            :options="[
+              { value: 'cover', label: t('fitCover') }, { value: 'contain', label: t('fitContain') },
+              { value: 'stretch', label: t('fitStretch') }, { value: 'original', label: t('fitOriginal') }, { value: 'tile', label: t('fitTile') },
+            ]"
+            @update:model-value="updateFit($event as TerminalBackgroundFit)"
+          />
+          <fieldset class="terminal-appearance-overlay-field" :disabled="disabled">
+            <legend>{{ t('overlayKind') }}</legend>
+            <RadioGroupRoot
+              class="terminal-appearance-segmented"
+              :model-value="modelValue.backgroundImage.overlayKind"
+              :aria-label="t('overlayKind')"
+              :disabled="disabled"
+              @update:model-value="updateOverlay($event as TerminalBackgroundOverlayKind)"
+            >
+              <RadioGroupItem
+                v-for="item in [{ value: 'dark', key: 'overlayDark' }, { value: 'light', key: 'overlayLight' }] as const"
+                :key="item.value"
+                class="terminal-appearance-segment"
+                :value="item.value"
+                :aria-label="t(item.key)"
+              >{{ t(item.key) }}</RadioGroupItem>
+            </RadioGroupRoot>
+          </fieldset>
+        </div>
         <TerminalBackgroundPositionPicker
           :model-value="modelValue.backgroundImage.position"
           :label="t('imagePosition')"
@@ -129,21 +150,6 @@ function updateOverlay(value: TerminalBackgroundOverlayKind) { updateImage('over
           @update:model-value="updatePosition"
         />
       </div>
-
-      <fieldset class="terminal-appearance-overlay-field" :disabled="disabled">
-        <legend>{{ t('overlayKind') }}</legend>
-        <RadioGroupRoot
-          class="terminal-appearance-segmented"
-          :model-value="modelValue.backgroundImage.overlayKind"
-          :aria-label="t('overlayKind')"
-          @update:model-value="updateOverlay($event as TerminalBackgroundOverlayKind)"
-        >
-          <label v-for="item in [{ value: 'dark', key: 'overlayDark' }, { value: 'light', key: 'overlayLight' }] as const" :key="item.value">
-            <RadioGroupItem class="terminal-appearance-segmented-radio" :value="item.value" />
-            <span>{{ t(item.key) }}</span>
-          </label>
-        </RadioGroupRoot>
-      </fieldset>
 
       <div class="terminal-appearance-sliders">
         <BaseSlider :model-value="modelValue.backgroundImage.imageOpacity" :label="t('imageOpacity')" :min="10" :max="100" unit="%" :disabled="disabled" @update:model-value="updateImage('imageOpacity', $event)" />

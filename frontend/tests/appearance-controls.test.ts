@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import BaseColorPicker from '../src/components/base/BaseColorPicker.vue';
 import BaseSlider from '../src/components/base/BaseSlider.vue';
+import TerminalAppearanceEditor from '../src/components/terminal/TerminalAppearanceEditor.vue';
 import TerminalBackgroundPositionPicker from '../src/components/terminal/TerminalBackgroundPositionPicker.vue';
 import TerminalThemeModeSelector from '../src/components/terminal/TerminalThemeModeSelector.vue';
+import type { TerminalAppearanceSettings } from '../../contracts/v1/TerminalAppearanceSettings';
+import { defaultSettings } from '../src/terminal/preferences';
 
 const wrappers: VueWrapper[] = [];
 function mounted(component: Parameters<typeof mount>[0], props: Record<string, unknown> = {}) {
@@ -12,6 +15,14 @@ function mounted(component: Parameters<typeof mount>[0], props: Record<string, u
   return wrapper;
 }
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); document.body.innerHTML = ''; });
+
+function imageAppearance(): TerminalAppearanceSettings {
+  return {
+    themeMode: 'image',
+    customColors: { ...defaultSettings.terminalCustomColors },
+    backgroundImage: { ...defaultSettings.terminalBackgroundImage },
+  };
+}
 
 describe('appearance controls', () => {
   it('clamps a slider value, formats its unit, and responds to keyboard changes', async () => {
@@ -58,6 +69,47 @@ describe('appearance controls', () => {
       await button.trigger('click');
       expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([expected[index]]);
     }
+  });
+
+  it('renders the image controls in two columns and keeps overlay choices keyboard accessible', async () => {
+    const modelValue = imageAppearance();
+    const wrapper = mount(TerminalAppearanceEditor, { props: { modelValue, settings: defaultSettings }, attachTo: document.body });
+    wrappers.push(wrapper);
+    const grid = wrapper.get('.terminal-appearance-image-grid');
+    const controls = grid.get('.terminal-appearance-image-controls');
+    const radios = wrapper.findAll('.terminal-appearance-segmented [role="radio"]');
+
+    expect(grid.element.children).toHaveLength(2);
+    expect(grid.element.children[0]).toBe(controls.element);
+    expect(grid.element.children[1]).toBe(grid.get('.terminal-position-field').element);
+    expect(controls.find('.terminal-appearance-fit-field').exists()).toBe(true);
+    expect(controls.find('.terminal-appearance-overlay-field').exists()).toBe(true);
+    expect(grid.find('.terminal-appearance-overlay-field').exists()).toBe(true);
+    expect(wrapper.find('.terminal-appearance-image-grid > .terminal-appearance-overlay-field').exists()).toBe(false);
+
+    expect(radios).toHaveLength(2);
+    expect(radios.filter(radio => radio.attributes('data-state') === 'checked')).toHaveLength(1);
+    expect(radios[0]?.attributes('data-state')).toBe('checked');
+    expect(wrapper.find('.terminal-appearance-segmented-radio').exists()).toBe(false);
+
+    await wrapper.get('[aria-label="白色"]').trigger('click');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([{
+      ...modelValue,
+      backgroundImage: { ...modelValue.backgroundImage, overlayKind: 'light' },
+    }]);
+    await wrapper.setProps({ modelValue: { ...modelValue, backgroundImage: { ...modelValue.backgroundImage, overlayKind: 'light' } } });
+    expect(wrapper.findAll('.terminal-appearance-segmented [data-state="checked"]')).toHaveLength(1);
+    expect(wrapper.get('[aria-label="白色"]').attributes('data-state')).toBe('checked');
+
+    const lightRadio = wrapper.get('[aria-label="白色"]');
+    (lightRadio.element as HTMLElement).focus();
+    await lightRadio.trigger('keydown', { key: 'ArrowRight' });
+    await new Promise(resolve => window.setTimeout(resolve, 0));
+    await flushPromises();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([{
+      ...modelValue,
+      backgroundImage: { ...modelValue.backgroundImage, overlayKind: 'dark' },
+    }]);
   });
 
   it('exposes a keyboard-operable single-choice theme group', async () => {
