@@ -1,21 +1,80 @@
-name: Build and Draft Release
+name: Build and Publish Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate release tag and source
+  plan:
+    name: Detect version release
     runs-on: ubuntu-24.04
+    outputs:
+      should_release: ${{ steps.plan.outputs.should_release }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect a new application version
+        id: plan
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "Cannot determine the previous main commit" >&2
+            exit 1
+          fi
+
+          version=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json')).version")
+          tag="v${version}"
+          node tools/check-release-version.mjs "$tag"
+
+          previous_version=$(git show "$BEFORE_SHA:src-tauri/tauri.conf.json" | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk).on("end", () => process.stdout.write(JSON.parse(input).version))')
+          if [[ "$previous_version" == "$version" ]]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "Application version unchanged; skipping release."
+            exit 0
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            tag_sha=$(git rev-parse "${tag}^{commit}")
+            if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
+              echo "Release tag $tag already points to a different commit; increment the application version." >&2
+              exit 1
+            fi
+
+            if release_is_draft=$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null) && [[ "$release_is_draft" == "false" ]]; then
+              echo "Release $tag is already published; skipping duplicate publication."
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Validate release source
+    runs-on: ubuntu-24.04
+    needs: plan
+    if: needs.plan.outputs.should_release == 'true'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -29,19 +88,8 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Tag must point to an approved release branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            git fetch origin dev/app-updates:refs/remotes/origin/dev/app-updates
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/dev/app-updates
-          else
-            git fetch origin main:refs/remotes/origin/main
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          fi
       - name: Manifest and tag versions must agree
-        run: node tools/check-release-version.mjs "$GITHUB_REF_NAME"
+        run: node tools/check-release-version.mjs "${{ needs.plan.outputs.tag }}"
       - name: Frontend checks
         run: |
           npm --prefix frontend ci
@@ -59,7 +107,8 @@ jobs:
 
   build:
     name: Package / ${{ matrix.kind }}
-    needs: validate
+    needs: [plan, validate]
+    if: needs.plan.outputs.should_release == 'true' && needs.validate.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -106,7 +155,7 @@ jobs:
       - name: Generate Windows MSI version override
         if: runner.os == 'Windows'
         shell: bash
-        run: node tools/write-msi-config.mjs "$GITHUB_REF_NAME"
+        run: node tools/write-msi-config.mjs "${{ needs.plan.outputs.tag }}"
       - name: Build Windows MSI
         if: runner.os == 'Windows'
         run: >-
@@ -146,8 +195,7 @@ jobs:
             exit 1
           fi
           mkdir -p release-out
-          version="${GITHUB_REF_NAME#v}"
-          cp "${files[0]}" "release-out/MauLink_${version}_${{ matrix.target }}.${{ matrix.bundle }}"
+          cp "${files[0]}" "release-out/MauLink_${{ needs.plan.outputs.version }}_${{ matrix.target }}.${{ matrix.bundle }}"
       - uses: actions/upload-artifact@v7
         with:
           name: maulink-${{ matrix.kind }}
@@ -155,9 +203,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  publish-draft:
-    name: Publish GitHub Release as DRAFT
-    needs: build
+  publish-release:
+    name: Publish GitHub Release
+    needs: [plan, build]
+    if: needs.plan.outputs.should_release == 'true' && needs.build.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -178,24 +227,34 @@ jobs:
             echo "Expected 3 installers, got ${#files[@]}"
             exit 1
           fi
-          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_aarch64-apple-darwin.dmg"
-          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_x86_64-apple-darwin.dmg"
-          test -f "release-dist/MauLink_${GITHUB_REF_NAME#v}_x86_64-pc-windows-msvc.msi"
+          test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_aarch64-apple-darwin.dmg"
+          test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-apple-darwin.dmg"
+          test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-pc-windows-msvc.msi"
       - name: Generate SHA256 checksums
         shell: bash
         run: |
           set -euo pipefail
           cd release-dist
           sha256sum -- *.dmg *.msi > SHA256SUMS
-      - name: Create draft release with all assets
+      - name: Create or complete release automatically
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          release_flags=(--draft --verify-tag --title "MauLink ${GITHUB_REF_NAME}" \
-            --notes "Cross-platform test packages. macOS builds are ad-hoc signed and NOT notarized; Windows MSI is not Authenticode signed. Validate before publishing.")
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            release_flags+=(--prerelease)
+          if release_is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [[ "$release_is_draft" == "false" ]]; then
+              echo "Release $RELEASE_TAG is already published."
+              exit 0
+            fi
+            gh release upload "$RELEASE_TAG" release-dist/* --clobber
+          else
+            release_flags=(--draft --target "$GITHUB_SHA" --title "MauLink ${RELEASE_TAG}" \
+              --notes "Cross-platform MauLink release packages. macOS builds are ad-hoc signed and NOT notarized; Windows MSI is not Authenticode signed.")
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              release_flags+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" "${release_flags[@]}" release-dist/*
           fi
-          gh release create "$GITHUB_REF_NAME" "${release_flags[@]}" release-dist/*
+          gh release edit "$RELEASE_TAG" --draft=false
