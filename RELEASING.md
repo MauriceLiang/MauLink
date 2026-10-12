@@ -123,11 +123,12 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 
 - `v0.1.1-rc.1`：负责人已授权并推送。分支可达性和版本一致性校验 PASS；前端单测 `files.test.ts` 有 1 项在 GitHub Runner 上超过 5 秒而超时，验证 job 失败，三个平台构建均跳过，未创建 Draft Release。
 - `v0.1.1-rc.2`：版本、分支可达性、前端检查和版本脚本检查 PASS；Linux Core 测试因 `credentials.rs` 中不支持平台分支仍引用未定义的 `store` 而编译失败（E0425），三个平台构建跳过，未创建 Draft Release。既有 `rc.2` Tag 保持不变。
-- `v0.1.1-rc.3`：发布版本和分支检查、前端检查、Linux Core fmt/test 全部 PASS，确认凭据存储条件编译修复生效。Windows 打包 job 在 checkout 时被 `docs/refactor/screenshots/color-v1-review/` 下超长清单文件名阻断，未进入 Windows MSI 构建；三平台构建未全部通过，未创建 Draft Release。既有 `rc.3` Tag 保持不变。
-- `v0.1.1-rc.4`：为安装依赖前的 Windows checkout 注入 `core.longpaths=true`，处理 RC3 发现的文件名长度限制；分支检查、Windows 检出和跨平台安装包构建待新 Tag 验证。
-- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。
-- macOS Intel DMG：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
-- Windows x64 MSI：`v0.1.1-rc.2` GitHub Actions 因验证 job 失败而跳过；`rc.3` 附件名、大小待真实 Runner 构建后记录。
+- `v0.1.1-rc.3`：发布版本和分支检查、前端检查、Linux Core fmt/test、macOS ARM64 与 Intel DMG 全部 PASS，确认凭据存储条件编译修复生效。Windows checkout 被 `docs/refactor/screenshots/color-v1-review/` 下超长清单文件名阻断，未进入 MSI 构建；未创建 Draft Release。既有 `rc.3` Tag 保持不变。
+- `v0.1.1-rc.4`：Windows checkout 的 `core.longpaths=true` 修复生效；发布校验、前端、Linux Core、macOS ARM64 与 Intel DMG 全部 PASS。Windows MSI 编译失败：`native_identity.rs` 从错误模块导入 `IAsyncOperation`（E0432），并把 Tauri 的 `windows 0.61.3` HWND 传给直接依赖的 `windows 0.62.2` API（E0308）；未创建 Draft Release。既有 `rc.4` Tag 保持不变。
+- `v0.1.1-rc.5`：将 Windows API 依赖对齐至 `windows 0.61.3`，并从 `windows-future` 导入 `IAsyncOperation`；分支校验和 Windows MSI 构建待新 Tag 验证。
+- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。GitHub Actions `rc.3`、`rc.4` 构建 PASS；`rc.5` 待验证。
+- macOS Intel DMG：`v0.1.1-rc.3`、`rc.4` GitHub Actions 构建 PASS；`rc.5` 构建待验证。
+- Windows x64 MSI：`rc.3` 因 checkout 路径过长失败，`rc.4` 通过 checkout 后在 Rust 编译时报错；`rc.5` 构建待验证。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
 - Draft Release URL：无。
 - 公开发行状态：未公开；工作流只创建 Draft，发布需负责人审查确认。

@@ -37,4 +37,5 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 objc2-local-authentication = { version = "0.3.2", default-features = false, features = ["LAContext", "LAError", "LAPublicDefines", "block2", "std"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.2", default-features = false, features = ["std", "Foundation", "Security_Credentials_UI", "Win32_Foundation", "Win32_System_WinRT"] }
+windows = { version = "0.61.3", default-features = false, features = ["std", "Foundation", "Security_Credentials_UI", "Win32_Foundation", "Win32_System_WinRT"] }
+windows-future = "0.2.1"

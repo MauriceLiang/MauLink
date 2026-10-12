@@ -173,13 +173,13 @@ mod platform {
     use tauri::Manager;
     use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
     use windows::{
-        Foundation::IAsyncOperation,
         Security::Credentials::UI::{
             UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
         },
         Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize},
         core::{HSTRING, factory},
     };
+    use windows_future::IAsyncOperation;
 
     use super::*;
 
