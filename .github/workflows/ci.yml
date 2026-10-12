@@ -35,6 +35,8 @@ jobs:
         run: npm --prefix frontend run build
       - name: Release version checker tests
         run: node --test tools/check-release-version.test.mjs
+      - name: MSI version mapping tests
+        run: node --test tools/msi-version.test.mjs
       - name: Visual manifest checks (not screenshot capture)
         run: |
           node --test frontend/visual/capture.test.mjs

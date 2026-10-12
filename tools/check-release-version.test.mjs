@@ -39,6 +39,19 @@ test('accepts a stable release tag when all manifests match', () => {
 test('accepts a release candidate tag when all manifests match', () => {
   const result = runChecker({ tag: 'v0.1.0-rc.1', version: '0.1.0-rc.1' });
   assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Windows MSI ProductVersion: 0\.1\.1/);
+});
+
+test('rejects a SemVer prerelease unsupported by the MSI mapping', () => {
+  const version = '0.1.1-beta.1';
+  const result = runChecker({
+    tag: 'v' + version,
+    version,
+    frontendVersion: version,
+    lockVersion: version,
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /MSI version validation failed: Unsupported MauLink MSI release version/);
 });
 
 test('rejects invalid release tag syntax', () => {

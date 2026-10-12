@@ -1,6 +1,6 @@
 # MauLink 构建与发布
 
-本文说明 MauLink 的 PR 检查、跨平台安装包构建和 GitHub Draft Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。Linux、Windows ARM64、可信代码签名、公证和应用内更新均不在本期支持范围。
+本文说明 MauLink 的 PR 检查、跨平台安装包构建和 GitHub Draft Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。packaging-smoke.yml 在 PR 或手动触发时只构建并检查三个平台的安装包，上传短期测试产物，不创建 Tag 或 Release。Linux、Windows ARM64、可信代码签名、公证和应用内更新均不在本期支持范围。
 
 ## 首次启用
 
@@ -126,10 +126,10 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - `v0.1.1-rc.3`：发布版本和分支检查、前端检查、Linux Core fmt/test、macOS ARM64 与 Intel DMG 全部 PASS，确认凭据存储条件编译修复生效。Windows checkout 被 `docs/refactor/screenshots/color-v1-review/` 下超长清单文件名阻断，未进入 MSI 构建；未创建 Draft Release。既有 `rc.3` Tag 保持不变。
 - `v0.1.1-rc.4`：Windows checkout 的 `core.longpaths=true` 修复生效；发布校验、前端、Linux Core、macOS ARM64 与 Intel DMG 全部 PASS。Windows MSI 编译失败：`native_identity.rs` 从错误模块导入 `IAsyncOperation`（E0432），并把 Tauri 的 `windows 0.61.3` HWND 传给直接依赖的 `windows 0.62.2` API（E0308）；未创建 Draft Release。既有 `rc.4` Tag 保持不变。
 - `v0.1.1-rc.5`：发布校验、前端、Linux Core 和 macOS ARM64 DMG PASS；Windows checkout 与 `windows` API 类型修复 PASS。Windows MSI 编译在把 `IAsyncOperation` 直接传给 `block_on` 时失败（E0277：该类型通过 `IntoFuture` 工作），Intel DMG 当时仍在构建；未创建 Draft Release。既有 `rc.5` Tag 保持不变。
-- `v0.1.1-rc.6`：将 `IAsyncOperation` 放入 async block 后再交给 `block_on`；Windows MSI 和 macOS Intel DMG 状态待新 Tag 验证。
-- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。GitHub Actions `rc.3`、`rc.4`、`rc.5` 构建 PASS；`rc.6` 待验证。
-- macOS Intel DMG：`v0.1.1-rc.3`、`rc.4` GitHub Actions 构建 PASS；`rc.5` 尚未完成，`rc.6` 待验证。
-- Windows x64 MSI：`rc.3` 因 checkout 路径过长失败，`rc.4` 通过 checkout 后首轮 Rust 编译时报错，`rc.5` 编译再次失败；`rc.6` 待验证。
+- `v0.1.1-rc.6`：发布校验、前端、Linux Core 和 macOS Intel DMG PASS；Windows Rust 可执行文件编译 PASS，但 MSI bundler 拒绝 `0.1.1-rc.6` 预发布版本格式，未创建 Draft Release。macOS ARM64 首次 `bundle_dmg.sh` 失败；同 SHA 的 job 重跑成功。
+- macOS ARM64 DMG：本机 `0.1.1-rc.2` PASS — `target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.2_aarch64.dmg`（12.60 MiB），`hdiutil verify` 返回 VALID；只读挂载确认 arm64 Mach-O、版本 `0.1.1-rc.2`、标识 `io.maulink.desktop`，`codesign --verify --deep --strict` 通过。SHA-256：`9ddcb1a6cd5dd7f55acfedd783af6f8e96cc67478e92be0b52959a3c88921a9c`。首次沙箱构建在 DMG bundler 失败，授权重试后通过；产物为 ad-hoc 签名、未公证。GitHub Actions `rc.3`、`rc.4`、`rc.5` 构建 PASS。`rc.6` 同 SHA 重跑 PASS，产物 `maulink-macos-arm64`（13,164,293 bytes）；首次失败未稳定复现，根因未确认。
+- macOS Intel DMG：`v0.1.1-rc.3`、`rc.4`、`rc.6` GitHub Actions 构建 PASS；`rc.5` Intel job 尚未完成。
+- Windows x64 MSI：`rc.3` 因 checkout 路径过长失败；`rc.4`、`rc.5` 分别遇到 WinRT API 类型编译错误；`rc.6` Rust 可执行文件编译 PASS，MSI bundler 因 SemVer prerelease 格式失败。实现了仅用于 MSI `ProductVersion` 的映射和实际 MSI 属性检查；需由 PR smoke job 在 Windows Runner 验证真实 MSI。
 - SHA256SUMS：未生成；随三平台构建通过后由工作流生成。
 - Draft Release URL：无。
 - 公开发行状态：未公开；工作流只创建 Draft，发布需负责人审查确认。
@@ -145,6 +145,16 @@ file /Applications/MauLink.app/Contents/MacOS/maulink
 - `npm ci` 审计提示当前依赖树有 2 项 advisories（1 low、1 high）；本次没有升级依赖，需单独评估和修复。
 - Apple Silicon Mac、Intel Mac、Windows x64 真机、覆盖安装保留数据：均 NOT RUN。
 - GitHub PR 运行：由负责人创建 PR 后验证并按需配置 required checks。
-- 测试 Tag：`v0.1.1-rc.1`、`v0.1.1-rc.2` 已推送且保留原值；下一次验证使用 `v0.1.1-rc.3`，不覆写既有 Tag。
+- 测试 Tag：`v0.1.1-rc.1` 至 `v0.1.1-rc.6` 均保留原值；本次未创建新 Tag。后续版本测试须在实现修复并经 PR 验证后另行决定，不覆写既有 Tag。
 - 公开稳定发行前：负责人确认许可证和第三方依赖许可；仓库目前缺少许可证文本。
 - 签名、公证、Windows 可信签名和 Updater：后续阶段，需用户提供相应账户配置或密钥管理方案。
+
+### RC6 Windows MSI 与打包烟测修复（2026-10-12）
+
+- 原始故障：`v0.1.1-rc.6` Windows job 已成功编译 `maulink.exe`，MSI bundler 随后报错 `optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target`。macOS ARM64 原 job 的 `bundle_dmg.sh` 失败；同一提交、同一 runner 的重跑成功并上传 DMG，因此未改 macOS 打包路径，失败原因仍未知。
+- MSI 版本规则：只接受 `MAJOR.MINOR.PATCH` 与 `MAJOR.MINOR.PATCH-rc.N`。映射 `ProductVersion = MAJOR.MINOR.(PATCH * 1000 + ordinal)`；RC ordinal 为 `1..998`，稳定版为 `999`。major/minor 上限为 `255`，patch 上限为 `64`。例如 `0.1.1-rc.6 -> 0.1.1006`，`0.1.1 -> 0.1.1999`，确保 RC、稳定版和下一 patch RC 的 Windows Installer 三段版本递增。超出范围或其他 prerelease 会在打包前失败。Tauri 正式版本、bundle identifier 与 UpgradeCode 未修改。
+- `tools/msi-version.mjs` 提供纯映射函数和边界测试；`tools/write-msi-config.mjs` 校验 tag 与应用版本一致后生成被 Git 忽略的 Windows 配置覆盖文件。release workflow 只在 Windows 构建传入该覆盖配置，并通过 Windows Installer COM 读取最终 MSI 的 `ProductVersion` 核验。PR CI 增加映射测试。
+- `.github/workflows/packaging-smoke.yml` 为 PR 和手动触发的三平台打包检查，权限为 `contents: read`，只上传保留 7 天的测试安装包；macOS job 另外收集失败日志、Runner 信息与生成的 `bundle_dmg.sh`。该工作流不创建 Tag、Release 或使用签名 Secret。PR 尚未由负责人创建，GitHub 三平台 smoke jobs 与 Windows 实际 MSI 检查仍待运行。
+- RC6 重跑记录：[GitHub Actions run 38205431669](https://github.com/MauriceLiang/MauLink/actions/runs/38205431669)：macOS ARM64 retry 与 Intel job 成功；Windows MSI job 因原 prerelease 版本格式失败；没有 Draft Release。
+- 本地验证：MSI 映射测试 22 项、版本检查测试 8 项通过；`cargo fmt --all -- --check`、Core Clippy、Core 与合约测试通过（111 项通过，10 项按仓库标记忽略）；前端类型检查、273 项 Vitest、Vite build 与 82 张截图的视觉清单校验通过。3 个 loopback 单测首次被沙盒拒绝，获准后重跑通过。Web visual Harness 的 transfer / dark / zh-CN 页面已在当前工作树打开。
+- 当前 tag `v0.1.1-rc.6` 没有被移动或重写，本次没有创建新 Tag、Release 或 PR。`cargo tauri inspect wix-upgrade-code` 得到 `9d777ff5-45a9-5b41-aa62-fcab3883e989`；尚无既有成功 MSI 可供核对，因此不能据此确认覆盖安装兼容性。

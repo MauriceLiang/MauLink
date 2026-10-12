@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { toMsiProductVersion } from './msi-version.mjs';
 
 const tag = process.argv[2] ?? '';
 const numeric = '(?:0|[1-9]\\d*)';
@@ -40,6 +41,13 @@ if (!semver.test(tag)) {
 
   if (tauri.identifier !== 'io.maulink.desktop') {
     console.error(`Unexpected app identifier: ${tauri.identifier ?? '<missing>'}`);
+    hasMismatch = true;
+  }
+
+  try {
+    console.log('Windows MSI ProductVersion: ' + toMsiProductVersion(tag));
+  } catch (error) {
+    console.error('MSI version validation failed: ' + error.message);
     hasMismatch = true;
   }
 
