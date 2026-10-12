@@ -380,7 +380,7 @@ describe("server overview", () => {
     expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(wrapper.text()).toContain("反向 DNS");
-    expect(wrapper.text()).toContain("暂无位置或 ASN 数据");
+    expect(wrapper.text()).toContain("当前来源未返回位置或 ASN 数据");
   });
 
   it("keeps DNS failures in the network card and lets the user retry", async () => {
@@ -388,7 +388,7 @@ describe("server overview", () => {
     const wrapper = mount(NetworkInfoCard, { props: { server: profile({ host: "server.example.com" }), api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(wrapper.text()).toContain("无法分析网络信息");
+    expect(wrapper.text()).toContain("操作失败，请稍后重试。");
     expect(wrapper.text()).not.toContain("resolver details");
     await wrapper.get("button").trigger("click");
     await flushPromises();
