@@ -14,7 +14,12 @@ export function createNativeUpdaterAdapter(): UpdaterAdapter {
     async check() {
       if (!isTauri()) throw new UpdaterAdapterError('unsupported');
       const { check } = await import('@tauri-apps/plugin-updater');
-      const update = await check();
+      const update = await check().catch(error => {
+        if (error === 'Command check not found' || (error instanceof Error && error.message === 'Command check not found')) {
+          throw new UpdaterAdapterError('unsupported');
+        }
+        throw error;
+      });
       if (!update) return null;
       return {
         currentVersion: update.currentVersion,

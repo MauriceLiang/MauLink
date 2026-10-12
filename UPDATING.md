@@ -9,7 +9,7 @@
 ## 已实现部分
 
 - 依赖：Rust `tauri-plugin-updater = 2.12.0`、`tauri-plugin-process = 2.3.1`；前端对应插件 `@tauri-apps/plugin-updater = 2.12.0`、`@tauri-apps/plugin-process = 2.3.1`。版本固定并由 lockfile 管理。
-- 注册与权限：插件由 `src-tauri/src/lib.rs` 注册；`src-tauri/capabilities/main.json` 只添加检查、下载、安装和重启所需的权限，没有授予进程退出或合并式下载安装权限。
+- 注册与权限：`src-tauri/src/lib.rs` 仅在更新地址、公钥已填写且配置结构有效时注册 updater 插件；配置缺失、结构无效或地址/公钥为空时停用更新功能，应用仍正常启动，手动检查会显示尚未配置受信任的更新来源。`src-tauri/capabilities/main.json` 只添加检查、下载、安装和重启所需的权限，没有授予进程退出或合并式下载安装权限。
 - UI：设置 → 通用显示软件更新区；关于窗口复用同一控制器跳转到该区。用户手动检查、查看说明、下载，并明确选择安装。
 - 状态与资源：控制器负责唯一更新资源、串行操作、进度增量、未知大小进度显示、稳定错误类型和关闭/卸载时的资源释放。更新数据不写入 `AppSettings`。
 - 安全门禁：有任何上传/下载任务或传输尚在启动时禁止安装；所有非终态 SSH 连接和终端会先提示风险，需用户确认断开并等待 Core 快照进入终态。安装期间阻止新的连接和传输；设置已有自动保存事务未成功时取消安装。
@@ -45,7 +45,7 @@ cargo check -p maulink-desktop --locked
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
 | P0 依赖兼容性与基线 | PASS | 选择与当前 Tauri/Rust 工具链兼容的锁定版本；基线和改动后的检查结果在当前交付记录中报告。 |
-| P1 插件与最小权限 | PARTIAL | 插件注册及权限已实现；无密钥编译可由本机打包和 Packaging Smoke 验证。真实启动/退出和三平台 smoke 仍需设备或 Actions 结果。 |
+| P1 插件与最小权限 | PARTIAL | 插件按配置注册及权限已实现；本机 macOS ARM64 无更新配置时的原生启动和持续运行已验证。正常退出及三平台 smoke 仍需设备或 Actions 结果。 |
 | P2 UI、状态机与安全门禁 | PASS WITH MOCK | 自动测试与 Browser Harness 验证本地 Mock 流程；不代表在线 endpoint 或安装包签名已验证。 |
 | P3 HTTPS 更新索引 | BLOCKED | 等待负责人确认并提供 Stable/Preview 托管地址。 |
 | P4 签名发布流水线 | BLOCKED | 等待负责人安全生成密钥、提供公钥文本并配置受保护的 Secrets/Environment。 |
