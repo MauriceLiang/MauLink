@@ -19,7 +19,9 @@ import GroupDialog from "../src/dialogs/GroupDialog.vue";
 import AppShell from "../src/app/AppShell.vue";
 import { startOccupancyProbe } from "../src/harness/occupancy-probe";
 import type { ServerMutationResult } from "../../contracts/v1/ServerMutationResult";
+import type { ServerUpdatePayload } from "../../contracts/v1/ServerUpdatePayload";
 import type { ServerAppearanceUpdate } from "../../contracts/v1/ServerAppearanceUpdate";
+import type { BackgroundImagesApi } from "../src/ipc/background-images";
 
 const ui = () => new DOMWrapper(document.body);
 const wrappers: VueWrapper[] = [];
@@ -38,9 +40,10 @@ async function enterRequired(_wrapper: VueWrapper) {
   await ui().get('input[placeholder="192.168.1.10"]').setValue("test.example.com");
   await ui().get('input[placeholder="root"]').setValue("deploy");
 }
-async function selectDialogTab(section: "basic" | "advanced") {
+async function selectDialogTab(section: "basic" | "advanced" | "appearance") {
   const tabs = ui().findAll('[role="tab"]');
-  await tabs[section === "basic" ? 0 : 1]!.trigger("mousedown", { button: 0, ctrlKey: false });
+  const index = { basic: 0, advanced: 1, appearance: 2 }[section];
+  await tabs[index]!.trigger("mousedown", { button: 0, ctrlKey: false });
   await flushPromises();
 }
 async function chooseCredentialStorage(label: string) {
@@ -64,9 +67,11 @@ describe("server management contracts", () => {
         backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
       }, revision: 0, updatedAtMs: 0,
     };
+    const updateProfile = vi.fn();
     const updatedAppearance = vi.fn((payload: ServerAppearanceUpdate) => ({ ...initialAppearance, ...payload, revision: 1, updatedAtMs: 1 }));
     const client = createIpcClient(createMockIpc({
       server_get: () => profile,
+      server_update: updateProfile,
       server_appearance_get: () => initialAppearance,
       server_appearance_update: updatedAppearance,
     }));
@@ -80,18 +85,150 @@ describe("server management contracts", () => {
     const appearanceTab = ui().findAll('[role="tab"]')[2]!;
     await appearanceTab.trigger("mousedown", { button: 0, ctrlKey: false });
     await flushPromises();
-    const checkboxes = ui().findAll('input[type="checkbox"]');
-    await checkboxes[0]!.setValue(true);
-    await ui().get('input[type="color"]').setValue("#D92D20");
-    await checkboxes[1]!.setValue(true);
-    const saveAppearance = ui().findAll("button").find(button => button.text().trim() === "保存外观");
-    expect(saveAppearance).toBeDefined();
-    await saveAppearance!.trigger("click");
+    await ui().get('button[aria-label="自定义颜色 #D92D20"]').trigger("click");
+    await ui().get('button[role="switch"]').trigger("click");
+    await ui().findAll("button").find(button => button.text().trim() === "保存")!.trigger("click");
     await flushPromises();
+    expect(updateProfile).not.toHaveBeenCalled();
     expect(updatedAppearance).toHaveBeenCalledWith(expect.objectContaining({
-      serverId: profile.id, expectedRevision: 0, labelColor: "#d92d20", terminalOverrideEnabled: true,
+      serverId: profile.id, expectedRevision: 0, labelColor: "#D92D20", terminalOverrideEnabled: true,
     }));
     expect(appearanceStore.appearances.value[profile.id]?.revision).toBe(1);
+  });
+
+  it("saves an environment edited in Advanced through the shared footer action", async () => {
+    const initialAppearance = {
+      serverId: profile.id, labelColor: null, environment: null, terminalOverrideEnabled: false,
+      terminalAppearance: {
+        themeMode: "followApp" as const,
+        customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
+      }, revision: 0, updatedAtMs: 0,
+    };
+    const updateProfile = vi.fn();
+    const updateAppearance = vi.fn((payload: ServerAppearanceUpdate) => ({ ...initialAppearance, ...payload, revision: 1, updatedAtMs: 1 }));
+    const client = createIpcClient(createMockIpc({ server_get: () => profile, server_update: updateProfile, server_appearance_get: () => initialAppearance, server_appearance_update: updateAppearance }));
+    const store = createServerStore(createServerApi(client));
+    const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
+    const backgroundImages = createBackgroundImagesApi(client, path => path);
+    const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId: profile.id, store, appearanceStore, backgroundImages } });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    await selectDialogTab("advanced");
+    const environment = ui().findAll(".base-field").find(field => field.text().includes("环境"))!;
+    environment.get("[role=combobox]").element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await flushPromises();
+    const staging = ui().findAll('[role="option"]').find(option => option.text() === "预发布环境")!;
+    staging.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushPromises();
+    await selectDialogTab("basic");
+    await ui().findAll("button").find(button => button.text().trim() === "保存")!.trigger("click");
+    await flushPromises();
+
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(updateAppearance).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      serverId: profile.id, expectedRevision: 0, environment: "staging",
+    }));
+  });
+
+  it("commits Profile once before Appearance and retries only the failed Appearance stage", async () => {
+    const initialAppearance = {
+      serverId: profile.id, labelColor: null, environment: null, terminalOverrideEnabled: false,
+      terminalAppearance: {
+        themeMode: "followApp" as const,
+        customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
+      }, revision: 0, updatedAtMs: 0,
+    };
+    const order: string[] = [];
+    const updateProfile = vi.fn((payload: ServerUpdatePayload) => {
+      order.push("profile");
+      return { server: { ...profile, name: payload.profile.name || profile.name, id: profile.id, revision: profile.revision + 1 }, credentialCleanupPending: false };
+    });
+    let failAppearance = true;
+    const updateAppearance = vi.fn((payload: ServerAppearanceUpdate) => {
+      order.push("appearance");
+      if (failAppearance) throw fixtureError("INTERNAL", "errors.internal");
+      return { ...initialAppearance, ...payload, revision: 1, updatedAtMs: 1 };
+    });
+    const client = createIpcClient(createMockIpc({ server_get: () => profile, server_update: updateProfile, server_appearance_get: () => initialAppearance, server_appearance_update: updateAppearance }));
+    const store = createServerStore(createServerApi(client));
+    const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
+    const backgroundImages = createBackgroundImagesApi(client, path => path);
+    const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId: profile.id, store, appearanceStore, backgroundImages } });
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    await ui().get('input[placeholder="Production Web"]').setValue("Production Renamed");
+    await selectDialogTab("appearance");
+    await ui().get('button[aria-label="自定义颜色 #D92D20"]').trigger("click");
+    await ui().findAll("button").find(button => button.text().trim() === "保存")!.trigger("click");
+    await flushPromises();
+
+    expect(order).toEqual(["profile", "appearance"]);
+    expect(updateProfile).toHaveBeenCalledTimes(1);
+    expect(updateAppearance).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted("close")).toBeUndefined();
+    expect(ui().text()).toContain("服务器信息已保存，但外观未保存");
+
+    failAppearance = false;
+    await ui().findAll("button").find(button => button.text().trim() === "保存")!.trigger("click");
+    await flushPromises();
+    expect(order).toEqual(["profile", "appearance", "appearance"]);
+    expect(updateProfile).toHaveBeenCalledTimes(1);
+    expect(updateAppearance.mock.calls[1]![0].expectedRevision).toBe(0);
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("blocks saving Image mode until a background image is selected", async () => {
+    const updateProfile = vi.fn();
+    const updateAppearance = vi.fn();
+    const wrapper = mountEditor(makeStore(createMockIpc({
+      server_get: () => profile,
+      server_update: updateProfile,
+      server_appearance_update: updateAppearance,
+    })), profile.id);
+    await flushPromises();
+    await selectDialogTab("appearance");
+    await ui().get('[role="switch"]').trigger("click");
+    await ui().findAll(".terminal-theme-mode-option").find(option => option.text().includes("背景图片"))!.trigger("click");
+    await ui().findAll("button").find(button => button.text().trim() === "保存")!.trigger("click");
+    await flushPromises();
+
+    expect(ui().text()).toContain("请选择背景图片后再保存图片主题。");
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(updateAppearance).not.toHaveBeenCalled();
+    expect(wrapper.emitted("close")).toBeUndefined();
+  });
+
+  it("cleans up an image returned after the editor session has closed", async () => {
+    type SelectedAsset = Awaited<ReturnType<BackgroundImagesApi["select"]>>;
+    let completeSelection!: (asset: SelectedAsset) => void;
+    const deleteImage = vi.fn().mockResolvedValue(undefined);
+    const backgroundImages = {
+      select: vi.fn(() => new Promise<SelectedAsset>(resolve => { completeSelection = resolve; })),
+      get: vi.fn(),
+      delete: deleteImage,
+      resolve: vi.fn(),
+    } as unknown as BackgroundImagesApi;
+    const client = createIpcClient(createMockIpc({ server_get: () => profile }));
+    const store = createServerStore(createServerApi(client));
+    const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
+    const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId: profile.id, store, appearanceStore, backgroundImages } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await selectDialogTab("appearance");
+    await ui().get('[role="switch"]').trigger("click");
+    await ui().findAll(".terminal-theme-mode-option").find(option => option.text().includes("背景图片"))!.trigger("click");
+    await ui().findAll("button").find(button => button.text().trim() === "选择图片")!.trigger("click");
+
+    await wrapper.setProps({ open: false });
+    completeSelection({ id: "late-import", fileName: "late.png", mediaType: "image/png", width: 10, height: 10, byteLength: 100, createdAtMs: 1 });
+    await flushPromises();
+
+    expect(deleteImage).toHaveBeenCalledExactlyOnceWith("late-import");
+    expect(wrapper.emitted("saved")).toBeUndefined();
   });
 
   it("never starts the native occupancy probe for a remote, credentialed or proxied profile", async () => {
@@ -344,7 +481,7 @@ describe("server management contracts", () => {
     expect(ui().find('input[type="password"]').exists()).toBe(false);
     await ui().get("form").trigger("submit");
     await flushPromises();
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ credential: { mode: "keep" } }));
+    expect(update).not.toHaveBeenCalled();
     expect(JSON.stringify(update.mock.calls)).not.toContain("unsaved-replacement");
   });
 

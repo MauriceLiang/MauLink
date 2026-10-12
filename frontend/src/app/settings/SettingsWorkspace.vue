@@ -75,7 +75,10 @@ function settingsPatch() {
   const changedKeys = new Set<keyof AppSettings>();
   for (const key of Object.keys(savedSettings.value) as (keyof AppSettings)[]) {
     if (JSON.stringify(draft[key]) !== JSON.stringify(savedSettings.value[key])) {
-      Object.assign(patch, { [key]: draft[key] });
+      const value = key === 'terminalCustomColors' ? { ...draft.terminalCustomColors }
+        : key === 'terminalBackgroundImage' ? { ...draft.terminalBackgroundImage }
+          : draft[key];
+      Object.assign(patch, { [key]: value });
       changedKeys.add(key);
     }
   }

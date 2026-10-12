@@ -5,11 +5,14 @@ import BaseIcon from "../components/base/BaseIcon.vue";
 import BaseSelect from "../components/base/BaseSelect.vue";
 import BaseDropdownMenu from "../components/base/BaseDropdownMenu.vue";
 import BaseAlertDialog from "../components/base/BaseAlertDialog.vue";
+import BaseAlert from "../components/base/BaseAlert.vue";
 import type { MenuItem } from "../components/base/menu";
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
 import { computed, reactive, ref, useId, watch } from "vue";
 import type { Language } from "../../../contracts/v1/Language";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
+import type { ServerProfileDraft } from "../../../contracts/v1/ServerProfileDraft";
+import type { AppSettings } from "../../../contracts/v1/AppSettings";
 import type { ServerAppearance } from "../../../contracts/v1/ServerAppearance";
 import type { ServerAppearanceUpdate } from "../../../contracts/v1/ServerAppearanceUpdate";
 import type { ServerEnvironment } from "../../../contracts/v1/ServerEnvironment";
@@ -25,6 +28,8 @@ import type { ServerStore } from "../stores/servers";
 import type { ConnectionStore } from "../stores/connections";
 import type { ServerAppearanceStore } from "../stores/server-appearance";
 import type { BackgroundImagesApi } from "../ipc/background-images";
+import ServerAppearancePanel from "./ServerAppearancePanel.vue";
+import { defaultSettings } from "../terminal/preferences";
 import { isFinished } from "../stores/connections";
 import { serverText, type ServerMessage } from "../i18n/servers";
 import { mapError } from "../errors/mapper";
@@ -47,11 +52,13 @@ import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseInput from "../components/base/BaseInput.vue";
 import type { ConnectionTestToastResult } from "../app/connection-test-toast";
 
-const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language }>(), { groupId: null });
+const props = withDefaults(defineProps<{ open: boolean; serverId: string | null; store: ServerStore; appearanceStore: ServerAppearanceStore; backgroundImages: BackgroundImagesApi; connectionStore?: ConnectionStore; groupId?: string | null; language?: Language; globalSettings?: AppSettings }>(), { groupId: null });
 const emit = defineEmits<{ close: []; saved: [message: string]; testResult: [result: ConnectionTestToastResult]; revealCredential: [serverId: string] }>();
 const t = (key: ServerMessage) => serverText(key, props.language);
 const formId = useId();
+const globalSettings = computed(() => props.globalSettings ?? defaultSettings);
 const current = ref<ServerProfile | null>(null);
+const savedProfileSnapshot = ref<ServerProfile | null>(null);
 const draft = reactive(newServerDraft());
 const secret = ref("");
 const visible = ref(false);
@@ -83,12 +90,27 @@ const testRunning = ref(false);
 const testConnectionId = ref<string | null>(null);
 const error = ref("");
 const failure = ref<AppError | null>(null);
-const appearanceBusy = ref(false);
 const appearanceError = ref("");
 const appearanceRevision = ref(0);
+const savedAppearanceSnapshot = ref<ServerAppearance | null>(null);
+const selectingAppearanceImage = ref(false);
+const resolvingAppearanceImage = ref(false);
+const imageBusy = computed(() => selectingAppearanceImage.value || resolvingAppearanceImage.value);
+const importedImageIds = ref<string[]>([]);
+const pendingImageCleanupIds = ref<string[]>([]);
+const originalAppearanceImageId = ref<string | null>(null);
+const appearanceImageUrl = ref("");
+const appearanceImageName = ref("");
+const appearanceImageError = ref("");
+const globalImageUrl = ref("");
+const globalImageBusy = ref(false);
+const globalImageError = ref("");
+const discardDialogOpen = ref(false);
+const discardAction = ref<"close" | "reload">("close");
+const discardBusy = ref(false);
+const profileCommittedInSession = ref(false);
 const appearanceDraft = reactive({
-  labelColorEnabled: false,
-  labelColor: "#3B82F6",
+  labelColor: null as string | null,
   environment: null as ServerEnvironment | null,
   terminalOverrideEnabled: false,
   terminalAppearance: {
@@ -98,8 +120,53 @@ const appearanceDraft = reactive({
   } satisfies TerminalAppearanceSettings,
 });
 const groups = props.store.groups;
-const busy = computed(() => phase.value === "loading" || phase.value === "saving" || selectingKey.value || appearanceBusy.value);
+const busy = computed(() => phase.value === "loading" || phase.value === "saving" || selectingKey.value || imageBusy.value || discardBusy.value);
 const formBusy = computed(() => busy.value || testRunning.value);
+const appearancePanelModel = computed(() => ({
+  labelColor: appearanceDraft.labelColor,
+  terminalOverrideEnabled: appearanceDraft.terminalOverrideEnabled,
+  terminalAppearance: appearanceDraft.terminalAppearance,
+}));
+const profileDirty = computed(() => {
+  const baseline = savedProfileSnapshot.value ?? newServerDraft(null, props.groupId);
+  const normalized = normalizeServerDraft(draft, key.value);
+  const comparable = (value: ServerProfile | ServerProfileDraft) => ({
+    name: value.name?.trim() || null,
+    host: value.host,
+    port: value.port,
+    username: value.username,
+    authType: value.authType,
+    requireAuthentication: value.requireAuthentication,
+    groupId: value.groupId,
+    connectTimeoutMs: value.connectTimeoutMs,
+    keepaliveIntervalSeconds: value.keepaliveIntervalSeconds,
+    jumpHost: value.jumpHost?.trim() || null,
+    jumpPort: value.jumpPort,
+    proxyType: value.proxyType,
+    proxyHost: value.proxyHost?.trim() || null,
+    proxyPort: value.proxyPort,
+  });
+  return JSON.stringify(comparable(normalized)) !== JSON.stringify(comparable(baseline))
+    || key.value !== null
+    || credentialAction.value === "pendingClear"
+    || (credentialAction.value === "editing" && (!!secret.value || !!current.value?.hasSavedCredential));
+});
+function appearanceBusinessValue(value = appearanceDraft) {
+  return {
+    labelColor: value.labelColor,
+    environment: value.environment,
+    terminalOverrideEnabled: value.terminalOverrideEnabled,
+    terminalAppearance: {
+      themeMode: value.terminalAppearance.themeMode,
+      customColors: { ...value.terminalAppearance.customColors },
+      backgroundImage: { ...value.terminalAppearance.backgroundImage },
+    },
+  };
+}
+const appearanceDirty = computed(() => savedAppearanceSnapshot.value !== null
+  && JSON.stringify(appearanceBusinessValue()) !== JSON.stringify(appearanceBusinessValue(savedAppearanceSnapshot.value)));
+const hasUnsavedChanges = computed(() => profileDirty.value || appearanceDirty.value || importedImageIds.value.length > 0);
+const saveDisabled = computed(() => formBusy.value || (!!props.serverId && !current.value) || (!!current.value && !hasUnsavedChanges.value));
 const credentialStorageSummary = computed(() => t(draft.requireAuthentication ? "credentialStorageSystem" : "credentialStorageLocal"));
 const credentialIdentityChanged = computed(() => {
   if (!current.value?.hasSavedCredential) return false;
@@ -116,14 +183,26 @@ let challengeStartedAt: number | null = null;
 let challengeDurationMs = 0;
 let testRunGeneration = 0;
 let cancelTestRequested = false;
+let dialogGeneration = 0;
+let appearanceImageRequest = 0;
+let globalImageRequest = 0;
 
 async function initialize() {
+  const generation = ++dialogGeneration;
+  appearanceImageRequest++;
   refreshKeyStatus();
   error.value = "";
   failure.value = null;
-  appearanceBusy.value = false;
   appearanceError.value = "";
+  appearanceImageError.value = "";
   appearanceRevision.value = 0;
+  savedAppearanceSnapshot.value = null;
+  savedProfileSnapshot.value = null;
+  profileCommittedInSession.value = false;
+  importedImageIds.value = [];
+  originalAppearanceImageId.value = null;
+  appearanceImageUrl.value = "";
+  appearanceImageName.value = "";
   secret.value = "";
   key.value = null;
   visible.value = false;
@@ -134,19 +213,29 @@ async function initialize() {
   errorSection.value = "basic";
   current.value = null;
   Object.assign(draft, newServerDraft(null, props.groupId));
+  appearanceDraft.labelColor = null;
+  appearanceDraft.environment = null;
+  appearanceDraft.terminalOverrideEnabled = false;
+  appearanceDraft.terminalAppearance = {
+    themeMode: defaultSettings.terminalThemeMode,
+    customColors: structuredClone(defaultSettings.terminalCustomColors),
+    backgroundImage: structuredClone(defaultSettings.terminalBackgroundImage),
+  };
   if (!props.serverId) { phase.value = "editing"; return; }
   phase.value = "loading";
   try {
     const profile = await props.store.getServer(props.serverId);
-    if (!props.open) return;
+    if (generation !== dialogGeneration || !props.open) return;
     current.value = profile;
+    savedProfileSnapshot.value = structuredClone(profile);
     Object.assign(draft, newServerDraft(profile));
     credentialAction.value = initialCredentialEditAction(false);
     const appearance = await props.appearanceStore.get(profile.id);
-    if (!props.open) return;
+    if (generation !== dialogGeneration || !props.open) return;
     loadAppearanceDraft(appearance);
     phase.value = "editing";
   } catch (reason) {
+    if (generation !== dialogGeneration || !props.open) return;
     failure.value = mapError(reason);
     error.value = presentError(failure.value, props.language).message;
     phase.value = "error";
@@ -154,54 +243,112 @@ async function initialize() {
 }
 
 function loadAppearanceDraft(appearance: ServerAppearance) {
+  savedAppearanceSnapshot.value = structuredClone(appearance);
   appearanceRevision.value = appearance.revision;
-  appearanceDraft.labelColorEnabled = appearance.labelColor !== null;
-  appearanceDraft.labelColor = appearance.labelColor ?? "#3B82F6";
+  appearanceDraft.labelColor = appearance.labelColor;
   appearanceDraft.environment = appearance.environment;
   appearanceDraft.terminalOverrideEnabled = appearance.terminalOverrideEnabled;
   appearanceDraft.terminalAppearance = structuredClone(appearance.terminalAppearance);
+  originalAppearanceImageId.value = appearance.terminalAppearance.backgroundImage.imageId;
 }
 
 async function chooseAppearanceImage() {
-  if (busy.value) return;
+  if (formBusy.value) return;
   appearanceError.value = "";
+  appearanceImageError.value = "";
+  selectingAppearanceImage.value = true;
+  const generation = dialogGeneration;
   try {
     const asset = await props.backgroundImages.select();
-    if (asset) appearanceDraft.terminalAppearance.backgroundImage.imageId = asset.id;
+    if (!asset) return;
+    if (generation !== dialogGeneration || !props.open) {
+      const cleaned = await cleanupImageIds([asset.id]);
+      if (!cleaned) emit("saved", t("imageCleanupPending"));
+      return;
+    }
+    if (!importedImageIds.value.includes(asset.id)) importedImageIds.value.push(asset.id);
+    appearanceDraft.terminalAppearance.backgroundImage.imageId = asset.id;
   } catch (reason) {
-    appearanceError.value = presentError(mapError(reason), props.language).message;
+    appearanceImageError.value = presentError(mapError(reason), props.language).message;
+  } finally {
+    selectingAppearanceImage.value = false;
   }
 }
 
-async function saveAppearance() {
-  if (!current.value || formBusy.value || appearanceBusy.value) return;
-  if (appearanceDraft.terminalAppearance.themeMode === "image" && !appearanceDraft.terminalAppearance.backgroundImage.imageId) {
-    appearanceError.value = t("imageRequired");
-    return;
-  }
-  appearanceBusy.value = true;
-  appearanceError.value = "";
-  const payload: ServerAppearanceUpdate = {
-    serverId: current.value.id,
-    expectedRevision: appearanceRevision.value,
-    labelColor: appearanceDraft.labelColorEnabled ? appearanceDraft.labelColor : null,
-    environment: appearanceDraft.environment,
-    terminalOverrideEnabled: appearanceDraft.terminalOverrideEnabled,
-    terminalAppearance: {
-      themeMode: appearanceDraft.terminalAppearance.themeMode,
-      customColors: { ...appearanceDraft.terminalAppearance.customColors },
-      backgroundImage: { ...appearanceDraft.terminalAppearance.backgroundImage },
-    },
-  };
+async function resolveAppearanceImage(imageId: string | null) {
+  const request = ++appearanceImageRequest;
+  appearanceImageUrl.value = "";
+  appearanceImageName.value = "";
+  appearanceImageError.value = "";
+  if (!imageId) { resolvingAppearanceImage.value = false; return; }
+  resolvingAppearanceImage.value = true;
   try {
-    const saved = await props.appearanceStore.update(payload);
-    loadAppearanceDraft(saved);
-    emit("saved", t("appearanceSaved"));
+    const result = await props.backgroundImages.resolve(imageId);
+    if (request !== appearanceImageRequest || appearanceDraft.terminalAppearance.backgroundImage.imageId !== imageId) return;
+    appearanceImageUrl.value = result.src;
+    appearanceImageName.value = result.asset.fileName;
   } catch (reason) {
-    appearanceError.value = presentError(mapError(reason), props.language).message;
+    if (request === appearanceImageRequest && appearanceDraft.terminalAppearance.backgroundImage.imageId === imageId) {
+      appearanceImageError.value = presentError(mapError(reason), props.language).message;
+    }
   } finally {
-    appearanceBusy.value = false;
+    if (request === appearanceImageRequest) resolvingAppearanceImage.value = false;
   }
+}
+
+async function resolveGlobalImage(imageId: string | null) {
+  const request = ++globalImageRequest;
+  globalImageUrl.value = "";
+  globalImageError.value = "";
+  if (!imageId) { globalImageBusy.value = false; return; }
+  globalImageBusy.value = true;
+  try {
+    const result = await props.backgroundImages.resolve(imageId);
+    if (request === globalImageRequest && globalSettings.value.terminalBackgroundImage.imageId === imageId) globalImageUrl.value = result.src;
+  } catch (reason) {
+    if (request === globalImageRequest && globalSettings.value.terminalBackgroundImage.imageId === imageId) globalImageError.value = presentError(mapError(reason), props.language).message;
+  } finally {
+    if (request === globalImageRequest) globalImageBusy.value = false;
+  }
+}
+
+async function cleanupImageIds(ids: string[], keep: string | null = null) {
+  const pending = new Set(pendingImageCleanupIds.value);
+  for (const id of new Set(ids)) {
+    if (id === keep) { pending.delete(id); continue; }
+    try {
+      await props.backgroundImages.delete(id);
+      pending.delete(id);
+    } catch (reason) {
+      const code = mapError(reason).code;
+      if (code === "RESOURCE_NOT_FOUND") pending.delete(id);
+      else if (code === "RESOURCE_IN_USE") pending.add(id);
+      else pending.add(id);
+    }
+  }
+  pendingImageCleanupIds.value = [...pending];
+  return pendingImageCleanupIds.value.length === 0;
+}
+
+async function retryPendingImageCleanup() {
+  if (pendingImageCleanupIds.value.length) await cleanupImageIds([...pendingImageCleanupIds.value]);
+}
+
+function updateAppearancePanel(value: { labelColor: string | null; terminalOverrideEnabled: boolean; terminalAppearance: TerminalAppearanceSettings }) {
+  appearanceDraft.labelColor = value.labelColor;
+  appearanceDraft.terminalOverrideEnabled = value.terminalOverrideEnabled;
+  appearanceDraft.terminalAppearance = {
+    themeMode: value.terminalAppearance.themeMode,
+    customColors: { ...value.terminalAppearance.customColors },
+    backgroundImage: { ...value.terminalAppearance.backgroundImage },
+  };
+}
+
+function removeAppearanceImage() {
+  appearanceDraft.terminalAppearance.backgroundImage.imageId = null;
+  appearanceImageUrl.value = "";
+  appearanceImageName.value = "";
+  if (appearanceDraft.terminalAppearance.themeMode === "image") appearanceDraft.terminalAppearance.themeMode = "followApp";
 }
 
 const validPort = (value: number | null) => Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 65535;
@@ -211,16 +358,30 @@ function validationSection(invalid: ServerMessage): ServerDialogSection {
   return "basic";
 }
 
-watch(() => props.open, open => {
+watch(() => appearanceDraft.terminalAppearance.backgroundImage.imageId, imageId => {
+  void resolveAppearanceImage(imageId);
+});
+watch(() => globalSettings.value.terminalBackgroundImage.imageId, imageId => {
+  void resolveGlobalImage(imageId);
+}, { immediate: true });
+watch(() => [props.open, props.serverId] as const, ([open]) => {
   testRunGeneration++;
   if (open) {
     cancelTestRequested = false;
     void initialize();
+    void retryPendingImageCleanup();
   } else {
+    dialogGeneration++;
+    appearanceImageRequest++;
     cancelTestRequested = true;
     void cancelTest();
     secret.value = "";
     key.value = null;
+    if (importedImageIds.value.length) {
+      const imported = [...importedImageIds.value];
+      importedImageIds.value = [];
+      void cleanupImageIds(imported);
+    }
   }
 }, { immediate: true });
 watch(() => draft.authType, () => { key.value = null; secret.value = ""; visible.value = false; });
@@ -269,12 +430,64 @@ async function cancelTest() {
   if (finalSnapshot && isFinished(finalSnapshot)) props.connectionStore.dismiss(id);
 }
 
-function closeDialog() {
+const discardMessage = computed(() => profileCommittedInSession.value && appearanceDirty.value
+  ? t("partialDiscardConfirm")
+  : discardAction.value === "reload" ? t("reloadConfirm") : t("discardConfirm"));
+
+function requestClose() {
+  if (busy.value) return;
+  removeCredentialOpen.value = false;
+  if (hasUnsavedChanges.value) {
+    discardAction.value = "close";
+    discardDialogOpen.value = true;
+    return;
+  }
+  void finishClose();
+}
+
+async function finishClose() {
   cancelTestRequested = true;
   testRunGeneration++;
-  removeCredentialOpen.value = false;
   void cancelTest();
+  secret.value = "";
+  key.value = null;
+  const imported = [...importedImageIds.value];
+  importedImageIds.value = [];
+  const cleaned = await cleanupImageIds(imported);
+  if (!cleaned) emit("saved", t("imageCleanupPending"));
   emit("close");
+}
+
+function requestReload() {
+  if (busy.value) return;
+  if (hasUnsavedChanges.value) {
+    discardAction.value = "reload";
+    discardDialogOpen.value = true;
+    return;
+  }
+  void initialize();
+}
+
+async function confirmDiscard() {
+  if (discardBusy.value) return;
+  discardBusy.value = true;
+  const action = discardAction.value;
+  const imported = [...importedImageIds.value];
+  importedImageIds.value = [];
+  const cleaned = await cleanupImageIds(imported);
+  discardDialogOpen.value = false;
+  if (!cleaned) emit("saved", t("imageCleanupPending"));
+  if (action === "reload") {
+    await initialize();
+  } else {
+    cancelTestRequested = true;
+    testRunGeneration++;
+    void cancelTest();
+    secret.value = "";
+    key.value = null;
+    emit("close");
+  }
+  discardBusy.value = false;
 }
 
 async function testConnection() {
@@ -389,18 +602,42 @@ async function selectKey() {
   }
 }
 
-async function save() {
+function acceptCommittedProfile(profile: ServerProfile) {
+  current.value = profile;
+  savedProfileSnapshot.value = structuredClone(profile);
+  Object.assign(draft, newServerDraft(profile));
+  credentialAction.value = initialCredentialEditAction(false);
+  secret.value = "";
+  key.value = null;
+}
+
+function buildAppearancePayload(): ServerAppearanceUpdate {
+  if (!current.value) throw new Error("Cannot save appearance before the server profile exists");
+  return {
+    serverId: current.value.id,
+    expectedRevision: appearanceRevision.value,
+    ...appearanceBusinessValue(),
+  };
+}
+
+async function saveAll() {
   if (formBusy.value || (props.serverId && !current.value)) return;
   refreshKeyStatus();
   failure.value = null;
   error.value = "";
+  appearanceError.value = "";
   const profile = normalizeServerDraft(draft, key.value);
   const credential: CredentialUpdate = resolveCredentialUpdate(
     credentialAction.value,
     secret.value,
     current.value?.hasSavedCredential ?? false,
   );
-  const invalid = validateServerDraft(profile, current.value, key.value) ?? credentialValidation(current.value, profile, credential);
+  const saveProfile = !current.value || profileDirty.value;
+  const saveAppearance = !!current.value && appearanceDirty.value;
+  const previousAppearanceImageId = originalAppearanceImageId.value;
+  const invalid = saveProfile
+    ? validateServerDraft(profile, current.value, key.value) ?? credentialValidation(current.value, profile, credential)
+    : null;
   if (invalid) {
     section.value = validationSection(invalid);
     errorSection.value = section.value;
@@ -408,27 +645,80 @@ async function save() {
     error.value = t(invalid);
     return;
   }
-  phase.value = "saving";
-  try {
-    const result = current.value
-      ? await props.store.update({ serverId: current.value.id, expectedRevision: current.value.revision, profile, credential })
-      : await props.store.create({ profile, credential });
-    secret.value = "";
-    key.value = null;
-    emit("saved", result.credentialCleanupPending ? t("cleanup") : current.value ? t("updated") : t("added"));
-    emit("close");
-  } catch (reason) {
-    failure.value = mapError(reason);
-    if (failure.value.code === "REVISION_CONFLICT") section.value = "basic";
-    errorSection.value = failure.value.code === "REVISION_CONFLICT" ? "basic" : section.value;
-    error.value = presentError(failure.value, props.language).message;
-    phase.value = "error";
+  if (saveAppearance && appearanceDraft.terminalAppearance.themeMode === "image" && !appearanceDraft.terminalAppearance.backgroundImage.imageId) {
+    section.value = "appearance";
+    appearanceError.value = t("imageRequired");
+    return;
   }
+  if (current.value && !saveProfile && !saveAppearance) {
+    await finishClose();
+    return;
+  }
+  phase.value = "saving";
+  let credentialCleanupPending = false;
+  if (!current.value) {
+    try {
+      const result = await props.store.create({ profile, credential });
+      secret.value = "";
+      key.value = null;
+      emit("saved", result.credentialCleanupPending ? t("cleanup") : t("added"));
+      emit("close");
+    } catch (reason) {
+      failure.value = mapError(reason);
+      errorSection.value = validationSection("hostRequired");
+      error.value = presentError(failure.value, props.language).message;
+      phase.value = "error";
+    }
+    return;
+  }
+
+  if (saveProfile) {
+    try {
+      const result = await props.store.update({ serverId: current.value.id, expectedRevision: current.value.revision, profile, credential });
+      credentialCleanupPending = result.credentialCleanupPending;
+      acceptCommittedProfile(result.server);
+      profileCommittedInSession.value = true;
+    } catch (reason) {
+      failure.value = mapError(reason);
+      if (failure.value.code === "REVISION_CONFLICT") section.value = "basic";
+      errorSection.value = failure.value.code === "REVISION_CONFLICT" ? "basic" : section.value;
+      error.value = presentError(failure.value, props.language).message;
+      phase.value = "error";
+      return;
+    }
+  }
+
+  if (saveAppearance) {
+    try {
+      const saved = await props.appearanceStore.update(buildAppearancePayload());
+      loadAppearanceDraft(saved);
+      appearanceError.value = "";
+    } catch (reason) {
+      failure.value = mapError(reason);
+      section.value = "appearance";
+      errorSection.value = "appearance";
+      appearanceError.value = presentError(failure.value, props.language).message;
+      phase.value = "error";
+      return;
+    }
+  }
+
+  const cleanupCandidates = [...importedImageIds.value];
+  if (previousAppearanceImageId && previousAppearanceImageId !== appearanceDraft.terminalAppearance.backgroundImage.imageId) {
+    cleanupCandidates.push(previousAppearanceImageId);
+  }
+  const cleaned = await cleanupImageIds(cleanupCandidates, appearanceDraft.terminalAppearance.backgroundImage.imageId);
+  importedImageIds.value = [];
+  const messages = [current.value ? t("updated") : t("added")];
+  if (credentialCleanupPending) messages.push(t("cleanup"));
+  if (!cleaned) messages.push(t("imageCleanupPending"));
+  emit("saved", messages.join(" "));
+  emit("close");
 }
 </script>
 
 <template>
-  <BaseDialog :open="open" size="form" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" initial-focus="input" panel-class="server-dialog" @close="closeDialog">
+  <BaseDialog :open="open" size="form" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" initial-focus="input" panel-class="server-dialog" @close="requestClose">
     <div v-if="phase === 'loading'" class="server-dialog-loading" role="status">{{ t('loading') }}</div>
     <TabsRoot v-else v-model="section" class="server-dialog-layout">
       <TabsList class="server-dialog-tabs" :aria-label="t('serverConfigSections')">
@@ -436,7 +726,7 @@ async function save() {
         <TabsTrigger value="advanced" class="server-dialog-tab" :disabled="formBusy">{{ t('advancedConfig') }}</TabsTrigger>
         <TabsTrigger v-if="serverId" value="appearance" class="server-dialog-tab" :disabled="formBusy">{{ t('appearance') }}</TabsTrigger>
       </TabsList>
-      <form :id="formId" class="server-dialog-form" :data-state="phase" novalidate @submit.prevent="save">
+      <form :id="formId" class="server-dialog-form" :data-state="phase" novalidate @submit.prevent="saveAll">
         <TabsContent value="basic" class="server-dialog-panel">
           <fieldset :disabled="formBusy || (!!serverId && !current)" class="server-form-grid">
             <div class="server-field-full"><BaseInput v-model="draft.name!" :label="t('name')" maxlength="128" placeholder="Production Web" /></div>
@@ -499,13 +789,14 @@ async function save() {
             </template>
           </fieldset>
           <p v-if="error && errorSection === 'basic'" role="alert" class="server-form-error">{{ error }}</p>
-          <BaseButton v-if="failure?.code === 'REVISION_CONFLICT' || (serverId && !current)" :disabled="busy" @click="initialize">{{ t(current ? 'reload' : 'retry') }}</BaseButton>
+          <BaseButton v-if="(failure?.code === 'REVISION_CONFLICT' && errorSection === 'basic') || (serverId && !current)" :disabled="busy" @click="initialize">{{ t(current ? 'reload' : 'retry') }}</BaseButton>
         </TabsContent>
         <TabsContent value="advanced" class="server-dialog-panel">
           <fieldset :disabled="formBusy || (!!serverId && !current)" class="server-advanced-sections">
             <section class="server-advanced-section">
-              <header class="server-advanced-section-heading"><h3>{{ t('organization') }}</h3></header>
+              <header class="server-advanced-section-heading"><h3>{{ t('organizationClassification') }}</h3></header>
               <BaseSelect v-model="draft.groupId" :label="t('group')" :disabled="busy || (!!serverId && !current)" :options="[{value:null,label:t('ungrouped')},...groups.map(group => ({value:group.id,label:group.name}))]" />
+              <BaseSelect v-model="appearanceDraft.environment" :label="t('environment')" :disabled="busy || (!!serverId && !current)" :options="[{value:null,label:t('noEnvironment')},{value:'production',label:t('production')},{value:'staging',label:t('staging')},{value:'development',label:t('development')},{value:'custom',label:t('customEnvironment')}]" />
             </section>
             <section class="server-advanced-section">
               <header class="server-advanced-section-heading"><h3>{{ t('jumpRouting') }}</h3></header>
@@ -533,44 +824,25 @@ async function save() {
           <p v-if="error && errorSection === 'advanced'" role="alert" class="server-form-error">{{ error }}</p>
         </TabsContent>
         <TabsContent v-if="serverId" value="appearance" class="server-dialog-panel">
-          <fieldset :disabled="formBusy || !current" class="server-advanced-sections">
-            <section class="server-advanced-section">
-              <header class="server-advanced-section-heading"><h3>{{ t('serverLabelColor') }}</h3></header>
-              <label class="server-appearance-toggle"><input v-model="appearanceDraft.labelColorEnabled" type="checkbox" /> {{ t('customLabelColor') }}</label>
-              <input v-if="appearanceDraft.labelColorEnabled" v-model="appearanceDraft.labelColor" class="server-appearance-color" type="color" :aria-label="t('serverLabelColor')" />
-            </section>
-            <section class="server-advanced-section">
-              <header class="server-advanced-section-heading"><h3>{{ t('environment') }}</h3></header>
-              <BaseSelect v-model="appearanceDraft.environment" :label="t('environment')" :options="[{value:null,label:t('noEnvironment')},{value:'production',label:t('production')},{value:'staging',label:t('staging')},{value:'development',label:t('development')},{value:'custom',label:t('customEnvironment')}]" />
-            </section>
-            <section class="server-advanced-section">
-              <header class="server-advanced-section-heading"><h3>{{ t('terminalAppearance') }}</h3></header>
-              <label class="server-appearance-toggle"><input v-model="appearanceDraft.terminalOverrideEnabled" type="checkbox" /> {{ t('useServerAppearance') }}</label>
-              <template v-if="appearanceDraft.terminalOverrideEnabled">
-                <BaseSelect v-model="appearanceDraft.terminalAppearance.themeMode" :label="t('themeMode')" :options="[{value:'followApp',label:t('themeFollowApp')},{value:'light',label:t('themeLight')},{value:'dark',label:t('themeDark')},{value:'customColor',label:t('themeCustom')},{value:'image',label:t('themeImage')}]" />
-                <div class="server-appearance-colors">
-                  <label><span>{{ t('terminalBackground') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.background" type="color" /></label>
-                  <label><span>{{ t('terminalForeground') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.foreground" type="color" /></label>
-                  <label><span>{{ t('terminalCursor') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.cursor" type="color" /></label>
-                  <label><span>{{ t('terminalSelection') }}</span><input v-model="appearanceDraft.terminalAppearance.customColors.selection" type="color" /></label>
-                </div>
-                <section class="server-appearance-image">
-                  <h4>{{ t('backgroundImage') }}</h4>
-                  <span>{{ appearanceDraft.terminalAppearance.backgroundImage.imageId ? t('imageSelected') : t('noImageSelected') }}</span>
-                  <BaseButton type="button" @click="chooseAppearanceImage">{{ t('selectImage') }}</BaseButton>
-                  <BaseButton v-if="appearanceDraft.terminalAppearance.backgroundImage.imageId" type="button" @click="appearanceDraft.terminalAppearance.backgroundImage.imageId = null">{{ t('clearImage') }}</BaseButton>
-                  <label>{{ t('imageFit') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.fit"><option value="cover">Cover</option><option value="contain">Contain</option><option value="stretch">Stretch</option><option value="original">Original</option><option value="tile">Tile</option></select></label>
-                  <label>{{ t('imagePosition') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.position"><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option><option value="topLeft">Top left</option><option value="topRight">Top right</option><option value="bottomLeft">Bottom left</option><option value="bottomRight">Bottom right</option></select></label>
-                  <label>{{ t('imageOpacity') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.imageOpacity" type="range" min="10" max="100" /> {{ appearanceDraft.terminalAppearance.backgroundImage.imageOpacity }}%</label>
-                  <label>{{ t('overlay') }}<select v-model="appearanceDraft.terminalAppearance.backgroundImage.overlayKind"><option value="dark">{{ t('dark') }}</option><option value="light">{{ t('light') }}</option></select></label>
-                  <label>{{ t('overlayOpacity') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.overlayOpacity" type="range" min="0" max="90" /> {{ appearanceDraft.terminalAppearance.backgroundImage.overlayOpacity }}%</label>
-                  <label>{{ t('blur') }} <input v-model.number="appearanceDraft.terminalAppearance.backgroundImage.blurPx" type="range" min="0" max="16" /> {{ appearanceDraft.terminalAppearance.backgroundImage.blurPx }} px</label>
-                </section>
-              </template>
-            </section>
-          </fieldset>
+          <ServerAppearancePanel
+            :model-value="appearancePanelModel"
+            :settings="globalSettings"
+            :language="language"
+            :background-url="appearanceImageUrl"
+            :background-name="appearanceImageName"
+            :background-busy="imageBusy"
+            :background-error="appearanceImageError"
+            :global-background-url="globalImageUrl"
+            :global-background-busy="globalImageBusy"
+            :disabled="formBusy || !current"
+            @update:model-value="updateAppearancePanel"
+            @select-image="chooseAppearanceImage"
+            @remove-image="removeAppearanceImage"
+          />
+          <BaseAlert v-if="profileCommittedInSession && appearanceDirty" role="alert">{{ t('profileSavedAppearanceFailed') }}</BaseAlert>
           <p v-if="appearanceError" role="alert" class="server-form-error">{{ appearanceError }}</p>
-          <BaseButton type="button" :disabled="formBusy || appearanceBusy || !current" :loading="appearanceBusy" @click="saveAppearance">{{ t('saveAppearance') }}</BaseButton>
+          <p v-if="globalImageError" role="status" class="server-form-error">{{ globalImageError }}</p>
+          <BaseButton v-if="failure?.code === 'REVISION_CONFLICT' && errorSection === 'appearance'" type="button" :disabled="busy" @click="requestReload">{{ t('reload') }}</BaseButton>
         </TabsContent>
       </form>
     </TabsRoot>
@@ -579,8 +851,8 @@ async function save() {
         <BaseButton v-if="connectionStore" :disabled="busy" :loading="testRunning" @click="testConnection">{{ t(testRunning ? 'testingConnection' : 'testConnection') }}</BaseButton>
       </div>
       <div class="server-dialog-footer-actions">
-        <BaseButton :disabled="busy" @click="closeDialog">{{ t('cancel') }}</BaseButton>
-        <BaseButton variant="primary" type="submit" :form="formId" :disabled="formBusy || (!!serverId && !current)" :loading="phase === 'saving'">{{ t(phase === 'saving' ? 'saving' : 'save') }}</BaseButton>
+        <BaseButton :disabled="busy" @click="requestClose">{{ t('cancel') }}</BaseButton>
+        <BaseButton variant="primary" type="submit" :form="formId" :disabled="saveDisabled" :loading="phase === 'saving'">{{ t(phase === 'saving' ? 'saving' : 'save') }}</BaseButton>
       </div>
     </template>
   </BaseDialog>
@@ -589,6 +861,13 @@ async function save() {
     <template #footer>
       <BaseButton data-dialog-cancel :disabled="formBusy" @click="removeCredentialOpen = false">{{ t('cancel') }}</BaseButton>
       <BaseButton variant="danger" :disabled="formBusy" @click="confirmCredentialRemoval">{{ t('credentialRemove') }}</BaseButton>
+    </template>
+  </BaseAlertDialog>
+  <BaseAlertDialog :open="discardDialogOpen" :title="t(discardAction === 'reload' ? 'reload' : 'discardTitle')" :close-label="t('keepEditing')" panel-class="server-discard-dialog" :busy="discardBusy" @close="discardDialogOpen = false">
+    <p>{{ discardMessage }}</p>
+    <template #footer>
+      <BaseButton data-dialog-cancel :disabled="discardBusy" @click="discardDialogOpen = false">{{ t('keepEditing') }}</BaseButton>
+      <BaseButton variant="danger" :disabled="discardBusy" :loading="discardBusy" @click="confirmDiscard">{{ t(discardAction === 'reload' ? 'reload' : 'discardChanges') }}</BaseButton>
     </template>
   </BaseAlertDialog>
 </template>

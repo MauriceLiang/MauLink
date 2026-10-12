@@ -22,7 +22,7 @@ import { createBackgroundImagesApi } from "../ipc/background-images";
 import { createServerAppearanceApi } from "../ipc/server-appearance";
 import { createServerRuntimeStatsApi } from "../ipc/server-runtime-stats";
 import { createTerminalController, type TerminalChannelFactory } from "../terminal/controller";
-import { createTerminalPreferences } from "../terminal/preferences";
+import { createTerminalPreferences, defaultSettings } from "../terminal/preferences";
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createHostKeysApi } from "../ipc/host-keys";
@@ -303,7 +303,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); conn
       <p>{{ t('aboutLead') }}</p>
       <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
     </BaseDialog>
-    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
+    <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />
     <CredentialRevealDialog :open="revealDialogOpen" :server="revealServer" :api="credentialReveal" @close="revealDialogOpen = false" @open-security="openSecurityFromReveal" />
     <ConfirmDialog :language="locale" :server="deleteTarget" :store="store" @close="deleteTarget = null" @removed="onRemoved" />
     <GroupDialog :language="locale" :open="manageGroups" :store="store" @close="manageGroups = false" @saved="toast.success($event)" />

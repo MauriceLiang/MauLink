@@ -50,16 +50,25 @@ async function changeSelect(label: string, value: string) {
   option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
   await flushPromises();
 }
+async function waitForAutoSave() {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  await flushPromises();
+}
 
 describe('settings workspace page', () => {
-  it('keeps a regular preference draft across sections and saves one expected-revision snapshot', async () => {
+  it('automatically saves regular preferences after the debounce and across sections', async () => {
     const { wrapper, fixture } = mountWorkspace();
     await flushPromises();
     expect(wrapper.get('h1').text()).toBe('外观');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     await changeSelect('主题', '深色');
     expect(fixture.current().value.theme).toBe('system');
-    expect(button('保存更改').disabled).toBe(false);
+    expect(fixture.update).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('button').length).toBeGreaterThan(0);
+    expect([...document.querySelectorAll('button')].some(item => item.textContent?.trim() === '保存更改')).toBe(false);
+    await waitForAutoSave();
+    expect(fixture.update).toHaveBeenCalledExactlyOnceWith({ expectedRevision: 1, value: { ...defaultSettings, theme: 'dark' } });
+    expect(fixture.current()).toMatchObject({ revision: 2, value: { theme: 'dark' } });
 
     await wrapper.setProps({ section: 'language' });
     await flushPromises();
@@ -67,37 +76,25 @@ describe('settings workspace page', () => {
     await flushPromises();
     expect(wrapper.get('[role="combobox"]').text()).toContain('深色');
     await changeSelect('界面密度', '紧凑');
-    button('保存更改').click();
-    await flushPromises();
-
-    expect(fixture.update).toHaveBeenCalledExactlyOnceWith({
-      expectedRevision: 1,
+    await waitForAutoSave();
+    expect(fixture.update).toHaveBeenCalledTimes(2);
+    expect(fixture.update.mock.calls[1]![0]).toEqual({
+      expectedRevision: 2,
       value: { ...defaultSettings, theme: 'dark', uiDensity: 'compact' },
     });
-    expect(fixture.current()).toMatchObject({ revision: 2, value: { theme: 'dark', uiDensity: 'compact' } });
-    expect(button('保存更改').disabled).toBe(true);
+    expect(fixture.current()).toMatchObject({ revision: 3, value: { theme: 'dark', uiDensity: 'compact' } });
   });
 
-  it('discards edits and offers save, discard, or continue when leaving a dirty page', async () => {
+  it('saves pending regular edits before leaving the settings page', async () => {
     const { wrapper, fixture } = mountWorkspace();
     await flushPromises();
     await changeSelect('主题', '深色');
     await (wrapper.vm as unknown as { requestLeave: () => void }).requestLeave();
     await flushPromises();
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('常规设置更改');
-    expect(button('继续编辑')).toBeDefined();
-    expect(button('放弃并离开')).toBeDefined();
-    expect(button('保存并离开')).toBeDefined();
-    button('继续编辑').click();
-    await flushPromises();
-    expect(wrapper.emitted('leave')).toBeUndefined();
-
-    await (wrapper.vm as unknown as { requestLeave: () => void }).requestLeave();
-    await flushPromises();
-    button('放弃并离开').click();
-    await flushPromises();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(wrapper.emitted('leave')).toHaveLength(1);
-    expect(fixture.current().value.theme).toBe('system');
+    expect(fixture.current().value.theme).toBe('dark');
+    expect(fixture.update).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a failed revision-conflict draft until the user confirms reload', async () => {
@@ -105,19 +102,17 @@ describe('settings workspace page', () => {
     const { wrapper, fixture } = mountWorkspace('appearance', { conflict: () => conflict });
     await flushPromises();
     await changeSelect('主题', '深色');
-    button('保存更改').click();
-    await flushPromises();
+    await waitForAutoSave();
     expect(fixture.current().value.theme).toBe('system');
-    expect(button('保存更改').disabled).toBe(false);
     expect(button('重新加载设置（放弃修改）')).toBeDefined();
     button('重新加载设置（放弃修改）').click();
     await flushPromises();
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('放弃当前所有未保存');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('重新加载会放弃保存失败的更改');
     conflict = false;
     button('重新加载').click();
     await flushPromises();
     expect(wrapper.get('[role="combobox"]').text()).toContain('跟随系统');
-    expect(button('保存更改').disabled).toBe(true);
+    expect(fixture.current().value.theme).toBe('system');
   });
 
   it('edits terminal settings in the page and commits them through the shared settings revision', async () => {
@@ -128,29 +123,30 @@ describe('settings workspace page', () => {
     const fontSize = document.querySelector<HTMLInputElement>('.terminal-settings-row input[type="number"]')!;
     await wrapper.get('.terminal-settings-row input[type="number"]').setValue('18');
     await flushPromises();
-    expect(button('保存更改').disabled).toBe(false);
-    button('保存更改').click();
-    await flushPromises();
+    await waitForAutoSave();
     expect(fixture.current().value.terminalFontSize).toBe(18);
     expect(fixture.update).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 1, value: expect.objectContaining({ terminalFontSize: 18 }) }));
     expect(fontSize.value).toBe('18');
   });
 
-  it('removes an imported terminal background image when the page draft is discarded', async () => {
+  it('persists an imported terminal image automatically and cleans it up after removal is saved', async () => {
     const asset = { id: 'fixture-image', fileName: 'fixture.png', mediaType: 'image/png' as const, width: 10, height: 10, byteLength: 100, createdAtMs: 1 };
     const images = { select: vi.fn(async () => asset), get: vi.fn(), resolve: vi.fn(async () => ({ asset, src: 'asset://fixture-image' })), delete: vi.fn(async () => {}) } as unknown as BackgroundImagesApi;
     const { fixture } = mountWorkspace('terminal', { backgroundImages: images });
     await flushPromises();
-    document.querySelector<HTMLInputElement>('input[name="terminalThemeMode"][value="image"]')!.click();
+    document.querySelector<HTMLInputElement>('[role="radio"][value="image"]')!.click();
     await flushPromises();
     button('选择图片').click();
     await flushPromises();
-    expect(document.querySelector('.terminal-background-preview-image')).not.toBeNull();
-    expect(button('保存更改').disabled).toBe(false);
-    button('放弃更改').click();
+    expect(document.querySelector('.terminal-appearance-preview-image')).not.toBeNull();
+    await waitForAutoSave();
+    expect(fixture.current().value.terminalBackgroundImage.imageId).toBe('fixture-image');
+    expect(images.delete).not.toHaveBeenCalled();
+
+    button('清除图片').click();
     await flushPromises();
+    await waitForAutoSave();
     expect(images.delete).toHaveBeenCalledExactlyOnceWith('fixture-image');
     expect(fixture.current().value.terminalBackgroundImage.imageId).toBeNull();
-    expect(button('保存更改').disabled).toBe(true);
   });
 });
