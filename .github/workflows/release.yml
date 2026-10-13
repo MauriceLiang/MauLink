@@ -98,6 +98,7 @@ jobs:
           npm --prefix frontend run build
           node --test tools/check-release-version.test.mjs
           node --test tools/msi-version.test.mjs
+          node --test tools/write-updater-config.test.mjs tools/build-update-index.test.mjs
           node --test frontend/visual/capture.test.mjs
           node frontend/visual/verify.mjs
       - name: Rust format and core tests
@@ -105,10 +106,22 @@ jobs:
           cargo fmt --all -- --check
           cargo test -p maulink-core --locked
 
+  verify-update-hosting:
+    name: Verify GitHub Pages update host
+    runs-on: ubuntu-24.04
+    needs: plan
+    if: needs.plan.outputs.should_release == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/configure-pages@v5
+
   build:
     name: Package / ${{ matrix.kind }}
-    needs: [plan, validate]
-    if: needs.plan.outputs.should_release == 'true' && needs.validate.result == 'success'
+    needs: [plan, validate, verify-update-hosting]
+    if: needs.plan.outputs.should_release == 'true' && needs.validate.result == 'success' && needs.verify-update-hosting.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +139,10 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundle: msi
     runs-on: ${{ matrix.os }}
+    environment: maulink-updater-release
+    env:
+      MAULINK_UPDATER_PUBLIC_KEY: ${{ vars.MAULINK_UPDATER_PUBLIC_KEY }}
+      MAULINK_UPDATER_INDEX_BASE_URL: ${{ vars.MAULINK_UPDATER_INDEX_BASE_URL || 'https://mauriceliang.github.io/MauLink/updates/' }}
     steps:
       - uses: actions/checkout@v7
         env:
@@ -147,19 +164,46 @@ jobs:
         run: npm --prefix frontend ci
       - name: Install pinned Tauri CLI
         run: cargo install tauri-cli --version 2.12.0 --locked
-      - name: Build ad-hoc signed-for-testing macOS DMG
+      - name: Require protected updater signing configuration
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+            echo "Missing TAURI_SIGNING_PRIVATE_KEY in the maulink-updater-release Environment" >&2
+            exit 1
+          fi
+          if [[ -z "${MAULINK_UPDATER_PUBLIC_KEY:-}" ]]; then
+            echo "Missing repository variable MAULINK_UPDATER_PUBLIC_KEY" >&2
+            exit 1
+          fi
+          node tools/write-updater-config.mjs src-tauri/tauri.release-updater.conf.json
+      - name: Build macOS installer and updater archive
         if: runner.os == 'macOS'
         env:
           APPLE_SIGNING_IDENTITY: '-'
-        run: cargo tauri build --target ${{ matrix.target }} --bundles dmg --ci -- --locked
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: >-
+          cargo tauri build
+          --config src-tauri/tauri.release-updater.conf.json
+          --target ${{ matrix.target }}
+          --bundles app,dmg
+          --ci
+          -- --locked
       - name: Generate Windows MSI version override
         if: runner.os == 'Windows'
         shell: bash
         run: node tools/write-msi-config.mjs "${{ needs.plan.outputs.tag }}"
       - name: Build Windows MSI
         if: runner.os == 'Windows'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: >-
           cargo tauri build
+          --config src-tauri/tauri.release-updater.conf.json
           --config src-tauri/tauri.release-windows.conf.json
           --target ${{ matrix.target }}
           --bundles msi
@@ -195,14 +239,33 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          source_dir="target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}"
-          files=("$source_dir"/*.${{ matrix.bundle }})
-          if [ "${#files[@]}" -ne 1 ]; then
-            echo "Expected exactly one ${{ matrix.bundle }} under $source_dir, got ${#files[@]}"
-            exit 1
-          fi
           mkdir -p release-out
-          cp "${files[0]}" "release-out/MauLink_${{ needs.plan.outputs.version }}_${{ matrix.target }}.${{ matrix.bundle }}"
+          version="${{ needs.plan.outputs.version }}"
+          target="${{ matrix.target }}"
+          if [[ "${{ matrix.bundle }}" == "dmg" ]]; then
+            installer_dir="target/$target/release/bundle/dmg"
+            installer_files=("$installer_dir"/*.dmg)
+            updater_dir="target/$target/release/bundle/macos"
+            updater_files=("$updater_dir"/*.app.tar.gz)
+            if [[ "${#installer_files[@]}" -ne 1 || "${#updater_files[@]}" -ne 1 ]]; then
+              echo "Expected one DMG and one .app.tar.gz for $target" >&2
+              exit 1
+            fi
+            test -s "${updater_files[0]}.sig"
+            cp "${installer_files[0]}" "release-out/MauLink_${version}_${target}.dmg"
+            cp "${updater_files[0]}" "release-out/MauLink_${version}_${target}.app.tar.gz"
+            cp "${updater_files[0]}.sig" "release-out/MauLink_${version}_${target}.app.tar.gz.sig"
+          else
+            installer_dir="target/$target/release/bundle/msi"
+            installer_files=("$installer_dir"/*.msi)
+            if [[ "${#installer_files[@]}" -ne 1 ]]; then
+              echo "Expected one MSI for $target, got ${#installer_files[@]}" >&2
+              exit 1
+            fi
+            test -s "${installer_files[0]}.sig"
+            cp "${installer_files[0]}" "release-out/MauLink_${version}_${target}.msi"
+            cp "${installer_files[0]}.sig" "release-out/MauLink_${version}_${target}.msi.sig"
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: maulink-${{ matrix.kind }}
@@ -217,6 +280,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      MAULINK_UPDATER_PUBLIC_KEY: ${{ vars.MAULINK_UPDATER_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -230,19 +295,41 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           files=(release-dist/*)
-          if [ "${#files[@]}" -ne 3 ]; then
-            echo "Expected 3 installers, got ${#files[@]}"
+          if [ "${#files[@]}" -ne 8 ]; then
+            echo "Expected 3 installers, 2 macOS updater bundles, and 3 signatures; got ${#files[@]} files"
             exit 1
           fi
           test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_aarch64-apple-darwin.dmg"
           test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-apple-darwin.dmg"
           test -f "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-pc-windows-msvc.msi"
+          test -s "release-dist/MauLink_${{ needs.plan.outputs.version }}_aarch64-apple-darwin.app.tar.gz"
+          test -s "release-dist/MauLink_${{ needs.plan.outputs.version }}_aarch64-apple-darwin.app.tar.gz.sig"
+          test -s "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-apple-darwin.app.tar.gz"
+          test -s "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-apple-darwin.app.tar.gz.sig"
+          test -s "release-dist/MauLink_${{ needs.plan.outputs.version }}_x86_64-pc-windows-msvc.msi.sig"
+      - name: Verify updater signatures before creating the Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${MAULINK_UPDATER_PUBLIC_KEY:-}" ]]; then
+            echo "Missing repository variable MAULINK_UPDATER_PUBLIC_KEY" >&2
+            exit 1
+          fi
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends minisign
+          version="${{ needs.plan.outputs.version }}"
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            asset="release-dist/MauLink_${version}_${target}.app.tar.gz"
+            minisign -Vm "$asset" -x "$asset.sig" -P "$MAULINK_UPDATER_PUBLIC_KEY" -q
+          done
+          asset="release-dist/MauLink_${version}_x86_64-pc-windows-msvc.msi"
+          minisign -Vm "$asset" -x "$asset.sig" -P "$MAULINK_UPDATER_PUBLIC_KEY" -q
       - name: Generate SHA256 checksums
         shell: bash
         run: |
           set -euo pipefail
           cd release-dist
-          sha256sum -- *.dmg *.msi > SHA256SUMS
+          sha256sum -- *.dmg *.msi *.tar.gz *.sig > SHA256SUMS
       - name: Create or complete release automatically
         env:
           GH_TOKEN: ${{ github.token }}
@@ -252,16 +339,97 @@ jobs:
           set -euo pipefail
           if release_is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
             if [[ "$release_is_draft" == "false" ]]; then
-              echo "Release $RELEASE_TAG is already published."
-              exit 0
+              echo "Release $RELEASE_TAG is already published; refusing to replace or repoint its assets."
+              exit 1
             fi
-            gh release upload "$RELEASE_TAG" release-dist/* --clobber
           else
             release_flags=(--draft --target "$GITHUB_SHA" --title "MauLink ${RELEASE_TAG}" \
-              --notes "Cross-platform MauLink release packages. macOS builds are ad-hoc signed and NOT notarized; Windows MSI is not Authenticode signed.")
+              --notes "Cross-platform MauLink release packages and Tauri updater artifacts. macOS builds are ad-hoc signed and NOT notarized; Windows MSI is not Authenticode signed.")
             if [[ "$RELEASE_TAG" == *-* ]]; then
               release_flags+=(--prerelease)
             fi
-            gh release create "$RELEASE_TAG" "${release_flags[@]}" release-dist/*
+            gh release create "$RELEASE_TAG" "${release_flags[@]}"
+          fi
+
+          existing_dir="$RUNNER_TEMP/existing-release-assets"
+          mkdir -p "$existing_dir"
+          while IFS= read -r asset; do
+            name="$(basename "$asset")"
+            if gh release view "$RELEASE_TAG" --json assets --jq ".assets[].name" | grep -Fqx -- "$name"; then
+              gh release download "$RELEASE_TAG" --pattern "$name" --dir "$existing_dir"
+              if ! cmp -s "$asset" "$existing_dir/$name"; then
+                echo "Release asset $name already exists with different bytes; refusing to overwrite it." >&2
+                exit 1
+              fi
+            else
+              gh release upload "$RELEASE_TAG" "$asset"
+            fi
+          done < <(find release-dist -maxdepth 1 -type f -print | sort)
+
+          expected_names=$(find release-dist -maxdepth 1 -type f -printf '%f\n' | sort)
+          remote_names=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | sort)
+          if [[ "$remote_names" != "$expected_names" ]]; then
+            echo "Published Release assets do not match the verified build output." >&2
+            diff -u <(printf '%s\n' "$expected_names") <(printf '%s\n' "$remote_names") || true
+            exit 1
           fi
           gh release edit "$RELEASE_TAG" --draft=false
+
+  deploy-update-index:
+    name: Publish Stable or Preview index
+    needs: [plan, publish-release]
+    if: needs.plan.outputs.should_release == 'true' && needs.publish-release.result == 'success'
+    concurrency:
+      group: maulink-update-index
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      MAULINK_UPDATER_PUBLIC_KEY: ${{ vars.MAULINK_UPDATER_PUBLIC_KEY }}
+      MAULINK_UPDATER_INDEX_BASE_URL: ${{ vars.MAULINK_UPDATER_INDEX_BASE_URL || 'https://mauriceliang.github.io/MauLink/updates/' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: maulink-*
+          path: release-dist
+          merge-multiple: true
+      - name: Verify public Release asset URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.plan.outputs.version }}"
+          tag="${{ needs.plan.outputs.tag }}"
+          for asset in \
+            "MauLink_${version}_aarch64-apple-darwin.app.tar.gz" \
+            "MauLink_${version}_x86_64-apple-darwin.app.tar.gz" \
+            "MauLink_${version}_x86_64-pc-windows-msvc.msi"; do
+            curl --fail --silent --show-error --location --head \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${asset}" >/dev/null
+          done
+      - uses: actions/configure-pages@v5
+      - name: Build channel index without moving it backwards
+        run: |
+          node tools/build-update-index.mjs \
+            "${{ needs.plan.outputs.version }}" \
+            "${{ needs.plan.outputs.tag }}" \
+            release-dist \
+            update-site/updates
+          touch update-site/.nojekyll
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: update-site
+      - name: Deploy update indexes
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify deployed index bytes over HTTPS
+        run: >-
+          node tools/verify-update-index.mjs
+          update-site/updates
+          "$MAULINK_UPDATER_INDEX_BASE_URL"

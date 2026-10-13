@@ -37,6 +37,8 @@ jobs:
         run: node --test tools/check-release-version.test.mjs
       - name: MSI version mapping tests
         run: node --test tools/msi-version.test.mjs
+      - name: Update source and index tests
+        run: node --test tools/write-updater-config.test.mjs tools/build-update-index.test.mjs
       - name: Visual manifest checks (not screenshot capture)
         run: |
           node --test frontend/visual/capture.test.mjs

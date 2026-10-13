@@ -42,17 +42,21 @@ node tools/check-release-version.mjs v0.1.1-rc.1
 
 | 平台 | Rust target | Release 附件 |
 | --- | --- | --- |
-| macOS Apple Silicon | `aarch64-apple-darwin` | `MauLink_<version>_aarch64-apple-darwin.dmg` |
-| macOS Intel | `x86_64-apple-darwin` | `MauLink_<version>_x86_64-apple-darwin.dmg` |
-| Windows x64 | `x86_64-pc-windows-msvc` | `MauLink_<version>_x86_64-pc-windows-msvc.msi` |
+| macOS Apple Silicon | `aarch64-apple-darwin` | `.dmg` 安装包、`.app.tar.gz` 更新包及其 `.sig` |
+| macOS Intel | `x86_64-apple-darwin` | `.dmg` 安装包、`.app.tar.gz` 更新包及其 `.sig` |
+| Windows x64 | `x86_64-pc-windows-msvc` | `.msi` 安装包及其 `.sig` |
 
-每个构建必须恰好产生一个对应安装包。只有三个 job 全部成功后，发布 job 才收齐并核对三个文件、生成 `SHA256SUMS`，创建 Draft 并在上传完成后自动公开。版本包含预发布标识（例如 `-rc.8`）时，Release 会标记为 prerelease。Release 和 Tag 创建失败会让工作流失败，不会覆盖已有版本。
+签名版本发布还要求先启用 GitHub Pages（`Settings → Pages → Source = GitHub Actions`）和 `maulink-updater-release` Environment。该 Environment 必须限制到 `main` 并由负责人配置 required reviewers；其中放置 `TAURI_SIGNING_PRIVATE_KEY` 及可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。仓库 Actions Variables 提供 `MAULINK_UPDATER_PUBLIC_KEY`。PR 与 Packaging Smoke 不读取签名私钥。
 
-macOS 构建使用 `APPLE_SIGNING_IDENTITY='-'` 进行 ad-hoc 签名且**未公证**。Windows MSI 当前**未做 Authenticode 可信签名**。这些产物是供验收的测试包，不应描述成已获得普通用户可信分发能力。PR 不使用签名 Secret；此工作流也不需要 Apple、Windows 或 Updater 密钥。
+发布前置检查会验证 Pages 已启用，然后三个原生构建 job 才可读取 Environment 私钥。每个平台必须同时生成对应安装包和 updater 签名；Release job 核对 8 个平台文件并生成 `SHA256SUMS`，创建 Draft 并在上传完成后自动公开。随后独立 job 使用公钥复验三平台签名、检查 GitHub Release 下载地址，按 SemVer 仅更新 Stable 或 Preview 对应的 Pages JSON 索引。索引部署成功前，应用内更新不能取得新版本。版本包含预发布标识（例如 `-rc.8`）时，Release 会标记为 prerelease。Release 和 Tag 创建失败会让工作流失败，不会覆盖已有版本。
+
+Updater `.sig` 用于 Tauri 包完整性和发布者验证，不是 Apple Developer ID / 公证或 Windows Authenticode 签名。Mac 应用仍为 ad-hoc 签名且未公证，Windows MSI 仍未做 Authenticode 可信签名。
+
+macOS 构建使用 `APPLE_SIGNING_IDENTITY='-'` 进行 ad-hoc 签名且**未公证**。Windows MSI 当前**未做 Authenticode 可信签名**。这些产物是供验收的测试包，不应描述成已获得普通用户可信分发能力。PR Smoke 不使用任何签名 Secret；正式 Release 使用 Tauri Updater 密钥，但不需要 Apple 或 Windows 代码签名证书。
 
 ## 下载与验收
 
-工作流成功后，从 GitHub Releases 下载附件，并先在下载目录校验哈希。macOS：
+工作流成功后，从 GitHub Releases 下载附件，并先在下载目录校验哈希。更新设置索引默认部署于 `https://mauriceliang.github.io/MauLink/updates/stable.json` 与 `preview.json`。macOS：
 
 ```bash
 shasum -a 256 -c SHA256SUMS
@@ -87,7 +91,7 @@ Release 会在自动检查、三平台构建和附件上传成功后公开。mac
 ## 后续阶段
 
 - **签名与公证**：需要用户办理 Apple Developer ID、公证权限及 Windows Authenticode 签名方案，并将材料仅配置在受保护的 GitHub Secrets / Environment。取得实际设备验证结果后再修改发布流程。不得将证书或私钥放入仓库、日志或聊天。
-- **Tauri Updater**：Stable/Preview 偏好、严格 SemVer、Rust 端渠道选择与候选检查、Mock 流程和安装安全门禁已实现。前端不再直接调用 JS updater 插件；Rust 受控命令仅在两个不同的 HTTPS endpoint 和非空公钥完整配置时启用。当前 `tauri.conf.json` 未配置更新地址或公钥，因此真实在线更新仍禁用。降级在下载前一律拦截，直到数据库兼容策略、备份和 Windows MSI/macOS 实机测试完成；MSI overlay 虽显式设置 `allowDowngrades=true`，不能据此宣称降级安装已验证。负责人仍需确认 Stable/Preview HTTPS 托管、亲自生成并安全保管签名私钥、配置受保护的发布 Environment，并完成签名归档、双索引和真机验收。不得生成伪造 `.sig` / `stable.json` / `preview.json`。详见 [UPDATING.md](UPDATING.md)。
+- **Tauri Updater**：Stable/Preview 偏好、严格 SemVer、Rust 端渠道选择与候选检查、Mock 流程和安装安全门禁已实现。正式发布工作流现可生成三平台签名更新包、复验 `.sig` 并将双渠道索引部署到 GitHub Pages；索引只在公开 Release 资产可下载且签名复验成功后更新。仓库当前 Pages 仍未启用，且尚无 Updater 公钥变量和 Environment 私钥 Secrets，因此真实在线更新仍禁用。降级在下载前一律拦截，直到数据库兼容策略、备份和 Windows MSI/macOS 实机测试完成；MSI overlay 虽显式设置 `allowDowngrades=true`，不能据此宣称降级安装已验证。负责人仍需启用 Pages、配置受保护发布 Environment 并安全保管签名私钥，之后完成首个带配置客户端的手动安装与真机验收。不得生成伪造 `.sig` / `stable.json` / `preview.json`。详见 [UPDATING.md](UPDATING.md)。
 - Linux、Windows ARM64、Portable ZIP 和 Universal macOS 包均需另行确认范围和真实设备验收。
 
 ## 历史 CI/CD 验收报告（2026-10-12）
