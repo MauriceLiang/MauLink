@@ -22,8 +22,8 @@ use commands::{
     sftp_delete, sftp_download, sftp_list_close, sftp_list_next, sftp_list_start, sftp_mkdir,
     sftp_read_text, sftp_rename, sftp_stat, sftp_transfer_cancel, sftp_transfer_get,
     sftp_transfer_list, sftp_upload, sftp_write_text, sftp_write_text_with_sudo, terminal_ack,
-    terminal_close, terminal_get, terminal_open, terminal_resize, terminal_write,
-    workspace_set_activity,
+    terminal_close, terminal_get, terminal_get_working_directory, terminal_open, terminal_resize,
+    terminal_write, workspace_set_activity,
 };
 use maulink_core::{
     AppCapabilities, AppCore, AppInfo, ConnectionRegistry, CredentialCipher, CredentialManager,
@@ -187,6 +187,7 @@ pub fn run() {
             connection_disconnect,
             terminal_open,
             terminal_get,
+            terminal_get_working_directory,
             terminal_write,
             terminal_resize,
             terminal_ack,

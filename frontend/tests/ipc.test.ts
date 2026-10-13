@@ -33,6 +33,7 @@ describe("typed IPC contract", () => {
     await createServerApi(client).list(query);
     await createConnectionApi(client).get({ connectionId: "connection" });
     await createTerminalApi(client).ack({ terminalId: "terminal", streamId: "stream", seq: "1" });
+    await createTerminalApi(client).workingDirectory({ terminalId: "terminal" });
     await createSftpApi(client).listStart({ connectionId: "connection", path: "/" });
     await createMonitorApi(client).getSnapshot({ connectionId: "connection" });
     await createSettingsApi(client).get();
@@ -41,7 +42,7 @@ describe("typed IPC contract", () => {
     await createPreflightApi(client).check({ serverId: "server", host: "example.com", port: 22, timeoutMs: 10000 });
     await createServerRuntimeStatsApi(client).get({ serverId: "server" });
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([
-      "server_list", "connection_get", "terminal_ack", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get", "network_inspect", "connection_preflight", "server_runtime_stats_get",
+      "server_list", "connection_get", "terminal_ack", "terminal_get_working_directory", "sftp_list_start", "monitor_get_snapshot", "settings_get", "host_key_get", "network_inspect", "connection_preflight", "server_runtime_stats_get",
     ]);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ request: { apiVersion: 1, requestId: expect.any(String), payload: query } });
   });

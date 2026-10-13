@@ -66,6 +66,7 @@ fn main() {
             "sftp_transfer_cancel",
             "terminal_open",
             "terminal_get",
+            "terminal_get_working_directory",
             "terminal_write",
             "terminal_resize",
             "terminal_ack",

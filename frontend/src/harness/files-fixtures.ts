@@ -3,12 +3,14 @@ import type { RemoteFileEntry } from "../../../contracts/v1/RemoteFileEntry";
 import type { SftpTransferSnapshot } from "../../../contracts/v1/SftpTransferSnapshot";
 import type { ConnectionSnapshot } from "../../../contracts/v1/ConnectionSnapshot";
 import type { TerminalSnapshot } from "../../../contracts/v1/TerminalSnapshot";
+import type { TerminalChunk } from "../../../contracts/v1/TerminalChunk";
 import type { IpcTransport } from "../ipc/client";
 import { createMockIpc } from "../ipc/mock";
 import { createServerMock, fixtureError } from "./server-fixtures";
 import { createMonitorMock } from "./monitor-fixtures";
 import { defaultSettings } from "../terminal/preferences";
 import { joinRemotePath, validBasename } from "../files/path";
+import { decodeBase64, encodeBytesBase64 } from "../terminal/codec";
 export type FileScenario = 'completed' | 'slow' | 'failed' | 'picker-cancel';
 export function createFilesMock(scenario: () => FileScenario = () => 'completed') {
   const directories = new Map<string, RemoteFileEntry[]>();
@@ -79,13 +81,40 @@ export function createFilesMock(scenario: () => FileScenario = () => 'completed'
   });
   const transport: IpcTransport = { async invoke<T>(command: string, args?: Record<string, unknown>) { calls.push(command); if (command === 'sftp_upload' || command === 'sftp_download') output = args?.outputChannel as Channel<SftpTransferSnapshot>; return mock.invoke<T>(command, args); } };
   function dispose() { timers.forEach(clearTimeout); timers.clear(); channels.clear(); }
-  return { transport, calls, reset, dispose, expire: () => cursors.clear(), tasks };
+  return { transport, calls, reset, dispose, expire: () => cursors.clear(), tasks, resolveDirectory: (path: string) => directory(path).path };
 }
 
 export function createFilesWorkspaceMock(files: ReturnType<typeof createFilesMock>) {
   const servers = createServerMock(); const monitor = createMonitorMock();
   let connection: ConnectionSnapshot = { connectionId: 'files-fixture', serverId: null, mode: 'workspace', state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: 1, updatedAtMs: 1 };
   const terminals = new Map<string, TerminalSnapshot>();
+  const workingDirectories = new Map<string, string>();
+  const terminalInputs = new Map<string, string>();
+  const terminalOutputs = new Map<string, Channel<TerminalChunk>>();
+  const terminalSequences = new Map<string, number>();
+  let openingOutput: Channel<TerminalChunk> | undefined;
+  function print(terminalId: string, text: string) {
+    const terminal = terminals.get(terminalId)!;
+    const bytes = new TextEncoder().encode(text);
+    const seq = (terminalSequences.get(terminalId) ?? 0) + 1;
+    terminalSequences.set(terminalId, seq);
+    terminalOutputs.get(terminalId)?.onmessage({ terminalId, streamId: terminal.streamId, seq: String(seq), byteLength: bytes.length, dataBase64: encodeBytesBase64(bytes) });
+  }
+  // DEV-only shell fixture: resolve cd against the same in-memory directories as SFTP.
+  function run(terminalId: string, line: string) {
+    const command = line.trim();
+    if (command === 'cd' || command.startsWith('cd ')) {
+      let destination = command.slice(2).trim() || '/fixture';
+      if ((destination.startsWith('"') && destination.endsWith('"')) || (destination.startsWith("'") && destination.endsWith("'"))) destination = destination.slice(1, -1);
+      const parts: string[] = [];
+      for (const part of (destination.startsWith('/') ? destination : `${workingDirectories.get(terminalId)}/${destination}`).split('/')) {
+        if (part === '..') parts.pop(); else if (part && part !== '.') parts.push(part);
+      }
+      try { workingDirectories.set(terminalId, files.resolveDirectory(`/${parts.join('/')}`)); }
+      catch { print(terminalId, `cd: no such directory: ${destination}\r\n`); }
+    } else if (command === 'pwd') print(terminalId, `${workingDirectories.get(terminalId)}\r\n`);
+    print(terminalId, `${workingDirectories.get(terminalId)} $ `);
+  }
   const shell = createMockIpc({
     connection_start: ({ source }) => { connection = { ...connection, serverId: source.kind === 'saved' ? source.serverId : null, state: 'ready' }; return connection; }, connection_get: () => connection,
     connection_disconnect: ({ stopActiveTransfers }) => {
@@ -95,10 +124,25 @@ export function createFilesWorkspaceMock(files: ReturnType<typeof createFilesMoc
       connection = { ...connection, state: 'closed' }; terminals.forEach(value => { value.state = 'closed'; }); return connection;
     },
     settings_get: () => ({ value: defaultSettings, revision: 1, updatedAtMs: 1 }),
-    terminal_open: ({ connectionId, columns, rows }) => { const terminalId = crypto.randomUUID(); const streamId = crypto.randomUUID(); terminals.set(terminalId, { terminalId, streamId, connectionId, size: { columns, rows, pixelWidth: null, pixelHeight: null }, state: 'running', error: null, exitStatus: null, exitSignal: null, createdAtMs: 1, updatedAtMs: 1 }); return { terminalId, streamId }; },
-    terminal_get: ({ terminalId }) => terminals.get(terminalId)!, terminal_resize: value => value, terminal_ack: () => undefined, terminal_write: ({ inputSeq }) => ({ inputSeq, duplicate: false }), terminal_close: ({ terminalId }) => { const value = terminals.get(terminalId)!; value.state = 'closed'; return value; },
+    terminal_open: ({ connectionId, columns, rows }) => { const terminalId = crypto.randomUUID(); const streamId = crypto.randomUUID(); terminals.set(terminalId, { terminalId, streamId, connectionId, size: { columns, rows, pixelWidth: null, pixelHeight: null }, state: 'running', error: null, exitStatus: null, exitSignal: null, createdAtMs: 1, updatedAtMs: 1 }); workingDirectories.set(terminalId, '/fixture'); if (openingOutput) terminalOutputs.set(terminalId, openingOutput); print(terminalId, '/fixture $ '); return { terminalId, streamId }; },
+    terminal_get: ({ terminalId }) => terminals.get(terminalId)!,
+    terminal_get_working_directory: ({ terminalId }) => workingDirectories.get(terminalId) ?? null,
+    terminal_resize: value => value, terminal_ack: () => undefined,
+    terminal_write: ({ terminalId, inputSeq, dataBase64 }) => {
+      let input = terminalInputs.get(terminalId) ?? '';
+      for (const character of new TextDecoder().decode(decodeBase64(dataBase64))) {
+        if (character === '\r' || character === '\n') { print(terminalId, '\r\n'); run(terminalId, input); input = ''; }
+        else if (character === '\u007f') { input = input.slice(0, -1); print(terminalId, '\b \b'); }
+        else if (character === '\u0003') { input = ''; print(terminalId, `^C\r\n${workingDirectories.get(terminalId)} $ `); }
+        else { input += character; print(terminalId, character); }
+      }
+      terminalInputs.set(terminalId, input);
+      return { inputSeq, duplicate: false };
+    },
+    terminal_close: ({ terminalId }) => { const value = terminals.get(terminalId)!; value.state = 'closed'; terminalOutputs.delete(terminalId); return value; },
   });
   const transport: IpcTransport = { async invoke<T>(command: string, args?: Record<string, unknown>) {
+    if (command === 'terminal_open') openingOutput = args?.outputChannel as Channel<TerminalChunk>;
     if (command.startsWith('monitor_') || command === 'workspace_set_activity') return monitor.invoke<T>(command, args);
     if (command.startsWith('sftp_') || command === 'local_file_select') return files.transport.invoke<T>(command, args);
     if (command.startsWith('connection_') || command.startsWith('terminal_') || command === 'settings_get') return shell.invoke<T>(command, args);

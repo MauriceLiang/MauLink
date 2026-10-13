@@ -27,6 +27,8 @@ const OUTPUT_EVENT_CAPACITY: usize = 4;
 const INPUT_REQUEST_BYTES: usize = 64 * 1024;
 const INPUT_QUEUE_BYTES: usize = 256 * 1024;
 const CONSUMER_STALL_TIMEOUT: Duration = Duration::from_secs(15);
+const PROCESS_MARKER_WAIT_TIMEOUT: Duration = Duration::from_millis(750);
+const WORKING_DIRECTORY_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -113,10 +115,137 @@ struct Terminal {
     input: Mutex<InputState>,
     input_budget: Arc<Semaphore>,
     cancellation: CancellationToken,
+    shell_process: StdMutex<ShellProcess>,
+    shell_process_changed: Notify,
+}
+
+struct ShellProcess {
+    supported: bool,
+    marker: Vec<u8>,
+    matched: usize,
+    digits: Vec<u8>,
+    pid: Option<u32>,
 }
 
 struct InputState {
     next_seq: u64,
+}
+
+impl ShellProcess {
+    fn new(nonce: &str, supported: bool) -> Self {
+        Self {
+            supported,
+            marker: format!("\x1b]777;maulink-pid={nonce};").into_bytes(),
+            matched: 0,
+            digits: Vec::with_capacity(10),
+            pid: None,
+        }
+    }
+
+    fn feed(&mut self, bytes: &[u8]) -> bool {
+        if !self.supported || self.pid.is_some() {
+            return false;
+        }
+        for &byte in bytes {
+            if self.matched < self.marker.len() {
+                if byte == self.marker[self.matched] {
+                    self.matched += 1;
+                } else {
+                    self.matched = usize::from(byte == self.marker[0]);
+                }
+            } else if byte.is_ascii_digit() && self.digits.len() < 10 {
+                self.digits.push(byte);
+            } else {
+                if byte == 0x07 {
+                    self.pid = std::str::from_utf8(&self.digits)
+                        .ok()
+                        .and_then(|digits| digits.parse::<u32>().ok())
+                        .filter(|pid| *pid != 0);
+                    if self.pid.is_some() {
+                        self.digits.clear();
+                        return true;
+                    }
+                }
+                self.digits.clear();
+                self.matched = usize::from(byte == self.marker[0]);
+            }
+        }
+        false
+    }
+}
+
+fn working_directory_command(pid: u32) -> String {
+    // Only an internally captured, numeric PID is interpolated into this command.
+    format!(
+        "/bin/sh -c 'case \"$(uname -s 2>/dev/null)\" in Linux) if [ -d /proc/{pid}/cwd ]; then (cd -P /proc/{pid}/cwd && printf \"MAULINK_CWD\\000%s\\000\" \"$PWD\") 2>/dev/null; fi;; Darwin) if command -v lsof >/dev/null 2>&1; then printf \"MAULINK_LSOF\\000\"; LC_ALL=C lsof -a -p {pid} -d cwd -F0pfn 2>/dev/null; fi;; esac'"
+    )
+}
+
+fn parse_working_directory(output: &str, pid: u32) -> Option<String> {
+    if let Some((_, framed)) = output.split_once("MAULINK_CWD\0") {
+        let (path, _) = framed.split_once('\0')?;
+        return valid_working_directory(path.to_owned());
+    }
+    let (_, framed) = output.split_once("MAULINK_LSOF\0")?;
+    let expected_pid = pid.to_string();
+    let mut matching_process = false;
+    let mut cwd = false;
+    for field in framed.split('\0') {
+        // lsof separates process/file records with a newline outside the NUL fields.
+        let field = field.strip_prefix('\n').unwrap_or(field);
+        if let Some(value) = field.strip_prefix('p') {
+            matching_process = value == expected_pid;
+            cwd = false;
+        } else if let Some(value) = field.strip_prefix('f') {
+            cwd = value == "cwd";
+        } else if let Some(value) = field.strip_prefix('n')
+            && matching_process
+            && cwd
+        {
+            return valid_working_directory(decode_lsof_name(value)?);
+        }
+    }
+    None
+}
+
+fn valid_working_directory(path: String) -> Option<String> {
+    (path.starts_with('/') && !path.contains('\0')).then_some(path)
+}
+
+fn decode_lsof_name(value: &str) -> Option<String> {
+    let mut decoded = Vec::with_capacity(value.len());
+    let mut bytes = value.bytes().peekable();
+    while let Some(byte) = bytes.next() {
+        if byte == b'\\' {
+            decoded.push(match bytes.next()? {
+                b'\\' => b'\\',
+                b'n' => b'\n',
+                b't' => b'\t',
+                b'r' => b'\r',
+                b'a' => 0x07,
+                b'b' => 0x08,
+                b'f' => 0x0c,
+                b'v' => 0x0b,
+                b'x' => {
+                    let high = char::from(bytes.next()?).to_digit(16)?;
+                    let low = char::from(bytes.next()?).to_digit(16)?;
+                    ((high << 4) | low) as u8
+                }
+                _ => return None,
+            });
+        } else {
+            // Caret notation cannot distinguish control bytes from literal path text.
+            if byte == b'^'
+                && bytes
+                    .peek()
+                    .is_some_and(|next| (b'@'..=b'_').contains(next) || *next == b'?')
+            {
+                return None;
+            }
+            decoded.push(byte);
+        }
+    }
+    String::from_utf8(decoded).ok()
 }
 
 #[derive(Clone)]
@@ -161,7 +290,8 @@ impl TerminalManager {
             return Err(validation("connectionId", "errors.connectionNotReady"));
         }
         self.ensure_capacity(&payload.connection_id)?;
-        let (reader, writer) = self
+        let process_marker = Uuid::new_v4().to_string();
+        let (reader, writer, tracks_process) = self
             .connections
             .open_terminal_channel(
                 &payload.connection_id,
@@ -169,6 +299,7 @@ impl TerminalManager {
                 size.rows,
                 size.pixel_width.unwrap_or(0),
                 size.pixel_height.unwrap_or(0),
+                &process_marker,
             )
             .await?;
         let now = storage::now_ms()?;
@@ -192,6 +323,8 @@ impl TerminalManager {
             input: Mutex::new(InputState { next_seq: 1 }),
             input_budget: Arc::new(Semaphore::new(INPUT_QUEUE_BYTES)),
             cancellation: CancellationToken::new(),
+            shell_process: StdMutex::new(ShellProcess::new(&process_marker, tracks_process)),
+            shell_process_changed: Notify::new(),
         });
         if let Err(error) = self.insert(terminal.clone()) {
             terminal.close_writer().await;
@@ -211,6 +344,51 @@ impl TerminalManager {
 
     pub fn get(&self, payload: &TerminalIdPayload) -> Result<TerminalSnapshot, AppError> {
         Ok(self.terminal(&payload.terminal_id)?.snapshot()?.clone())
+    }
+
+    pub async fn working_directory(
+        &self,
+        payload: &TerminalIdPayload,
+    ) -> Result<Option<String>, AppError> {
+        let terminal = self.terminal(&payload.terminal_id)?;
+        terminal.ensure_running()?;
+        let process = tokio::time::timeout(PROCESS_MARKER_WAIT_TIMEOUT, async {
+            loop {
+                let changed = terminal.shell_process_changed.notified();
+                {
+                    let process = terminal.shell_process()?;
+                    if !process.supported || process.pid.is_some() {
+                        return Ok(process.pid);
+                    }
+                }
+                terminal.ensure_running()?;
+                tokio::select! {
+                    _ = changed => {}
+                    _ = terminal.cancellation.cancelled() => return Err(terminal_closed()),
+                }
+            }
+        })
+        .await;
+        let pid = match process {
+            Ok(result) => result?,
+            Err(_) => terminal.shell_process()?.pid,
+        };
+        let Some(pid) = pid else {
+            terminal.ensure_running()?;
+            return Ok(None);
+        };
+        let connection_id = terminal.snapshot()?.connection_id.clone();
+        let command = working_directory_command(pid);
+        let output = tokio::select! {
+            _ = terminal.cancellation.cancelled() => return Err(terminal_closed()),
+            result = self.connections.run_fixed_command(
+                &connection_id,
+                &command,
+                WORKING_DIRECTORY_TIMEOUT,
+            ) => result?,
+        };
+        terminal.ensure_running()?;
+        Ok(parse_working_directory(&output.stdout, pid))
     }
 
     pub async fn ack(&self, payload: TerminalAckPayload) -> Result<(), AppError> {
@@ -442,6 +620,12 @@ impl TerminalManager {
 }
 
 impl Terminal {
+    fn shell_process(&self) -> Result<StdMutexGuard<'_, ShellProcess>, AppError> {
+        self.shell_process
+            .lock()
+            .map_err(|_| AppError::new(ErrorCode::Internal, "errors.terminalStateUnavailable"))
+    }
+
     fn snapshot(&self) -> Result<StdMutexGuard<'_, TerminalSnapshot>, AppError> {
         self.snapshot
             .lock()
@@ -685,6 +869,16 @@ async fn run_output(
             message = reader.wait(), if !reader_closed => {
                 match message {
                     Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
+                        let process_result = terminal.shell_process().map(|mut process| process.feed(&data));
+                        match process_result {
+                            Ok(true) => terminal.shell_process_changed.notify_waiters(),
+                            Ok(false) => {}
+                            Err(error) => {
+                                let _ = terminal.fail(error);
+                                terminal.close_writer().await;
+                                return;
+                            }
+                        }
                         let (acked_seq, in_flight_bytes) = terminal.output.ack_state().await;
                         last_acked_seq = last_acked_seq.max(acked_seq);
                         for bytes in output_chunks(&data) {
@@ -835,6 +1029,59 @@ fn signal_name_text(signal: russh::Sig) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn captures_only_the_matching_fragmented_shell_process_marker() {
+        let mut process = ShellProcess::new("expected", true);
+        assert!(!process.feed(b"banner\x1b]777;maulink-pid=other;123\x07"));
+        assert!(!process.feed(b"\x1b]777;maulink-pid=expected;12"));
+        assert!(process.feed(b"34\x07prompt"));
+        assert_eq!(process.pid, Some(1234));
+        assert!(!process.feed(b"\x1b]777;maulink-pid=expected;9876\x07"));
+        assert_eq!(process.pid, Some(1234));
+        let mut unsupported = ShellProcess::new("expected", false);
+        assert!(!unsupported.feed(b"\x1b]777;maulink-pid=expected;1234\x07"));
+        assert_eq!(unsupported.pid, None);
+    }
+
+    #[test]
+    fn rejects_invalid_shell_process_ids_and_accepts_the_next_valid_marker() {
+        let mut process = ShellProcess::new("test", true);
+        for pid in ["0", "abc", "4294967296", "1234567890123"] {
+            assert!(!process.feed(format!("\x1b]777;maulink-pid=test;{pid}\x07").as_bytes()));
+            assert_eq!(process.pid, None);
+        }
+        assert!(process.feed(b"\x1b]777;maulink-pid=test;42\x07"));
+        assert_eq!(process.pid, Some(42));
+    }
+
+    #[test]
+    fn parses_real_directory_frames_without_trimming_path_characters() {
+        assert_eq!(
+            parse_working_directory(
+                "MAULINK_LSOF\0p42\0\nfcwd\0n/opt/\\xe7\\x9b\\xae\\xe5\\xbd\\x95\0\n",
+                42
+            ),
+            Some("/opt/目录".to_owned())
+        );
+        assert_eq!(
+            parse_working_directory("banner\nMAULINK_CWD\0/opt/目录 空格\n \0", 42),
+            Some("/opt/目录 空格\n ".to_owned())
+        );
+        assert_eq!(
+            parse_working_directory("MAULINK_LSOF\0p42\0\nfcwd\0n/opt/目录\\n\\t\\\\ \0\n", 42),
+            Some("/opt/目录\n\t\\ ".to_owned())
+        );
+        assert_eq!(
+            parse_working_directory("MAULINK_LSOF\0p99\0\nfcwd\0n/wrong\0\n", 42),
+            None
+        );
+        assert_eq!(parse_working_directory("MAULINK_CWD\0relative\0", 42), None);
+        assert_eq!(
+            parse_working_directory("MAULINK_LSOF\0p42\0\nfcwd\0n/ambiguous^A\0", 42),
+            None
+        );
+    }
 
     #[test]
     fn validates_terminal_dimensions() {

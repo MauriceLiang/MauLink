@@ -146,6 +146,7 @@ export interface CommandContracts {
   sftp_transfer_cancel: { payload: SftpTransferIdPayload; result: SftpTransferSnapshot };
   terminal_open: { payload: TerminalOpenPayload; result: TerminalOpenResult };
   terminal_get: { payload: TerminalIdPayload; result: TerminalSnapshot };
+  terminal_get_working_directory: { payload: TerminalIdPayload; result: string | null };
   terminal_write: { payload: TerminalWritePayload; result: TerminalWriteResult };
   terminal_resize: { payload: TerminalResizePayload; result: TerminalSize };
   terminal_ack: { payload: TerminalAckPayload; result: void };

@@ -45,6 +45,7 @@
     "allow-connection-disconnect",
     "allow-terminal-open",
     "allow-terminal-get",
+    "allow-terminal-get-working-directory",
     "allow-terminal-write",
     "allow-terminal-resize",
     "allow-terminal-ack",

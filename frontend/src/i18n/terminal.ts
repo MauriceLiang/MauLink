@@ -3,6 +3,7 @@ export const terminalMessages = {
   files: ["文件", "Files"],
   expandFiles: ["展开文件", "Expand files"],
   collapseFiles: ["收起文件", "Collapse files"],
+  workingDirectoryUnavailable: ["暂时无法获取终端目录，可在文件路径栏手动打开目录。", "The terminal directory is unavailable. Open a directory manually using the file path field."],
   monitor: ["监控", "Monitor"],
   disconnect: ["断开连接", "Disconnect"],
   newTerminal: ["新建终端", "New terminal"],

@@ -21,7 +21,7 @@ import FileMenu from "./FileMenu.vue";
 import RemoteTextFileDialog from "./RemoteTextFileDialog.vue";
 import TransferPanel from "./TransferPanel.vue";
 const t = messages(filesMessages);
-const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; preferences: TerminalPreferences; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean }>();
+const props = defineProps<{ api: ReturnType<typeof createSftpApi>; transfers: TransferStore; preferences: TerminalPreferences; connectionId: string; visible: boolean; ready: boolean; compactFooter?: boolean; requestedDirectory?: { path: string; revision: number } | null }>();
 const emit = defineEmits<{ pagination: [value: string] }>();
 const files = createFilesStore(props.api, props.connectionId);
 const { entries, path, cursor, page, pending, mutating, needsReload, error, cleanupError } = files;
@@ -39,12 +39,21 @@ const uploadRefresh = ref(false); const completedUploads = new Set<string>();
 type FolderSizeState = { status: 'loading' | 'unavailable' } | { status: 'ready'; bytes: string };
 const folderSizes = shallowRef<Record<string, FolderSizeState>>({});
 let folderSizeGeneration = 0; let disposed = false;
+let directoryRevision: number | undefined;
 watch(path, value => { location.value = value; });
 watch(entries, () => { selectedPath.value = null; });
 watch([page, entries], () => emit('pagination', t('pagination', {page: page.value, count: entries.value.length})), { immediate: true });
-watch(() => props.ready, ready => { if (!ready) files.suspend(); else if (props.visible && needsReload.value) void files.load(path.value || '.'); });
+watch(() => props.ready, ready => { if (!ready) files.suspend(); });
+watch([() => props.visible, () => props.ready, () => props.requestedDirectory, mutating], ([visible, ready]) => {
+  if (!visible || !ready || mutating.value) return;
+  const directory = props.requestedDirectory;
+  if (directory && directory.revision !== directoryRevision) {
+    directoryRevision = directory.revision;
+    notice.value = '';
+    void files.load(directory.path);
+  } else if (!pending.value && (!path.value || needsReload.value)) void files.load(path.value || '.');
+}, { immediate: true });
 watch(() => props.visible, visible => {
-  if (visible && props.ready && (!path.value || needsReload.value)) void files.load(path.value || '.');
   if (visible) void props.transfers.load(props.connectionId);
 }, { immediate: true });
 watch(props.transfers.snapshots, tasks => {
@@ -87,7 +96,7 @@ function edit(value: 'mkdir' | 'rename' | 'delete', entry?: RemoteFileEntry) {
 async function submit() {
   if (!operation.value || unavailable.value || (operation.value !== 'delete' && !validBasename(name.value))) return;
   const success = operation.value === 'mkdir' ? await files.mkdir(name.value) : operation.value === 'rename' ? await files.rename(target.value!, name.value) : await files.remove(target.value!);
-  if (success) { operation.value = null; notice.value = t('fileOperationCompleted'); await files.load(); await nextTick(); pathInput.value?.focus(); }
+  if (success) { operation.value = null; notice.value = t('fileOperationCompleted'); await nextTick(); if (props.ready && !pending.value) await files.load(); await nextTick(); pathInput.value?.focus(); }
 }
 async function transfer(direction: 'upload' | 'download', entry?: RemoteFileEntry) {
   if (unavailable.value || (direction === 'download' && !entry)) return;

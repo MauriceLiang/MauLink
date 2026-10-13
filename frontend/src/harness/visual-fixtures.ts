@@ -154,6 +154,7 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
       return { terminalId, streamId };
     },
     terminal_get: ({ terminalId }) => structuredClone(terminals.get(terminalId)!),
+    terminal_get_working_directory: () => '/opt/app',
     terminal_resize: ({ terminalId, ...size }) => { terminals.get(terminalId)!.size = size; return size; },
     terminal_write: ({ inputSeq }) => ({ inputSeq, duplicate: false }), terminal_ack: () => undefined,
     terminal_close: ({ terminalId }) => { const value = terminals.get(terminalId)!; value.state = 'closed'; return structuredClone(value); },

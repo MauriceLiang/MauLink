@@ -65,6 +65,67 @@ async fn opens_two_pty_channels_and_keeps_them_isolated() {
         .expect("open second terminal");
     wait_for_shell_prompt(&terminals, &second, &mut second_output).await;
 
+    wait_for_shell_prompt(&terminals, &first, &mut first_output).await;
+    let second_directory = terminals
+        .working_directory(&TerminalIdPayload {
+            terminal_id: second.terminal_id.clone(),
+        })
+        .await
+        .expect("read second shell directory")
+        .expect("fixture supports shell directories");
+    let changed_directory = directory.path().join("cwd 目录");
+    std::fs::create_dir(&changed_directory).expect("directory with spaces and Unicode");
+    let canonical_directory =
+        std::fs::canonicalize(&changed_directory).expect("canonical directory");
+    let command = format!(
+        "cd '{}'\n",
+        changed_directory
+            .to_str()
+            .expect("UTF-8 fixture path")
+            .replace('\'', "'\\''")
+    );
+    write(&terminals, &first.terminal_id, 1, command.as_bytes())
+        .await
+        .expect("change first shell directory");
+    wait_for_shell_prompt(&terminals, &first, &mut first_output).await;
+    let first_payload = TerminalIdPayload {
+        terminal_id: first.terminal_id.clone(),
+    };
+    assert_eq!(
+        terminals
+            .working_directory(&first_payload)
+            .await
+            .expect("read changed shell directory")
+            .as_deref(),
+        canonical_directory.to_str()
+    );
+    assert_eq!(
+        terminals
+            .working_directory(&TerminalIdPayload {
+                terminal_id: second.terminal_id.clone()
+            })
+            .await
+            .expect("read isolated second directory"),
+        Some(second_directory)
+    );
+    write(
+        &terminals,
+        &first.terminal_id,
+        2,
+        b"cd /maulink-missing-directory-cwd-test\n",
+    )
+    .await
+    .expect("try nonexistent directory");
+    wait_for_shell_prompt(&terminals, &first, &mut first_output).await;
+    assert_eq!(
+        terminals
+            .working_directory(&first_payload)
+            .await
+            .expect("failed cd retains actual directory")
+            .as_deref(),
+        canonical_directory.to_str()
+    );
+
     let size = terminals
         .resize(TerminalResizePayload {
             terminal_id: second.terminal_id.clone(),
