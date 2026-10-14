@@ -405,7 +405,10 @@ function handleServerNavigation({ action, server }: ServerNavigationRequest) {
 function finishWorkspaceClose(serverId: string) {
   const snapshot = connections.snapshots.value[serverId];
   if (snapshot && !isFinished(snapshot)) return false;
-  if (snapshot) connections.dismiss(serverId);
+  if (snapshot) {
+    terminals.disposeConnection(snapshot.connectionId);
+    connections.dismiss(serverId);
+  }
   workspaceUi.close(serverId);
   if (diagnosticServerId.value === serverId) diagnosticServerId.value = null;
   if (pendingServerNavigation.value?.serverId === serverId) pendingServerNavigation.value = null;

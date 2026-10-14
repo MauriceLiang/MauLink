@@ -6,6 +6,8 @@ export const terminalMessages = {
   workingDirectoryUnavailable: ["暂时无法获取终端目录，可在文件路径栏手动打开目录。", "The terminal directory is unavailable. Open a directory manually using the file path field."],
   monitor: ["监控", "Monitor"],
   disconnect: ["断开连接", "Disconnect"],
+  showInspector: ["显示检查器", "Show inspector"],
+  hideInspector: ["隐藏检查器", "Hide inspector"],
   newTerminal: ["新建终端", "New terminal"],
   focus: ["专注", "Focus"],
   selectNewTerminalToOpenAShell: ["点击“新建终端”打开 Shell。", "Select New terminal to open a Shell."],

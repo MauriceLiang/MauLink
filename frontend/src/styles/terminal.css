@@ -102,6 +102,11 @@
 .application-shell.terminal-focused .shell-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .application-shell.terminal-focused .shell-sidebar, .application-shell.terminal-focused .shell-statusbar, .terminal-workspace.is-focused .workspace-heading { display: none; }
 .application-shell.terminal-focused .shell-main { grid-column: 1; grid-row: 1; }
-.terminal-workspace.is-focused { grid-template-rows: 38px minmax(0, 1fr) 26px auto; }
+.terminal-workspace.is-focused { display: flex; flex-direction: column; }
+.terminal-workspace.is-focused .terminal-toolbar { min-height: 38px; flex: 0 0 38px; }
+.terminal-workspace.is-focused .terminal-main { min-height: 0; flex: 1 1 auto; }
+.terminal-workspace.is-focused .terminal-footer { flex: none; }
+.application-shell.terminal-focused .shell-main.has-terminal-workspace { display: flex; min-height: 0; flex-direction: column; }
+.application-shell.terminal-focused .shell-main-content.has-terminal-workspace { min-height: 0; flex: 1 1 auto; overflow: hidden; }
 
 .shell-main.has-terminal-workspace { display: block; overflow: hidden; }

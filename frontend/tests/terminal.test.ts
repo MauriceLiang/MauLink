@@ -12,7 +12,7 @@ import { createTerminalPreferences, defaultSettings } from '../src/terminal/pref
 import { createOutputConsumer, encodeBytesBase64, decodeBase64, nextSequence } from '../src/terminal/codec';
 const renderers = vi.hoisted(() => {
   class Renderer {
-    options: Record<string, unknown>; cols = 80; rows = 24; output: Uint8Array[] = []; disposed = false; focus = vi.fn(); clear = vi.fn();
+    options: Record<string, unknown>; cols = 80; rows = 24; output: Uint8Array[] = []; disposed = false; focus = vi.fn(); clear = vi.fn(); refresh = vi.fn();
     data: (value: string) => void = () => {}; binary: (value: string) => void = () => {}; selected: () => void = () => {}; selection = '';
     constructor(options: Record<string, unknown>) { this.options = options; instances.push(this); }
     loadAddon() {} open() {} dispose() { this.disposed = true; }
@@ -104,6 +104,29 @@ describe('terminal byte flow', () => {
   });
   it('explicit close succeeds before removing the tab and disposing xterm', async () => {
     const {controller,close}=controllerFor();const {id,renderer}=await attach(controller);expect(await controller.close(id)).toBe(true);expect(close).toHaveBeenCalledOnce();expect(controller.tabs.value).toHaveLength(0);expect(renderer.disposed).toBe(true);
+  });
+  it('repaints the existing xterm after its workspace receives focus', async () => {
+    const {controller}=controllerFor(); const {id,renderer}=await attach(controller);
+    controller.focus(id);
+    expect(renderer.refresh).toHaveBeenCalledWith(0,23);
+  });
+  it('disposes only the local terminals belonging to a disconnected connection', async () => {
+    const {controller,close}=controllerFor(); const {renderer: disconnectedRenderer}=await attach(controller);
+    const otherId=controller.create('connection-b','server-b'); const otherHost=document.createElement('div'); document.body.append(otherHost); await controller.attach(otherId,otherHost);
+    const otherRenderer=renderers.instances.at(-1)!;
+    controller.disposeConnection('connection-a');
+    expect(controller.tabs.value.map(value=>value.id)).toEqual([otherId]);
+    expect(disconnectedRenderer.disposed).toBe(true); expect(otherRenderer.disposed).toBe(false);
+    expect(close).not.toHaveBeenCalled();
+  });
+  it('closes a terminal that finishes opening after its connection was disposed', async () => {
+    let resolveOpen!: (value: {terminalId:string;streamId:string})=>void;
+    const {controller,close}=controllerFor({terminal_open:()=>new Promise(resolve=>{resolveOpen=resolve;})});
+    const host=document.createElement('div'); document.body.append(host); const id=controller.create('connection-a','server-a'); const opening=controller.attach(id,host);
+    await flushPromises(); controller.disposeConnection('connection-a');
+    resolveOpen({terminalId:'terminal-a',streamId:'stream-a'}); await opening;
+    expect(close).toHaveBeenCalledWith({terminalId:'terminal-a'});
+    expect(controller.tabs.value).toHaveLength(0); expect(renderers.instances[0]?.disposed).toBe(true);
   });
   it('applies settings to all runtimes and uses opt-in selection copying', async () => {
     vi.useFakeTimers();const {controller}=controllerFor();const {renderer}=await attach(controller);const clipboard=vi.fn(async()=>{});vi.stubGlobal('navigator',{clipboard:{writeText:clipboard}});

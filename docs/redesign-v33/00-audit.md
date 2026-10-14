@@ -199,3 +199,22 @@ App.vue
 - 原型 tabbar 的“新建连接”进入临时 SSH 工作区；现有 Core `ConnectionStartSource::Draft` 仅支持 `test` 模式，不能承载可持续工作区。本阶段不伪造该业务入口；如需该能力，需另增 Core connection lifecycle/API 设计，列为待决功能差异。
 - macOS 交通灯原生安全区与窗口拖动不属于 Web Harness 可证明范围，留待 P8 桌面验收。
 - P2 总状态：**Web 阶段通过**；原生窗口测试与“临时 SSH 工作区”能力不包含在本阶段通过范围。
+
+## P3｜终端工作区与标签体系
+
+### 实施内容
+
+- 工作区标题栏增加终端/文件/监控分段切换与可折叠检查器，连接状态和断开操作留在同一工作区；Shell 工作区标签和 SSH 内终端标签仍分成两行、使用不同的状态与关闭动作。
+- 专注模式隐藏服务器树、状态栏、工作区标题和快速检查器，保留终端工具栏与状态栏；工作区回到可见布局后重新 fit/focus，并显式刷新 xterm 已有行。
+- 修复专注布局的高度链：专注时恢复 Shell 主区 flex 布局，让工作区内容区获得可计算高度；终端主区用单行 grid 填满可用高度。此前浏览器中 xterm 保留在无障碍树但视觉面板空白，复现后用工作树实时 Web 预览确认修复。
+- 安全关闭已结束连接时释放该 connectionId 下所有本地终端 runtime 和标签；若 PTY open 在资源释放后才完成，则 best-effort 关闭新 PTY，避免遗留会话；断开请求失败时保留 ready 快照并展示错误。
+
+### 验收结果
+
+- 工作树 Vite Web Harness `http://127.0.0.1:1422/?harness=visual&page=workspace-tabs&theme=dark&locale=zh-CN`：专注模式截图可见原有中文 Shell 文本，终端从普通布局的 91×21 扩至 146×25；退出专注后原输出和快速检查器恢复。
+- Web 复验显示工作区标题栏与终端子标签分行；终端/文件/监控切换正确，检查器可隐藏/恢复；设置页往返保留 `Terminal 1`、`Terminal 2` 及输出。
+- 新建第二个终端后切回 `Terminal 1`，已有输出仍在；打开 DB-01 后出现独立工作区 `Terminal 3`，切回 Web-01 时两个原子标签和输出保留。隐藏资源树将终端从 91 列扩为 119 列，再显示恢复 91 列。
+- 关闭 Web-01 时先出现断开确认；确认后 Web-01 从树移除已连接状态且其终端标签不再显示，DB-01 工作区和 PTY 标签仍保留。再关闭 DB-01 并确认后回到“暂无打开的会话”，工作区计数为 0。
+- `npm --prefix frontend run test -- tests/connections.test.ts tests/terminal.test.ts tests/terminal-disconnect.test.ts tests/shell.test.ts tests/workspace-ui.test.ts`：5 个文件、58 项通过；覆盖断开失败保持 ready、终端释放、过晚完成的 open 清理、焦点刷新和检查器切换。
+- `npm --prefix frontend run type-check`、`npm --prefix frontend run build` 与 `git diff --check`：通过。build 有现存大 chunk 提示；测试有既有 canvas mock / localStorage / Vite configLoader 提示。
+- Web 结果来自 Typed Mock IPC，不代替真实 SSH/SFTP、输入法/OS Ctrl+C、macOS 原生窗口与其他平台测试；视觉截图矩阵仍按 P7 另行归档。P3 总状态：**Web 阶段通过**。

@@ -217,7 +217,10 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
       const rect = mount.getBoundingClientRect();
       const opened = await api.open({ connectionId: metadata.connectionId, columns: terminal.cols, rows: terminal.rows, pixelWidth: Math.round(rect.width) || null, pixelHeight: Math.round(rect.height) || null }, channel);
       entry.opened = opened;
-      if (entry.disposed || disposed) return;
+      if (entry.disposed || disposed) {
+        try { await api.close({ terminalId: opened.terminalId }); } catch { /* The SSH connection may already have ended. */ }
+        return;
+      }
       update(id, { terminalId: opened.terminalId, state: 'running' });
       if (entry.outputStopped) { const closed = await api.close({ terminalId: opened.terminalId }); update(id, { state: closed.state }); return; }
       for (const chunk of entry.early.splice(0)) receive(id, chunk);
@@ -240,6 +243,11 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     }
   }
   async function refreshConnection(connectionId: string) { await Promise.all(tabs.value.filter(value => value.connectionId === connectionId).map(value => poll(value.id))); }
+  function disposeConnection(connectionId: string) {
+    const ids = tabs.value.filter(value => value.connectionId === connectionId).map(value => value.id);
+    ids.forEach(release);
+    if (ids.length) tabs.value = tabs.value.filter(value => value.connectionId !== connectionId);
+  }
   function applySettings(value: AppSettings) {
     settings = value;
     applyTerminalTheme();
@@ -251,10 +259,14 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     applyTerminalTheme();
   }
   function setCopyPreference(read: () => boolean) { copyOnSelect = read; }
-  function focus(id: string) { fit(id, true); }
+  function focus(id: string) {
+    const runtime = runtimes.get(id);
+    fit(id, true);
+    if (runtime && !runtime.disposed) runtime.terminal.refresh(0, runtime.terminal.rows - 1);
+  }
   function clear(id: string) { runtimes.get(id)?.terminal.clear(); focus(id); }
   function dispose() { disposed = true; systemThemeQuery?.removeEventListener('change', onSystemThemeChange); [...runtimes.keys()].forEach(release); ['--color-terminal-bg', '--color-terminal-text', '--color-terminal-cursor', '--color-terminal-selection'].forEach(name => document.documentElement.style.removeProperty(name)); }
-  return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, refreshWorkingDirectory, trackWorkingDirectory, applySettings, setServerAppearance, setCopyPreference, dispose };
+  return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, disposeConnection, refreshWorkingDirectory, trackWorkingDirectory, applySettings, setServerAppearance, setCopyPreference, dispose };
 }
 export type TerminalController = ReturnType<typeof createTerminalController>;
 export type TerminalChannelFactory = () => Channel<TerminalChunk>;

@@ -52,6 +52,16 @@ function mountWorkspace({ activeTransfer = false, confirmBeforeDisconnect = true
 }
 
 describe("SSH disconnect confirmation", () => {
+  it("toggles the quick inspector without changing the selected workspace view", async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+    const toggle = wrapper.get('[aria-label="隐藏检查器"]');
+    expect(toggle.attributes("aria-pressed")).toBe("true");
+    await toggle.trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[aria-label="显示检查器"]').attributes("aria-pressed")).toBe("false");
+  });
+
   it("requires explicit transfer stop consent and emits the selected value once", async () => {
     const wrapper = mountWorkspace({ activeTransfer: true });
     await flushPromises();
