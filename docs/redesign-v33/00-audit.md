@@ -218,3 +218,20 @@ App.vue
 - `npm --prefix frontend run test -- tests/connections.test.ts tests/terminal.test.ts tests/terminal-disconnect.test.ts tests/shell.test.ts tests/workspace-ui.test.ts`：5 个文件、58 项通过；覆盖断开失败保持 ready、终端释放、过晚完成的 open 清理、焦点刷新和检查器切换。
 - `npm --prefix frontend run type-check`、`npm --prefix frontend run build` 与 `git diff --check`：通过。build 有现存大 chunk 提示；测试有既有 canvas mock / localStorage / Vite configLoader 提示。
 - Web 结果来自 Typed Mock IPC，不代替真实 SSH/SFTP、输入法/OS Ctrl+C、macOS 原生窗口与其他平台测试；视觉截图矩阵仍按 P7 另行归档。P3 总状态：**Web 阶段通过**。
+
+## P4｜SFTP 文件区与全局传输抽屉
+
+### 实施内容
+
+- 文件列表使用固定列布局，名称、大小、修改时间与原型保持左侧对齐；列表不再为每个工作区预留常驻传输栏。
+- 将 `TransferPanel` 移到 `AppShell`，由状态栏传输计数按钮打开/收起。抽屉保持挂载并用 `v-show` 隐藏，关闭抽屉不会取消任务；打开时从所有 ready 连接加载传输历史。
+- 任务按服务器名、方向、进度、状态与错误聚合；未知服务器以连接 ID 短码标识。失败任务继续呈现 Core 的可读错误和临时文件清理提示，活动任务保留取消操作，已完成任务可统一清理。
+- 抽屉改为原型中的固定 180px 底部列表布局；目录打开键盘 Enter 可用，并修复“打开”按钮双击冒泡导致同一目录重复打开的问题。
+
+### 验收结果
+
+- 通过内置浏览器加载本地 Web Harness：`http://127.0.0.1:1422/?harness=visual&page=transfer&theme=dark&locale=zh-CN`。打开 Web-01 的文件视图后，可从状态栏展开全局抽屉；抽屉显示活动、失败、已完成三项任务，来源为 Web-01，进度、磁盘错误和取消按钮均可见。关闭/重开和文件区并列布局已在浏览器中核对。
+- 与原型 `http://127.0.0.1:8888/` 对照后，将先前过高的卡片抽屉调整为原型 180px 高度的紧凑行列表；文件表格的大小、修改时间列改为原型左对齐。
+- `npm --prefix frontend run test -- tests/files.test.ts`：1 个文件、25 项通过。覆盖分页游标、目录/软链接导航、上传下载文件选择、取消与终态竞争、失败清理提示、跨服务器任务聚合、抽屉隐藏保留活动任务、右键菜单和 Enter/双击行为。
+- `npm --prefix frontend run type-check` 与 `git diff --check`：通过。
+- Web 使用 Typed Mock IPC；没有真实 SSH/SFTP 主机。本阶段未用浏览器模拟真实文件读写；真实 SSH/SFTP 与原生桌面复测留待 P8。P4 总状态：**Web 阶段通过**。

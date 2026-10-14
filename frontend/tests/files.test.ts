@@ -132,11 +132,27 @@ describe('transfer metadata and authoritative cancellation', () => {
   });
   it('shows zero-byte completed files as complete rather than an indeterminate transfer', async () => {
     const { store } = tasks({ sftp_transfer_list: () => [{ ...initial, totalBytes: '0', transferredBytes: '0', state: 'completed' }] }); await store.load('conn-a');
-    const wrapper = mount(TransferPanel, { props: { store, connectionId: 'conn-a' } }); wrappers.push(wrapper); expect(wrapper.get('progress').attributes('value')).toBe('100'); expect(wrapper.text()).toContain('已完成');
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01' } } }); wrappers.push(wrapper); expect(wrapper.get('progress').attributes('value')).toBe('100'); expect(wrapper.text()).toContain('已完成');
   });
   it('presents Core failure and cleanup warnings without raw diagnostic details', async () => {
     const { store, channel } = tasks(); await store.start('upload', 'conn-a', '/fixture', () => true); channel.onmessage({ ...initial, state: 'failed', error: fixtureError('LOCAL_DISK_FULL', 'errors.localDiskFull'), cleanupRequired: true, temporaryPath: '/fixture/.part' });
-    const wrapper = mount(TransferPanel, { props: { store, connectionId: 'conn-a' } }); wrappers.push(wrapper); expect(wrapper.text()).toContain('磁盘空间不足'); expect(wrapper.text()).toContain('/fixture/.part'); expect(wrapper.text()).not.toContain('Fixture debug'); expect(wrapper.findAll('button').some(value => value.text() === '取消传输')).toBe(false);
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01' } } }); wrappers.push(wrapper); expect(wrapper.text()).toContain('磁盘空间不足'); expect(wrapper.text()).toContain('/fixture/.part'); expect(wrapper.text()).not.toContain('Fixture debug'); expect(wrapper.findAll('button').some(value => value.text() === '取消传输')).toBe(false);
+  });
+  it('aggregates transfers from multiple servers and keeps them alive while the global drawer is hidden', async () => {
+    const { store } = tasks();
+    store.snapshots.value = [
+      { ...initial, state: 'completed', transferredBytes: initial.totalBytes! },
+      { ...initial, transferId: 'task-b', connectionId: 'conn-b', fileName: 'b.txt', finalPath: '/srv/b.txt', state: 'transferring', transferredBytes: '100' },
+    ];
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01', 'conn-b': 'DB-01' } } }); wrappers.push(wrapper);
+    expect(wrapper.text()).toContain('Web-01'); expect(wrapper.text()).toContain('DB-01'); expect(wrapper.findAll('li')).toHaveLength(2);
+    await button(wrapper, '清除已完成').trigger('click');
+    expect(store.snapshots.value.map(task => task.transferId)).toEqual(['task-b']);
+    await wrapper.setProps({ open: false });
+    expect((wrapper.element as HTMLElement).style.display).toBe('none');
+    expect(store.snapshots.value[0]?.state).toBe('transferring');
+    await wrapper.setProps({ open: true });
+    expect(wrapper.text()).toContain('b.txt');
   });
 });
 describe('file UI acceptance', () => {
@@ -151,6 +167,19 @@ describe('file UI acceptance', () => {
     await wrapper.get('.file-name').trigger('dblclick'); await flushPromises();
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('/fixture/nested/readme.md');
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Remote fixture');
+  });
+  it('opens directories with Enter and does not reopen them when the Open button bubbles a double click', async () => {
+    const wrapper = await filePanel();
+    const api = wrapper.props('api'); const listStart = vi.spyOn(api, 'listStart');
+    await wrapper.find('.file-name').trigger('keydown', { key: 'Enter' }); await flushPromises();
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
+    await wrapper.find('.files-parent-action').trigger('click'); await flushPromises();
+    const openButton = wrapper.find('.file-open');
+    await openButton.trigger('click'); await flushPromises();
+    const callsAfterOpen = listStart.mock.calls.length;
+    await openButton.trigger('dblclick'); await flushPromises();
+    expect(listStart).toHaveBeenCalledTimes(callsAfterOpen);
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
   });
   it('defers terminal directory synchronization until a file mutation completes', async () => {
     const wrapper = await filePanel(); const panel = wrapper;

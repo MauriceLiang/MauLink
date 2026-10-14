@@ -55,6 +55,7 @@ import LocalBackendStatus from "./LocalBackendStatus.vue";
 import DesktopWorkspaceTabs from "./DesktopWorkspaceTabs.vue";
 import IdleWorkspace from "./IdleWorkspace.vue";
 import ServerOverview from "../components/server-overview/ServerOverview.vue";
+import TransferPanel from "../components/files/TransferPanel.vue";
 import { serverOverviewMessages } from "../i18n/server-overview";
 import { updaterMessages } from "../i18n/updater";
 import UpdateInstallConfirmDialog from "../components/update/UpdateInstallConfirmDialog.vue";
@@ -80,6 +81,7 @@ const connections = createConnectionStore(createConnectionApi(props.client), () 
 const workspaceUi = createWorkspaceUiStore();
 const diagnosticServerId = ref<string | null>(null);
 const sidebarVisible = ref(true);
+const transferDrawerOpen = ref(false);
 const hostKeys = createHostKeysApi(props.client);
 const network = createNetworkApi(props.client);
 const geoip = createGeoIpApi(props.client);
@@ -119,6 +121,14 @@ terminals.setCopyPreference(() => terminalPreferences.copyOnSelect.value);
 const sftp = createSftpApi(props.client);
 const transfers = createTransferStore(sftp, purpose => props.client.call("local_file_select", { purpose }), props.transferChannelFactory, () => !updateInstallGate.value);
 const activeTransfers = computed(() => transfers.snapshots.value.filter(task => !transferFinished(task)).length);
+const transferServerNames = computed(() => Object.fromEntries(servers.value.flatMap(server => {
+  const connectionId = connections.snapshots.value[server.id]?.connectionId;
+  return connectionId ? [[connectionId, server.name]] : [];
+})));
+watch(transferDrawerOpen, open => {
+  if (!open) return;
+  [...new Set(Object.values(connections.snapshots.value).filter(snapshot => snapshot.state === 'ready').map(snapshot => snapshot.connectionId))].forEach(connectionId => { void transfers.load(connectionId); });
+});
 const updateActivity = computed(() => inspectInstallActivity(connections.snapshots.value, transfers.snapshots.value, transfers.starting.value, terminals.tabs.value, connections.starting.value > 0));
 const monitor = createMonitorStore(createMonitorApi(props.client));
 const workspaceViews = ref<Record<string, string>>({});
@@ -534,7 +544,8 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
         <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, closeAfterDisconnect) => handleWorkspaceDisconnect(id, stopTransfers, closeAfterDisconnect)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
         </div>
       </main>
-      <LocalBackendStatus :state="backendState" :version="info?.version" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" />
+      <TransferPanel :store="transfers" :open="transferDrawerOpen" :server-names="transferServerNames" @close="transferDrawerOpen = false" />
+      <LocalBackendStatus :state="backendState" :version="info?.version" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
     </div>
     <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
       <p>{{ t('aboutLead') }}</p>
