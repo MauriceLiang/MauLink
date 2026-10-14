@@ -355,7 +355,9 @@ async function onRemoved(message: string) {
   }
   toast.success(message);
   await nextTick();
-  document.querySelector<HTMLButtonElement>(".shell-server-item[aria-current='page']")?.focus();
+  const focusTarget = document.querySelector<HTMLButtonElement>(".shell-server-item[aria-current='page'], .shell-server-item")
+    ?? document.querySelector<HTMLButtonElement>(".shell-sidebar-header button, .shell-explorer-toggle");
+  focusTarget?.focus();
 }
 
 function selectServer(id: string | null) {

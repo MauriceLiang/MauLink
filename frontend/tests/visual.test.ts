@@ -3,8 +3,10 @@ import type { Channel } from '@tauri-apps/api/core';
 import type { TerminalChunk } from '../../contracts/v1/TerminalChunk';
 import { createIpcClient } from '../src/ipc/client';
 import { createTerminalApi } from '../src/ipc/terminal';
-import { createVisualMock, createVisualStorage, visualConfig, visualEpoch, visualFiles } from '../src/harness/visual-fixtures';
+import { createVisualMock, createVisualStorage, visualConfig, visualEpoch, visualFiles, visualTransfers } from '../src/harness/visual-fixtures';
 import cases from '../visual/cases.json';
+import casesV33 from '../visual/cases-v33.json';
+import matrixV33 from '../visual/matrix-v33.json';
 const config = (page = 'servers') => ({page,theme:'dark' as const,locale:'en' as const,accentColor:'blue' as const,customAccentColor:null,uiDensity:'standard' as const});
 describe('deterministic visual fixtures', () => {
   it('validates stable page/theme/locale/customization inputs and falls back safely', () => {
@@ -17,6 +19,45 @@ describe('deterministic visual fixtures', () => {
   it('includes the Server Overview and terminal personalization acceptance scenes', () => {
     const pages = new Set(cases.map(item=>item.page));
     for (const page of ['server-overview','terminal-light','terminal-dark','terminal-custom','terminal-image','settings-terminal-image','settings-security','delete-group','disconnect','disconnect-transfer','quick-monitor','credential-reveal']) expect(pages.has(page)).toBe(true);
+  });
+  it('covers the V3.3 viewport, theme, locale, density and accent matrix without touching legacy routes', () => {
+    const pages = new Set([...cases, ...casesV33].map(item => item.page));
+    const ids = matrixV33.map(item => item.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect([...new Set(matrixV33.map(item => `${item.width}x${item.height}`))].sort()).toEqual(['1440x920', '860x640', '988x756']);
+    expect(new Set(matrixV33.map(item => item.theme))).toEqual(new Set(['dark', 'light', 'system']));
+    expect(matrixV33.some(item => item.locale === 'en')).toBe(true);
+    expect(matrixV33.some(item => item.uiDensity === 'compact')).toBe(true);
+    expect(matrixV33.some(item => item.accentColor === 'red')).toBe(true);
+    expect(matrixV33.some(item => item.accentColor === 'custom' && item.customAccentColor === '#0057FF')).toBe(true);
+    for (const item of matrixV33) for (const page of item.pages ?? [...cases, ...casesV33].map(value => value.page)) expect(pages.has(page)).toBe(true);
+    expect(cases.map(item => item.page)).toHaveLength(36);
+  });
+  it('covers V3.3 edge states with deterministic server, SFTP, transfer and monitor fixtures', async () => {
+    expect(new Set(casesV33.map(item=>item.page)).size).toBe(casesV33.length);
+    expect(visualConfig(new URLSearchParams('page=tree-50'))).toMatchObject({ page: 'tree-50' });
+    const treeClient=createIpcClient(createVisualMock(config('tree-50')));
+    expect((await treeClient.call('server_list',{limit:100,cursor:null,query:null,groupId:null})).items).toHaveLength(50);
+
+    const pagedClient=createIpcClient(createVisualMock(config('files-paginated')));
+    const first=await pagedClient.call('sftp_list_start',{connectionId:'visual-connection',path:'/opt/app'});
+    expect(first.entries).toHaveLength(10);
+    const second=await pagedClient.call('sftp_list_next',{cursorId:first.cursorId!});
+    expect(second.entries[0]?.name).toBe('page-item-011.txt');
+    const emptyClient=createIpcClient(createVisualMock(config('files-empty')));
+    expect((await emptyClient.call('sftp_list_start',{connectionId:'visual-connection',path:'/opt/app/empty'})).entries).toEqual([]);
+    const directoryClient=createIpcClient(createVisualMock(config('files-directory-open')));
+    expect((await directoryClient.call('sftp_list_start',{connectionId:'visual-connection',path:'/opt/app/src'})).entries.map(entry=>entry.name)).toEqual(['App.vue','components']);
+
+    const staleClient=createIpcClient(createVisualMock(config('monitor-stale')));
+    const stale=await staleClient.call('monitor_get_snapshot',{connectionId:'visual-connection'});
+    expect(stale.cpu.quality.status).toBe('stale');
+    const errorClient=createIpcClient(createVisualMock(config('monitor-error')));
+    const error=await errorClient.call('monitor_get_snapshot',{connectionId:'visual-connection'});
+    expect(error.cpu.quality.status).toBe('error');
+    expect(visualTransfers('visual-connection').some(task=>task.state==='cancelled')).toBe(true);
+    const multiServerTasks = visualTransfers('visual-connection').concat(visualTransfers('visual-connection-db-01-1','visual-transfer-db-01').slice(0,1));
+    expect(new Set(multiServerTasks.map(task=>task.transferId)).size).toBe(multiServerTasks.length);
   });
   it('returns equal visible state under different wall clocks and independent mounts', async () => {
     async function capture() {

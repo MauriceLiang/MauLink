@@ -65,3 +65,22 @@
 - 正式切换和旧入口清理见 Phase 12 报告；既有 Core/平台能力缺口仍保留。
 
 “实现截图未落盘 / 无固定视觉 fixture / 不同 CSS 视口导致不可对照”的旧阻塞已解决。具体自动化、Browser 过程、限制和退出范围见 [Phase 10 报告](docs/refactor/frontend-v2-phase-10.md)。
+
+## MauLink V3.3 P7 视觉回归（2026-10-15）
+
+**Reference:** `docs/redesign-v33/screenshots/prototype-reference/idle-dark.png` and `sftp-dark.png` (988×756). The interactive prototype remained available at `http://127.0.0.1:8888/`.
+
+**Implementation:** `docs/redesign-v33/screenshots/candidate/dark-zh-standard-988x756/servers-dark-zh-CN-988x756.jpg` and `files-dark-zh-CN-988x756.jpg`, plus eight other viewport/theme/density/accent conditions. The reviewed reference copy is `docs/redesign-v33/screenshots/baseline-v33/`.
+
+Both source and implementation reference images use CSS **988×756**, DPR **1**, dark theme, and Simplified Chinese. Full-scene implementation evidence has **159 screenshots across 9 conditions**; the source prototype supplies three static reference images, so this report does not claim a one-to-one 159-screen prototype capture. The `servers` and `files` comparisons cover the closest static reference states. The prototype includes demo transfer counts and workspace data; the implementation uses typed mock fixture states and preserves actual product capabilities. Prototype window controls are illustrative and are not copied into the Tauri shell.
+
+**Findings and fixes:**
+
+- Browser evidence showed the normal terminal shell had a `display:block` override that collapsed `.shell-main-content` and left the terminal stack at zero height. Removing the override restored a 530px terminal area at 988×756 and made the terminal background image visible.
+- The compact density rule overrode the Files two-row layout. A compact Files override restored the file table to 494.5px at 988×756. The screenshot recipe now fails if the file list is below 100px.
+- The transfer screenshot recipe now opens the global transfer drawer. Settings Files no longer waits for a remote-file table. English accessible labels match the actual controls.
+- Nine candidate contact sheets were inspected. No remaining blank terminal/file panes, horizontal overflow, or clipped content appeared in the reviewed conditions. Existing product/prototype differences are documented above and in `docs/redesign-v33/00-audit.md`.
+
+The V3.3 verifier passed all 159 candidate images and confirmed candidate/baseline equality. The historical 82-image verifier also passed unchanged. The 159-page PDF was rendered and pages 1, 80, and 159 were inspected; each keeps the full screenshot and readable condition/page labels.
+
+**Final result: PASSED (Web visual scope).** Real SSH/SFTP, Core persistence across app restart, macOS native-window behavior, and Windows packaging/runtime are outside this browser evidence and remain in P8.

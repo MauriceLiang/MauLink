@@ -108,5 +108,3 @@
 .terminal-workspace.is-focused .terminal-footer { flex: none; }
 .application-shell.terminal-focused .shell-main.has-terminal-workspace { display: flex; min-height: 0; flex-direction: column; }
 .application-shell.terminal-focused .shell-main-content.has-terminal-workspace { min-height: 0; flex: 1 1 auto; overflow: hidden; }
-
-.shell-main.has-terminal-workspace { display: block; overflow: hidden; }

@@ -104,7 +104,7 @@ App.vue
 
 - `frontend/package.json` 提供 `dev`、`type-check`、`test`、`build`。当前视觉 harness 的 Vite 地址为 `http://127.0.0.1:1420/`；`frontend/visual/cases.json` 有 35 个 Typed Mock IPC 场景，`frontend/visual/capture.mjs` 每页独立重载两次，候选不一致时不会覆盖基线。
 - 现有视觉 manifest 与 `frontend/visual/verify.mjs` 校验 82 张旧截图；旧截图位于 `docs/refactor/screenshots/color-v1-review/`，是旧 MauLink Blue UI 的回归基线，不是 V3.3 当前实现截图。严禁将其当作 V3.3 对照或在未审阅时覆盖。
-- 当前没有 V3.3 实现截图，也没有 V3.3 route/fixture。P1–P7 应新增独立候选与审核基线目录，给每个新状态绑定真实 UI 操作、视口、主题、语言和可复现 Mock 数据。
+- P0 阶段尚无 V3.3 实现截图/route/fixture；P7 已新增独立 candidate 与 baseline，覆盖 53 个固定页面状态及 9 个条件。三张原型静态图不代表全场景源图覆盖。
 - `frontend/tests/shell.test.ts` 当前明确断言导航页不触发 SSH、Server Overview 与主页/添加入口行为；P2 需要定向更新这些行为断言，同时保留 IPC 安全、错误重试、settings 导航与 native drag 测试。
 - `frontend/tests/terminal.test.ts` 已覆盖字节/ACK/UTF-8/ANSI、输入、controller detach/remount、关闭失败及设置应用；新 Shell 标签不能通过销毁重建 xterm 来通过视觉用例。
 - `frontend/tests/files.test.ts` 已覆盖 POSIX 路径、分页、竞态、软链、操作确认、传输 Channel/轮询/取消/完成；底部抽屉迁移应新增“隐藏/切页不取消任务”与跨服务器来源场景。
@@ -132,7 +132,7 @@ App.vue
 
 | 项目 | 级别 | 证据 / 当前状态 | 后续处理 |
 |---|---|---|---|
-| Vue 与原型逐页截图矩阵未归档 | P0 未完成 | 原型已在 `http://127.0.0.1:8888/` 交互；只做了 Vue 首页目视抽查，未逐项归档同状态截图 | 继续补齐矩阵要求的原型/Vue 同视口、主题、状态截图；不把旧 82 张基线当作 V3.3 证据 |
+| V3.3 视觉证据 | P7 Web 通过；原型逐状态源图部分覆盖 | Vue 实现矩阵已归档 159 张；原型仅有三张静态参考并完成主要交互核验，逐状态原型源图不完整 | 将候选/基线用于实现回归；只对已有原型截图声明结构对照，不声称完整原型逐像素映射 |
 | dev 分支未包含最新 main | P0 阻塞生产阶段 | `origin/main...HEAD` 为 `1 3`，且 P0 禁止自动合并 | P1 前在既有工作树整合 `origin/main`，逐项复核冲突与测试；不新建分支 |
 | Shell 同时承载多项业务 | 高 | `AppShell.vue` 同时组合连接、终端、传输、监控、设置、更新安全 | 渐进式拆分，不整体重写；每阶段独立通过业务和视觉门禁 |
 | UI 工作区状态与真实连接耦合 | 高 | workspace 由 snapshot/terminal/transfer 推导；key 与 selected ID 不同 | UI tabs 独立存“打开/选中”，连接生命周期仍只由 connection Store 决定 |
@@ -271,3 +271,24 @@ App.vue
 - `npm --prefix frontend run test -- tests/settings-workspace.test.ts tests/settings.test.ts tests/geoip-settings.test.ts tests/security-settings.test.ts tests/appearance-controls.test.ts tests/terminal-theme.test.ts tests/terminal.test.ts`：相关设置用例通过；`npm --prefix frontend run type-check`、`git diff --check` 通过。`cargo test -p maulink-core settings::tests`：11 项通过，覆盖设置验证、revision 和迁移。
 - 同批扩展回归中 `tests/server-management.test.ts` 有 1 项失败：旧测试仍用不含连接状态的完整 `aria-label` 查找 Web-01；当前树项标签已附加“未连接”。该用例与 P6 设置变更无关，已定位为测试语义过期，纳入 P7 一并更新。
 - 浏览器使用 Typed Mock IPC，重载后的值来自当前 Harness 状态，不能证明真实桌面 Core 数据库重启持久化；留待 P8。目录 token 无对应用户工作流，列为当前契约的未实现/系统管理字段。P6 总状态：**Web 阶段通过**。
+
+## P7｜全量视觉回归与差异修复（2026-10-15）
+
+### 实施内容
+
+- 保留 `screenshots/p0-before/` 和旧 `docs/refactor/screenshots/color-v1-review/`。新增 17 个场景，合并现有 36 个固定场景后共 53 个页面/交互状态；增加 9 条主题、语言、密度、强调色和窗口尺寸条件。
+- 每个页面通过可见控件进入状态，独立重载两次后保存 JPEG 与 manifest；manifest 记录 CSS 视口、DPR、主题、语言、字体、溢出、accent、密度及重复哈希。中断时逐页 checkpoint 可恢复。
+- 建立 `screenshots/candidate/` 和审阅后的 `screenshots/baseline-v33/`，各含 159 张截图。`verify-v33.mjs` 校验九种条件、图片像素尺寸、SHA256、重复哈希、manifest 完整性及候选/基线相等。
+- 基于原型现有三张静态参考，重点对照 `idle-dark.png` / `servers` 与 `sftp-dark.png` / `files`，并扫查所有条件的联系表。原型示例里的服务器/传输数据、模拟窗口按钮和可复制但 Core 不支持的交互不作为产品事实；未声称已采集 159 张原型对应图。
+- Web 截图复现了一个终端容器高度被旧 CSS 覆盖为 0 的问题。移除覆盖规则后，终端和背景图片层恢复；紧凑密度文件页的 specificity 冲突也已修复，并将文件列表实际高度纳入截图门禁。
+- 修正截图 recipe：传输页打开全局抽屉；设置页“文件”步骤不等待远程文件表；英文按钮名与真实可访问标签一致；Quick Monitor 在检查器打开后采集。
+- 服务器删除后，树焦点移到存活服务器；用右键菜单真实删除动作验证，并更新语义过期的焦点用例。多服务器传输 fixture 使用不重复的 transfer ID。
+
+### Web 验收结果
+
+- Vite Harness `http://127.0.0.1:1422/` 与用户原型 `http://127.0.0.1:8888/` 在内置浏览器中运行；原型和实现参考截图按相同深色、中文、`988×756`、DPR 1 对照。终端层复验高度为 530px；紧凑文件列表复验高度为 494.5px，内容可见。
+- 九个条件共 159 张实现截图全部通过 verifier；每张两次独立加载 hash 相同，视口与 JPEG 实际尺寸一致，无横向溢出，字体已加载。候选与 `baseline-v33` 完全一致。
+- 旧视觉回归 `node frontend/visual/verify.mjs` 通过：9 份旧 manifest、82 张图片、DPR 1、独立重复 hash 一致。
+- PDF 由 159 张截图生成；`pdfinfo` 与 `pypdf` 均确认 159 页、A4 横向。抽查第 1、80、159 页渲染，截图完整且标题/页码可读。
+- 本阶段的浏览器视图和 Typed Mock IPC 不验证真实 SSH/SFTP、Core 设置跨重启持久化或原生窗口行为；这些仍留在 P8。Windows 环境未在 P7 运行。
+- P7 总状态：**Web 视觉回归通过**。原型只提供三张静态截图，完整 53 状态的逐像素原型映射仍不可声称；产品功能差异按真实契约保留并在本报告说明。

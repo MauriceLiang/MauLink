@@ -122,7 +122,8 @@
   {
     "page": "quick-monitor",
     "steps": [
-      "select"
+      "select",
+      "inspector"
     ],
     "reference": null
   },
@@ -174,7 +175,7 @@
     "page": "transfer",
     "steps": [
       "select",
-      "files"
+      "open-transfer"
     ],
     "reference": "view=files&select=web-01&transfers=1"
   },

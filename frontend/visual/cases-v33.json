@@ -1,0 +1,19 @@
+[
+  { "page": "tree-50", "steps": [] },
+  { "page": "tree-long-names", "steps": [] },
+  { "page": "tree-filter", "steps": ["filter-db"] },
+  { "page": "tree-collapsed", "steps": ["collapse-production"] },
+  { "page": "connecting", "steps": ["select"] },
+  { "page": "close-last-workspace", "steps": ["select", "close-workspace", "confirm-disconnect-dialog"] },
+  { "page": "workspace-multi-terminal", "steps": ["select", "new-terminal", "new-terminal"] },
+  { "page": "settings-files", "steps": ["settings", "files"] },
+  { "page": "settings-network", "steps": ["settings", "network"] },
+  { "page": "files-empty", "steps": ["select", "files", "open-empty-directory"] },
+  { "page": "files-directory-open", "steps": ["select", "files", "open-source-directory"] },
+  { "page": "files-paginated", "steps": ["select", "files", "next-page"] },
+  { "page": "files-long-name", "steps": ["select", "files"] },
+  { "page": "transfer-empty", "steps": ["select", "files", "open-transfer"] },
+  { "page": "transfer-multi-server", "steps": ["select", "open-second", "files", "open-transfer"] },
+  { "page": "monitor-stale", "steps": ["select", "monitor"] },
+  { "page": "monitor-error", "steps": ["select", "monitor"] }
+]

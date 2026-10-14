@@ -624,20 +624,23 @@ describe("server management contracts", () => {
     expect(wrapper.emitted("removed")?.[0]).toEqual(["服务器与已保存凭据已删除。"]);
   });
 
-  it("returns focus to Home after successful deletion removes the original trigger", async () => {
+  it("returns focus to a surviving server after deletion removes the original trigger", async () => {
     const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(createServerMock()) } });
     wrappers.push(wrapper);
     await flushPromises();
-    await ui().get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
-    await ui().get('[aria-label="更多服务器操作 · Web-01"]').trigger("click");
-    const deleteAction = ui().get('[data-action="delete"]');
+    const webServerItem = ui().findAll('[role="treeitem"]').find(item => item.attributes('aria-label')?.startsWith('Web-01 · 192.168.1.20 · '));
+    expect(webServerItem).toBeDefined();
+    await webServerItem!.trigger("click");
+    await webServerItem!.trigger("contextmenu", { button: 2, clientX: 20, clientY: 20 });
+    await flushPromises();
+    const deleteAction = ui().get('[data-action="remove"]');
     (deleteAction.element as HTMLElement).focus();
     await deleteAction.trigger("click");
     await flushPromises();
     await ui().get(".base-button--danger").trigger("click");
     await flushPromises();
     expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(false);
-    expect(document.activeElement).toBe(ui().get(".shell-brand").element);
+    expect(document.activeElement).toBe(ui().get(".shell-server-item").element);
   });
 
   it("supports group create/rename and confirms deletion before moving members to ungrouped", async () => {
