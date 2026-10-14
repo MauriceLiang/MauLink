@@ -8,6 +8,8 @@ import desktopConfig from "../../src-tauri/tauri.conf.json";
 import frontendV2Config from "../../src-tauri/tauri.frontend-v2.conf.json";
 import ipcHarnessConfig from "../../src-tauri/tauri.harness.conf.json";
 import { defaultSettings } from "../src/terminal/preferences";
+import type { ConnectionSnapshot } from "../../contracts/v1/ConnectionSnapshot";
+import type { Payload } from "../src/ipc/commands";
 
 const wrappers: VueWrapper[] = [];
 function mountShell(transport = createShellMock()) {
@@ -61,7 +63,7 @@ describe("application shell", () => {
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });
 
-  it("uses the same add-server flow for primary and sidebar soft-primary CTAs", async () => {
+  it("opens the add-server flow from the single resource-tree action", async () => {
     const serversMock = createMockIpc({
       app_get_info: () => shellAppInfo,
       group_list: () => shellGroups,
@@ -70,24 +72,20 @@ describe("application shell", () => {
     });
     const wrapper = mountShell(serversMock);
     await flushPromises();
-    const addButtons = wrapper.findAll('button').filter(element => element.text().includes('添加服务器'));
-    expect(addButtons).toHaveLength(2);
-    expect(addButtons[0]!.classes()).toContain('base-button--primary');
-    expect(addButtons[1]!.classes()).toContain('base-button--softPrimary');
-    for (const add of addButtons) {
-      await add.trigger('click');
-      await flushPromises();
-      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('添加服务器');
-      [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(element => element.textContent?.trim() === '取消')!.click();
-      await flushPromises();
-    }
+    const add = wrapper.get('[aria-label="添加服务器"]');
+    expect(wrapper.findAll('[aria-label="添加服务器"]')).toHaveLength(1);
+    await add.trigger('click');
+    await flushPromises();
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('添加服务器');
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(element => element.textContent?.trim() === '取消')!.click();
+    await flushPromises();
 
     const readOnly = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(serversMock), readOnly: true } });
     wrappers.push(readOnly);
     await flushPromises();
-    const readOnlyAdds = readOnly.findAll('button').filter(element => element.text().includes('添加服务器'));
-    expect(readOnlyAdds).toHaveLength(2);
-    expect(readOnlyAdds.every(element => (element.element as HTMLButtonElement).disabled)).toBe(true);
+    const readOnlyAdds = readOnly.findAll('[aria-label="添加服务器"]');
+    expect(readOnlyAdds).toHaveLength(1);
+    expect((readOnlyAdds[0]!.element as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("applies saved density and sidebar width preferences to the shell", async () => {
@@ -103,10 +101,16 @@ describe("application shell", () => {
     expect(wrapper.get(".application-shell").attributes("data-sidebar-width")).toBe("wide");
   });
 
-  it("loads every navigation page without connecting SSH and marks home inactive for Core monitoring", async () => {
+  it("connects from the server tree and keeps server details behind its explicit menu", async () => {
     const activity = vi.fn();
+    const connectionStart = vi.fn((payload: Payload<"connection_start">): ConnectionSnapshot => ({
+      connectionId: "pending-web-01", serverId: payload.source.kind === "saved" ? payload.source.serverId : null, mode: payload.mode,
+      state: "connecting", hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null,
+      error: null, createdAtMs: 1_800_000_000_000, updatedAtMs: 1_800_000_000_000,
+    }));
     const mock = createMockIpc({
       workspace_set_activity: activity,
+      connection_start: connectionStart,
       app_get_info: () => shellAppInfo, group_list: () => shellGroups,
       server_appearance_list: () => [],
       host_key_get: () => null,
@@ -133,15 +137,20 @@ describe("application shell", () => {
     expect(commands.filter(command => command !== "workspace_set_activity" && command !== "settings_get")).toEqual(["app_get_info", "group_list", "server_list", "server_list", "server_appearance_list"]);
     expect(activity).toHaveBeenCalledTimes(1);
     expect(activity).toHaveBeenCalledWith({ activeConnectionId: null, monitorVisible: false });
-    await wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').trigger("click");
-    expect(wrapper.get(".server-overview-endpoint").text()).toBe("root@192.168.1.20:22");
-    expect(wrapper.get(".server-overview-title-line .base-status-badge").text()).toBe("尚未连接");
-    expect(wrapper.get('[aria-label="Web-01 · 192.168.1.20"]').attributes("aria-current")).toBe("page");
+    await wrapper.get(".shell-server-item").trigger("click");
+    await flushPromises();
+    expect(connectionStart).toHaveBeenCalledTimes(1);
+    expect(wrapper.get(".shell-workspace-tab__select").text()).toBe("Web-01");
+    expect(wrapper.get(".shell-main-content").text()).toContain("正在连接");
+    expect(wrapper.get(".shell-server-item").attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
-    expect(commands).toHaveLength(10);
-    await wrapper.get('[aria-label="服务器"]').trigger("click");
-    expect(wrapper.get("h1").text()).toBe("服务器");
-    expect(wrapper.find('.shell-server-item[aria-current="page"]').exists()).toBe(false);
+    expect(commands.filter(command => command === "connection_start")).toHaveLength(1);
+    expect(wrapper.find(".server-overview-endpoint").exists()).toBe(false);
+    await wrapper.get(".shell-explorer-toggle").trigger("click");
+    expect(wrapper.get(".shell-explorer-toggle").attributes("aria-pressed")).toBe("false");
+    expect(wrapper.get(".shell-sidebar").isVisible()).toBe(false);
+    await wrapper.get(".shell-explorer-toggle").trigger("click");
+    expect(wrapper.get(".shell-sidebar").isVisible()).toBe(true);
   });
 
   it("keeps global/sidebar search in sync and preserves unknown groups as ungrouped", async () => {
@@ -157,7 +166,7 @@ describe("application shell", () => {
     expect(wrapper.get('.shell-sidebar-search input').element).toHaveProperty("value", "dev.example");
     await wrapper.get('.shell-sidebar-search input').setValue("not-found");
     expect(wrapper.get("nav").text()).toContain("没有找到匹配项");
-    expect(wrapper.get("h1").text()).toBe("服务器");
+    expect(wrapper.get("h1").text()).toBe("暂无打开的会话");
     await wrapper.get('.shell-sidebar-search input').setValue(" ROOT ");
     expect(wrapper.findAll(".shell-server-item")).toHaveLength(4);
   });

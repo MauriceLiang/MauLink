@@ -173,3 +173,27 @@ App.vue
 - Web Harness 以 `988×756`、简体中文，对系统、浅色、深色、红色 accent、`#FF2D8D` 自定义 accent 分别捕获终端工作区；每种条件独立重载两次且图像哈希一致。截图与 manifest 在 `screenshots/p1-candidate/{system,light,dark,red,custom}/`。
 - 浏览器实测：浅色选中底色为 `#DFE4E6`，深色/当前系统深色为 `#30363B`；红色与自定义 accent 能改变 CTA/焦点环，选中底色保持中性。通过键盘 Tab 实际聚焦按钮，确认 `:focus-visible` 焦点环可见。
 - P1 总状态：**通过**；在现有 `dev/app-updates` 工作树进入 P2。
+
+## P2｜桌面 Shell 与唯一服务器资源树
+
+### 实施内容
+
+- 移除常规 ServerList 首页；有服务器时显示无图标的“暂无打开的会话”，无服务器时只显示一个添加入口；服务器诊断信息保留在右键菜单的显式详情路径中。
+- 服务器树按分组显示，支持过滤、分组折叠和方向键移动焦点；树行展示来自 Connection Store 的连接状态。点击树节点和命令面板选中服务器统一走真实的 `connections.start()` / 已连接工作区聚焦路径。
+- 新增轻量 `workspace-ui` 状态与服务器工作区标签。工作区 UI 状态以 `serverId` 唯一，连接生命周期仍由原 Connection Store 持有；终端子标签继续由既有 terminal controller 管理。
+- 关闭工作区复用原断开确认、运行中传输保护和连接断开流程。最后一个工作区关闭后返回空闲态，失败/连接中工作区保留重试/取消入口；隐藏资源树不卸载工作区。
+- 调整确定性 Web Harness 让不同服务器有独立的 connection ID，并更新受导航语义影响的 visual recipes、安全连接焦点测试和 Shell 测试。
+
+### 验收结果
+
+- Web Harness `?harness=visual&page=workspace-tabs`：树点击真实 mock 连接；Web-01/DB-01 形成两个独立 UI 工作区；命令面板搜索 DB-01 后激活对应工作区；生产分组可折叠/展开，方向键在树项间移动焦点；关闭最后工作区并确认断开后返回“暂无打开的会话”，无残留工作区。
+- 无服务器 `?harness=visual&page=empty`：只出现一个可达的“添加服务器”主入口；服务器列表空态不再重复显示主页卡片。
+- `npm run test -- tests/shell.test.ts tests/workspace-ui.test.ts`：2 个文件、12 项通过。
+- `npm run test -- tests/connections.test.ts`：1 个文件、17 项通过；连接安全弹窗测试通过显式详情入口进入。
+- `npm run type-check`：通过。
+- `npm run build`：通过。Vite 提示既有的大 JS chunk 超过 500 kB；未改动 bundle 分包策略。
+- `git diff --check`：通过。
+- 新版参考原型已在内置浏览器 `http://127.0.0.1:8888/` 打开并交互核对。当前验证是浏览器 mock，不代表真实 SSH/原生窗口验证。
+- 原型 tabbar 的“新建连接”进入临时 SSH 工作区；现有 Core `ConnectionStartSource::Draft` 仅支持 `test` 模式，不能承载可持续工作区。本阶段不伪造该业务入口；如需该能力，需另增 Core connection lifecycle/API 设计，列为待决功能差异。
+- macOS 交通灯原生安全区与窗口拖动不属于 Web Harness 可证明范围，留待 P8 桌面验收。
+- P2 总状态：**Web 阶段通过**；原生窗口测试与“临时 SSH 工作区”能力不包含在本阶段通过范围。

@@ -79,12 +79,35 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
   const terminalCustomColors = config.page === 'terminal-custom' ? { background: '#241A36', foreground: '#F4ECFF', cursor: '#C084FC', selection: '#8B5CF6' } : defaultSettings.terminalCustomColors;
   const terminalBackgroundImage = { ...defaultSettings.terminalBackgroundImage, imageId: terminalThemeMode === 'image' ? visualBackgroundImageId : null };
   let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale, accentColor: config.accentColor, customAccentColor: config.customAccentColor, uiDensity: config.uiDensity, terminalThemeMode, terminalCustomColors, terminalBackgroundImage }, revision: 1, updatedAtMs: visualEpoch };
-  let connection: ConnectionSnapshot = { connectionId: 'visual-connection', serverId: 'web-01', mode: 'workspace', state: config.page === 'server-overview' ? 'closed' : 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
+  const connections = new Map<string, ConnectionSnapshot>();
+  let connectionSequence = 0;
+  const initialConnectionId = 'visual-connection-web-01';
+  const updateConnection = (id: string, patch: Partial<ConnectionSnapshot>) => {
+    const current = connections.get(id);
+    if (!current) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.connectionNotFound');
+    const next = { ...current, ...patch, updatedAtMs: visualEpoch };
+    connections.set(id, next);
+    return structuredClone(next);
+  };
+  const getConnection = (id: string) => {
+    const current = connections.get(id);
+    if (!current) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.connectionNotFound');
+    return structuredClone(current);
+  };
+  const startConnection = (serverId: string | null, mode: ConnectionSnapshot['mode']) => {
+    const connectionId = serverId === 'web-01' ? initialConnectionId : `visual-connection-${serverId ?? 'draft'}-${++connectionSequence}`;
+    let snapshot: ConnectionSnapshot = { connectionId, serverId, mode, state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
+    if (config.page === 'server-overview') snapshot = { ...snapshot, state: 'closed' };
+    if (config.page === 'host-key' || config.page === 'host-key-changed') snapshot = { ...snapshot, state: 'awaitingHostTrust', hostKeyChallenge: { challengeId: `visual-host-key-${connectionId}`, connectionId, host: '192.168.1.20', port: 22, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-current-fingerprint', previousFingerprintSha256: config.page === 'host-key-changed' ? 'SHA256:visual-previous-fingerprint' : null, previousRevision: config.page === 'host-key-changed' ? 1 : null, expiresAtMs: 4102444800000 } };
+    else if (config.page === 'authentication') snapshot = { ...snapshot, state: 'awaitingCredentials', authenticationChallenge: { challengeId: `visual-auth-${connectionId}`, connectionId, credentialKind: 'password', expiresAtMs: 4102444800000 } };
+    else if (config.page === 'connection-error') snapshot = { ...snapshot, state: 'failed', error: { ...fixtureError('CONNECTION_REFUSED', 'errors.connectionRefused'), retryable: true, stage: 'connecting' } };
+    connections.set(connectionId, snapshot);
+    return structuredClone(snapshot);
+  };
   const terminals = new Map<string, TerminalSnapshot>(); let terminalNumber = 0; let output: Channel<TerminalChunk> | undefined;
-  const files = structuredClone(visualFiles); const tasks = ['transfer', 'disconnect-transfer'].includes(config.page) ? visualTransfers(connection.connectionId) : [];
+  const files = structuredClone(visualFiles); const tasks = ['transfer', 'disconnect-transfer'].includes(config.page) ? visualTransfers(initialConnectionId) : [];
   let geoip: GeoIpDatabaseStatus = { location: null, asn: null, automaticUpdates: false, updateIntervalDays: 30, lastCheckedAtMs: null, lastError: null };
   const databaseInfo = (kind: string, source: 'dbIp' | 'local') => ({ fileName: `${source}-${kind}.mmdb`, databaseType: `${source}-${kind}`, buildAtMs: visualEpoch, source, available: true });
-  const snapshot = () => structuredClone(connection);
   const transport = createMockIpc({
     app_get_info: () => appInfo,
     group_list: () => config.page === 'empty' ? [] : structuredClone(shellGroups),
@@ -137,15 +160,21 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
     connection_preflight: ({ host }) => preflightFixture(host),
     settings_get: () => structuredClone(settings),
     settings_update: ({ expectedRevision, value }) => { if (expectedRevision !== settings.revision) throw fixtureError('REVISION_CONFLICT', 'errors.revisionConflict'); settings = { value: structuredClone(value), revision: settings.revision + 1, updatedAtMs: visualEpoch }; return structuredClone(settings); },
-    connection_start: () => {
-      if (config.page === 'host-key' || config.page === 'host-key-changed') connection = { ...connection, state: 'awaitingHostTrust', hostKeyChallenge: { challengeId: 'visual-host-key', connectionId: connection.connectionId, host: '192.168.1.20', port: 22, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-current-fingerprint', previousFingerprintSha256: config.page === 'host-key-changed' ? 'SHA256:visual-previous-fingerprint' : null, previousRevision: config.page === 'host-key-changed' ? 1 : null, expiresAtMs: 4102444800000 } };
-      else if (config.page === 'authentication') connection = { ...connection, state: 'awaitingCredentials', authenticationChallenge: { challengeId: 'visual-auth', connectionId: connection.connectionId, credentialKind: 'password', expiresAtMs: 4102444800000 } };
-      else if (config.page === 'connection-error') connection = { ...connection, state: 'failed', error: { ...fixtureError('CONNECTION_REFUSED', 'errors.connectionRefused'), retryable: true, stage: 'connecting' } };
-      return snapshot();
+    connection_start: ({ source, mode }) => startConnection(source.kind === 'saved' ? source.serverId : null, mode),
+    connection_get: ({ connectionId }) => getConnection(connectionId),
+    connection_cancel: ({ connectionId }) => updateConnection(connectionId, { state: 'cancelled', hostKeyChallenge: null, authenticationChallenge: null }),
+    connection_disconnect: ({ connectionId }) => updateConnection(connectionId, { state: 'closed', hostKeyChallenge: null, authenticationChallenge: null }),
+    host_key_respond: ({ connectionId, challengeId, decision }) => {
+      const current = getConnection(connectionId);
+      if (current.hostKeyChallenge?.challengeId !== challengeId) throw fixtureError('CHALLENGE_EXPIRED', 'errors.challengeExpired');
+      if (decision === 'reject') updateConnection(connectionId, { state: 'failed', hostKeyChallenge: null, error: fixtureError('HOST_KEY_REJECTED', 'errors.hostKeyRejected') });
+      else updateConnection(connectionId, { state: 'awaitingCredentials', hostKeyChallenge: null, authenticationChallenge: { challengeId: `visual-auth-${connectionId}`, connectionId, credentialKind: 'password', expiresAtMs: 4102444800000 } });
     },
-    connection_get: snapshot,
-    connection_cancel: () => { connection = { ...connection, state: 'cancelled', hostKeyChallenge: null, authenticationChallenge: null }; return snapshot(); },
-    connection_disconnect: () => { connection = { ...connection, state: 'closed' }; return snapshot(); },
+    auth_respond: ({ connectionId, challengeId, secret }) => {
+      const current = getConnection(connectionId);
+      if (current.authenticationChallenge?.challengeId !== challengeId) throw fixtureError('CHALLENGE_EXPIRED', 'errors.challengeExpired');
+      updateConnection(connectionId, secret === 'wrong' ? { state: 'failed', authenticationChallenge: null, error: fixtureError('AUTH_FAILED', 'errors.authFailed') } : { state: 'ready', authenticationChallenge: null, error: null });
+    },
     terminal_open: ({ connectionId, columns, rows }) => {
       const terminalId = `visual-terminal-${++terminalNumber}`; const streamId = `visual-stream-${terminalNumber}`;
       terminals.set(terminalId, { terminalId, streamId, connectionId, size: { columns, rows, pixelWidth: null, pixelHeight: null }, state: 'running', error: null, exitStatus: null, exitSignal: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch });

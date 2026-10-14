@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Paths from the existing Lucide icon set; see ../../../LICENSE-lucide.
-defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'eraser' | 'arrow-left' | 'arrow-right' | 'arrow-up' | 'refresh' | 'power' | 'folder' | 'file-text' | 'upload' | 'folder-plus' | 'download' | 'monitor' | 'shield' | 'network' | 'terminal' | 'globe' | 'house' | 'search' | 'server' }>();
+defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'eraser' | 'arrow-left' | 'arrow-right' | 'arrow-up' | 'refresh' | 'power' | 'folder' | 'file-text' | 'upload' | 'folder-plus' | 'download' | 'monitor' | 'shield' | 'network' | 'terminal' | 'globe' | 'house' | 'search' | 'server' | 'panel-left' }>();
 </script>
 <template>
   <svg class="base-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -12,6 +12,7 @@ defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' 
     <template v-else-if="name === 'house'"><path d="M3 10.182 12 3l9 7.182V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" /><path d="M9 22v-9h6v9" /></template>
     <template v-else-if="name === 'search'"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></template>
     <template v-else-if="name === 'server'"><rect width="20" height="8" x="2" y="2" rx="2" /><rect width="20" height="8" x="2" y="14" rx="2" /><path d="M6 6h.01M6 18h.01" /></template>
+    <template v-else-if="name === 'panel-left'"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></template>
     <path v-else-if="name === 'arrow-left'" d="M19 12H5m7 7-7-7 7-7" />
     <path v-else-if="name === 'arrow-right'" d="M5 12h14m-7-7 7 7-7 7" />
     <path v-else-if="name === 'arrow-up'" d="M12 19V5m-7 7 7-7 7 7" />

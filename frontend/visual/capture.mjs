@@ -21,11 +21,11 @@ export async function saveCapture(outputDir, name, screenshots, update = false) 
 }
 const hash = value => createHash('sha256').update(value).digest('hex');
 const labels = {
-  add: ['添加服务器', 'Add Server'], 'server-menu': ['更多操作 Web-01', 'More actions Web-01'],
+  add: ['添加服务器', 'Add Server'], details: ['查看连接信息', 'View connection details'],
   edit: ['编辑服务器 Web-01', 'Edit server Web-01'], 'delete-server': ['删除服务器 Web-01', 'Delete server Web-01'],
   'group-manager': ['管理分组', 'Manage groups'], 'delete-production-group': ['删除分组 Production', 'Delete group Production'],
   disconnect: ['断开连接', 'Disconnect'], 'credential-actions': ['更多凭据操作', 'More credential actions'], 'reveal-credential': ['查看已保存密码', 'View saved password'],
-  select: ['查看 Web-01 · 尚未连接', 'View Web-01 · Not connected'], connect: ['连接服务器', 'Connect server'], focus: ['专注', 'Focus'],
+  select: ['Web-01 · 192.168.1.20', 'Web-01 · 192.168.1.20'], focus: ['专注', 'Focus'],
   files: ['文件', 'Files'], terminal: ['终端', 'Terminal'], monitor: ['监控', 'Monitor'], settings: ['设置', 'Settings'],
   general: ['通用', 'General'], security: ['安全与隐私', 'Security & Privacy'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'],
   language: ['语言', 'Language'],
@@ -37,10 +37,21 @@ async function prepare(tab, item, locale) {
   await tab.playwright.getByRole('button', { name: labels.settings[index], exact: true }).waitFor({state:'visible'});
   let dom = await tab.playwright.domSnapshot();
   for (const step of item.steps) {
-    const name = labels[step][index];
+    const name = labels[step]?.[index];
     // Read state before every action. All actions target actual rendered controls.
     let control;
-    if (step === 'save-settings') {
+    if (step === 'server-menu') {
+      if (!(await tab.playwright.locator('.shell-server-item').count())) throw new Error(`${item.page}: server tree row not present in current DOM`);
+      await tab.playwright.locator('.shell-server-item').first().click({button:'right'});
+      dom = await tab.playwright.domSnapshot();
+      continue;
+    } else if (step === 'open-second') {
+      if ((await tab.playwright.locator('.shell-server-item').count()) < 2) throw new Error(`${item.page}: second server row not present in current DOM`);
+      control = tab.playwright.locator('.shell-server-item').nth(1);
+    } else if (step === 'select') {
+      if (!(await tab.playwright.locator('.shell-server-item').count())) throw new Error(`${item.page}: server tree row not present in current DOM`);
+      control = tab.playwright.locator('.shell-server-item').first();
+    } else if (step === 'save-settings') {
       const toggleName = labels['confirm-disconnect'][index];
       if (!dom.includes(`"${toggleName}"`)) throw new Error(`${item.page}: settings toggle not present in current DOM (${toggleName})`);
       control = tab.playwright.getByRole('switch', { name: toggleName, exact: true });
@@ -49,9 +60,9 @@ async function prepare(tab, item, locale) {
       control = tab.playwright.getByRole('row', { name: /package\.json/ });
     } else {
       if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: ${step} not present in current DOM (${name})`);
-      const role = ['edit', 'delete-server', 'delete-file', 'reveal-credential'].includes(step) ? 'menuitem' : 'button';
+      const role = ['edit', 'details', 'delete-server', 'delete-file', 'reveal-credential'].includes(step) ? 'menuitem' : 'button';
       control = tab.playwright.getByRole(role, { name, exact: true });
-      if (step === 'add') control = tab.playwright.getByRole('banner').getByRole('button', { name, exact: true });
+      if (step === 'add') control = tab.playwright.locator('.shell-sidebar-header').getByRole('button', { name, exact: true });
     }
     if (step === 'file-menu') await control.click({button:'right'});
     else await control.click();
@@ -60,7 +71,7 @@ async function prepare(tab, item, locale) {
       await tab.playwright.getByText(index ? 'Settings saved.' : '设置已保存。', {exact:true}).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();
     }
-    if (step === 'connect' && !['host-key','host-key-changed','authentication','connection-error'].includes(item.page)) {
+    if (['select','open-second'].includes(step) && !['host-key','host-key-changed','authentication','connection-error'].includes(item.page)) {
       await tab.playwright.getByText(index ? 'Shell ready' : 'Shell 就绪', {exact:true}).waitFor({state:'visible'});
       await tab.playwright.locator('.xterm-rows').filter({hasText:'Release 2.14.0 activated'}).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();

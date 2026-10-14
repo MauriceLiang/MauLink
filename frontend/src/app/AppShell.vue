@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { messages } from "../i18n/locale";
 import { shellMessages } from "../i18n/shell";
+import { connectionStateText } from "../i18n/connections";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { AppInfo } from "../ipc/commands";
 import type { ServerProfile } from "../../../contracts/v1/ServerProfile";
@@ -42,7 +43,6 @@ import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
 import BaseToastViewport from "../components/base/BaseToastViewport.vue";
 import { useToast } from "../composables/useToast";
-import ServerList from "../components/server/ServerList.vue";
 import ServerDialog from "../dialogs/ServerDialog.vue";
 import ConfirmDialog from "../dialogs/ConfirmDialog.vue";
 import GroupDialog from "../dialogs/GroupDialog.vue";
@@ -52,7 +52,8 @@ import SettingsSidebar from "./settings/SettingsSidebar.vue";
 import SettingsWorkspace from "./settings/SettingsWorkspace.vue";
 import type { SettingsSection } from "./settings/settings-navigation";
 import LocalBackendStatus from "./LocalBackendStatus.vue";
-import WelcomeView from "./WelcomeView.vue";
+import DesktopWorkspaceTabs from "./DesktopWorkspaceTabs.vue";
+import IdleWorkspace from "./IdleWorkspace.vue";
 import ServerOverview from "../components/server-overview/ServerOverview.vue";
 import { serverOverviewMessages } from "../i18n/server-overview";
 import { updaterMessages } from "../i18n/updater";
@@ -63,6 +64,7 @@ import { createUpdaterController } from "../updater/updater-controller";
 import type { UpdaterAdapter } from "../updater/updater-types";
 import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
+import { createWorkspaceUiStore } from "../stores/workspace-ui";
 const t = messages(shellMessages);
 
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
@@ -73,8 +75,11 @@ const updaterController = createUpdaterController(updaterAdapter, () => info.val
 const store = createServerStore(createServerApi(props.client));
 const serverAppearances = createServerAppearanceStore(createServerAppearanceApi(props.client));
 const runtimeStats = createServerRuntimeStatsApi(props.client);
-const { servers, groups, pending, error, query, filtered } = store;
+const { servers, groups, pending, error, query } = store;
 const connections = createConnectionStore(createConnectionApi(props.client), () => !updateInstallGate.value);
+const workspaceUi = createWorkspaceUiStore();
+const diagnosticServerId = ref<string | null>(null);
+const sidebarVisible = ref(true);
 const hostKeys = createHostKeysApi(props.client);
 const network = createNetworkApi(props.client);
 const geoip = createGeoIpApi(props.client);
@@ -119,12 +124,46 @@ const monitor = createMonitorStore(createMonitorApi(props.client));
 const workspaceViews = ref<Record<string, string>>({});
 const focused = ref(false);
 const settingsOpen = ref(false);
-const workspaces = computed(() => Object.entries(connections.snapshots.value).filter(([id, snapshot]) => servers.value.some(server => server.id === id) && (snapshot.state === 'ready' || terminals.tabs.value.some(tab => tab.connectionId === snapshot.connectionId) || transfers.snapshots.value.some(task => task.connectionId === snapshot.connectionId))));
-const selectedWorkspace = computed(() => workspaces.value.some(([id]) => id === selectedId.value));
-const selectedId = ref<string | null>(null);
+const selectedId = computed(() => diagnosticServerId.value ?? workspaceUi.activeServerId.value);
+const workspaces = computed(() => workspaceUi.tabs.value.flatMap(tab => {
+  const snapshot = connections.snapshots.value[tab.serverId];
+  if (!snapshot) return [];
+  const hasTerminal = terminals.tabs.value.some(item => item.connectionId === snapshot.connectionId);
+  const hasTransfer = transfers.snapshots.value.some(task => task.connectionId === snapshot.connectionId);
+  return snapshot.state === 'ready' || hasTerminal || hasTransfer ? [[tab.serverId, snapshot] as const] : [];
+}));
+const workspaceTabItems = computed(() => workspaceUi.tabs.value.flatMap(tab => {
+  const server = servers.value.find(item => item.id === tab.serverId);
+  if (!server) return [];
+  const snapshot = connections.snapshots.value[tab.serverId];
+  return [{ key: tab.key, serverId: tab.serverId, name: server.name, host: server.host, phase: tab.phase, connectionState: snapshot && !isFinished(snapshot) ? snapshot.state : null, busy: !!connections.busy.value[tab.serverId] }];
+}));
+const activeSnapshot = computed(() => {
+  const id = workspaceUi.activeServerId.value;
+  return id ? connections.snapshots.value[id] ?? null : null;
+});
+const activeWorkspaceStatus = computed(() => {
+  const tab = workspaceUi.activeTab.value;
+  if (!tab) return '';
+  if (activeSnapshot.value && !isFinished(activeSnapshot.value)) return connectionStateText(activeSnapshot.value.state);
+  return tab.phase === 'failed' ? t('connectionFailed') : t('connectingWorkspace');
+});
+const activeWorkspaceError = computed(() => {
+  const id = workspaceUi.activeServerId.value;
+  if (!id) return '';
+  const failure = connections.errors.value[id] ?? activeSnapshot.value?.error;
+  return failure ? presentError(failure).message : '';
+});
 const pendingServerNavigation = ref<{ serverId: string; view: "terminal" | "monitor" | "files" } | null>(null);
-const activeConnection = computed(() => !pending.value && !error.value && selectedId.value && connections.snapshots.value[selectedId.value]?.state === 'ready' ? connections.snapshots.value[selectedId.value]!.connectionId : null);
-watch([activeConnection, workspaceViews, focused, settingsOpen], () => { const id = activeConnection.value; if (!props.readOnly) monitor.activate(id, !!id && !settingsOpen.value && (workspaceViews.value[id] ?? 'terminal') !== 'files' && !focused.value); }, { immediate: true, deep: true });
+const activeConnection = computed(() => {
+  const id = workspaceUi.activeServerId.value;
+  const snapshot = id ? connections.snapshots.value[id] : null;
+  return !pending.value && !error.value && !settingsOpen.value && !diagnosticServerId.value && snapshot?.state === 'ready' ? snapshot.connectionId : null;
+});
+watch([connections.snapshots, connections.errors], () => {
+  for (const tab of workspaceUi.tabs.value) workspaceUi.syncConnection(tab.serverId, connections.snapshots.value[tab.serverId] ?? null, !!connections.errors.value[tab.serverId]);
+}, { immediate: true });
+watch([activeConnection, workspaceViews, focused, settingsOpen, diagnosticServerId], () => { const id = activeConnection.value; if (!props.readOnly) monitor.activate(id, !!id && !settingsOpen.value && (workspaceViews.value[id] ?? 'terminal') !== 'files' && !focused.value); }, { immediate: true, deep: true });
 let knownAppearanceIds = new Set<string>();
 watch(serverAppearances.appearances, values => {
   for (const id of knownAppearanceIds) if (!values[id]) terminals.setServerAppearance(id, undefined);
@@ -156,7 +195,7 @@ const commands = computed(() => [...servers.value.map(server => ({ id: `server:$
 async function executeCommand(id: string) {
   paletteOpen.value = false; await nextTick();
   const connectionId = activeConnection.value;
-  if (id.startsWith('server:')) requestSettingsLeave(() => selectServer(id.slice(7)));
+  if (id.startsWith('server:')) requestSettingsLeave(() => { const server = servers.value.find(item => item.id === id.slice(7)); if (server) return openServerView(server, 'terminal'); });
   else if (id === 'add') requestSettingsLeave(() => openEditor());
   else if (id === 'settings') openSettings();
   else if (id === 'theme' || id === 'language') requestSettingsLeave(async () => { const current = terminalPreferences.record.value?.value; if (current && await terminalPreferences.save(id === 'theme' ? { theme: getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'light' : 'dark' } : { language: current.language === 'en' ? 'zh-CN' : 'en' })) toast.success(settingsText('saved')); });
@@ -299,21 +338,26 @@ function openEditor(id: string | null = null) {
 }
 
 async function onRemoved(message: string) {
-  if (deleteTarget.value) serverAppearances.remove(deleteTarget.value.id);
+  if (deleteTarget.value) {
+    serverAppearances.remove(deleteTarget.value.id);
+    workspaceUi.close(deleteTarget.value.id);
+    if (diagnosticServerId.value === deleteTarget.value.id) diagnosticServerId.value = null;
+  }
   toast.success(message);
-  selectServer(null);
   await nextTick();
-  // The delete trigger may disappear with its server, so return to Home.
-  document.querySelector<HTMLButtonElement>(".shell-brand")?.focus();
+  document.querySelector<HTMLButtonElement>(".shell-server-item[aria-current='page']")?.focus();
 }
 
 function selectServer(id: string | null) {
-  pendingServerNavigation.value = null;
-  selectedId.value = id;
+  if (!id) { diagnosticServerId.value = null; pendingServerNavigation.value = null; return; }
+  const server = servers.value.find(item => item.id === id);
+  if (server) void openServerView(server, 'terminal');
 }
 
 async function revealWorkspaceView(serverId: string, view: "terminal" | "monitor" | "files") {
-  selectedId.value = serverId;
+  diagnosticServerId.value = null;
+  workspaceUi.select(serverId);
+  workspaceUi.setPane(serverId, view);
   await nextTick();
   const snapshot = connections.snapshots.value[serverId];
   if (snapshot?.state !== "ready") return;
@@ -322,17 +366,24 @@ async function revealWorkspaceView(serverId: string, view: "terminal" | "monitor
 }
 
 async function openServerView(server: ServerProfile, view: "terminal" | "monitor" | "files") {
-  selectedId.value = server.id;
+  diagnosticServerId.value = null;
+  workspaceUi.open(server.id, view);
+  pendingServerNavigation.value = null;
   const snapshot = connections.snapshots.value[server.id];
   if (snapshot?.state === "ready") {
     await revealWorkspaceView(server.id, view);
     return;
   }
-  pendingServerNavigation.value = null;
+  if (snapshot && !isFinished(snapshot)) {
+    pendingServerNavigation.value = { serverId: server.id, view };
+    return;
+  }
+  if (snapshot) connections.dismiss(server.id);
+  pendingServerNavigation.value = { serverId: server.id, view };
   await connections.start(server);
   const next = connections.snapshots.value[server.id];
   if (next?.state === "ready") await revealWorkspaceView(server.id, view);
-  else if (next && !isFinished(next)) pendingServerNavigation.value = { serverId: server.id, view };
+  else if (!next || isFinished(next)) pendingServerNavigation.value = null;
 }
 
 function handleServerNavigation({ action, server }: ServerNavigationRequest) {
@@ -342,10 +393,52 @@ function handleServerNavigation({ action, server }: ServerNavigationRequest) {
   } else if (action === "remove") {
     pendingServerNavigation.value = null;
     deleteTarget.value = { ...server };
+  } else if (action === "details") {
+    pendingServerNavigation.value = null;
+    diagnosticServerId.value = server.id;
   } else {
     const view = action === "workspace" ? "terminal" : action;
     void openServerView(server, view);
   }
+}
+
+function finishWorkspaceClose(serverId: string) {
+  const snapshot = connections.snapshots.value[serverId];
+  if (snapshot && !isFinished(snapshot)) return false;
+  if (snapshot) connections.dismiss(serverId);
+  workspaceUi.close(serverId);
+  if (diagnosticServerId.value === serverId) diagnosticServerId.value = null;
+  if (pendingServerNavigation.value?.serverId === serverId) pendingServerNavigation.value = null;
+  return true;
+}
+
+async function closeWorkspace(serverId: string) {
+  if (connections.busy.value[serverId]) return;
+  const snapshot = connections.snapshots.value[serverId];
+  if (!snapshot || isFinished(snapshot)) { finishWorkspaceClose(serverId); return; }
+  if (snapshot.state === 'ready') {
+    const workspace = workspaceRefs.value.find(value => value.serverId === serverId);
+    if (workspace) { workspace.requestWorkspaceClose(); return; }
+    await handleWorkspaceDisconnect(serverId, false, true);
+    return;
+  }
+  workspaceUi.setPhase(serverId, 'closing');
+  await connections.cancel(serverId);
+  if (!finishWorkspaceClose(serverId)) workspaceUi.syncConnection(serverId, connections.snapshots.value[serverId] ?? null, !!connections.errors.value[serverId]);
+}
+
+async function handleWorkspaceDisconnect(serverId: string, stopActiveTransfers: boolean, closeAfterDisconnect = false) {
+  await connections.disconnect(serverId, stopActiveTransfers);
+  const snapshot = connections.snapshots.value[serverId];
+  if (closeAfterDisconnect && snapshot && isFinished(snapshot)) finishWorkspaceClose(serverId);
+}
+
+function toggleSidebar() { sidebarVisible.value = !sidebarVisible.value; }
+
+function retryActiveWorkspace() {
+  const tab = workspaceUi.activeTab.value;
+  const server = tab && servers.value.find(item => item.id === tab.serverId);
+  if (server) void openServerView(server, tab.activePane);
 }
 
 watch(() => {
@@ -400,9 +493,13 @@ watch(() => selectedId.value ? connections.snapshots.value[selectedId.value]?.st
 
 function onKeydown(event: KeyboardEvent) {
   if (isTerminalTarget(event.target) || document.querySelector('[role="dialog"]') || connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
+  if (event.target instanceof HTMLElement && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     paletteOpen.value = true;
+  } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+    event.preventDefault();
+    toggleSidebar();
   }
 }
 onMounted(() => { document.addEventListener("keydown", onKeydown); void load(); if (!props.readOnly) void terminalPreferences.load(); });
@@ -410,25 +507,31 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
 </script>
 
 <template>
-  <div class="application-shell" :class="{ 'terminal-focused': focused }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
-    <TopBar v-model:query="query" :home="!selected && !settingsOpen" :shortcut="shortcut" :can-manage="canManage" :settings-enabled="!readOnly" @home="requestSettingsLeave(() => selectServer(null))" @about="requestSettingsLeave(() => { about = true; })" @add="requestSettingsLeave(() => openEditor())" @settings="openSettings()" @palette="paletteOpen = true" />
-    <div class="shell-content">
+  <div class="application-shell" :class="{ 'terminal-focused': focused, 'is-explorer-hidden': !sidebarVisible }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
+    <TopBar v-model:query="query" :shortcut="shortcut" :settings-enabled="!readOnly" :explorer-visible="sidebarVisible" @about="requestSettingsLeave(() => { about = true; })" @settings="openSettings()" @palette="paletteOpen = true" @toggle-explorer="toggleSidebar" />
+    <div class="shell-content" :class="{ 'is-explorer-hidden': !sidebarVisible }">
       <SettingsSidebar v-if="settingsOpen" :section="settingsInitialSection" :has-geo-ip="!!geoip" :busy="settingsSidebarBusy" @update:section="settingsInitialSection = $event" @back="requestSettingsLeave()" />
-      <Sidebar v-else v-model:query="query" :servers="servers" :groups="groups" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
-      <main class="shell-main" :class="{ 'has-terminal-workspace': selectedWorkspace && !settingsOpen }" :aria-busy="pending">
+      <Sidebar v-else v-show="sidebarVisible" v-model:query="query" :servers="servers" :groups="groups" :snapshots="connections.snapshots.value" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
+      <main class="shell-main" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId }" :aria-busy="pending">
+        <DesktopWorkspaceTabs v-if="!settingsOpen" :tabs="workspaceTabItems" :active-key="workspaceUi.activeServerId.value" @select="workspaceUi.select($event); diagnosticServerId = null" @close="closeWorkspace" />
+        <div class="shell-main-content" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId }">
         <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" :updater="updaterController" :current-version="info?.version ?? '—'" :update-install-busy="updateInstallBusy" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @database-changed="databaseRevision++" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" @update-install-request="requestUpdateInstall" @update-install-deferred="deferUpdateInstall" />
         <template v-else>
           <BaseEmptyState v-if="pending" :title="t('loadingLocalData')" />
           <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
             <BaseButton @click="load">{{ t('retry') }}</BaseButton>
           </BaseEmptyState>
-          <ServerOverview v-else-if="selected && !selectedWorkspace" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
-          <ServerList v-else-if="!selectedWorkspace && servers.length" :servers="filtered" :snapshots="connections.snapshots.value" :read-only="!canManage" :language="locale" @select="selectServer($event)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" />
-          <WelcomeView v-else-if="!selectedWorkspace" :has-servers="false" :can-manage="canManage" @about="requestSettingsLeave(() => { about = true; })" @add="requestSettingsLeave(() => openEditor())" />
+          <ServerOverview v-else-if="diagnosticServerId && selected" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
+          <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" :title="activeWorkspaceStatus" :description="activeWorkspaceError || undefined">
+            <BaseButton v-if="workspaceUi.activeTab.value.phase === 'failed'" @click="retryActiveWorkspace">{{ t('retry') }}</BaseButton>
+            <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspace', { name: servers.find(item => item.id === workspaceUi.activeTab.value?.serverId)?.name ?? '' }) }}</BaseButton>
+          </BaseEmptyState>
+          <IdleWorkspace v-else-if="!workspaceUi.activeTab.value" :has-servers="servers.length > 0" :shortcut="shortcut" :sidebar-shortcut="info?.platform === 'windows' ? 'Ctrl B' : '⌘ B'" @add="requestSettingsLeave(() => openEditor())" />
         </template>
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && selectedId === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && selectedId === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @home="requestSettingsLeave(() => selectServer(null))" @settings="openSettings('terminal')" @disconnect="connections.disconnect(id, $event)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, closeAfterDisconnect) => handleWorkspaceDisconnect(id, stopTransfers, closeAfterDisconnect)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
+        </div>
       </main>
-      <LocalBackendStatus :state="backendState" :version="info?.version" :terminal-count="terminals.tabs.value.length" :transfer-count="activeTransfers" />
+      <LocalBackendStatus :state="backendState" :version="info?.version" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" />
     </div>
     <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
       <p>{{ t('aboutLead') }}</p>
