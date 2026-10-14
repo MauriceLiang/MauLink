@@ -43,10 +43,7 @@ async function prepare(tab, item, locale) {
     if (step === 'save-settings') {
       const toggleName = labels['confirm-disconnect'][index];
       if (!dom.includes(`"${toggleName}"`)) throw new Error(`${item.page}: settings toggle not present in current DOM (${toggleName})`);
-      await tab.playwright.getByRole('switch', { name: toggleName, exact: true }).click();
-      dom = await tab.playwright.domSnapshot();
-      if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: save action not present in current DOM (${name})`);
-      control = tab.playwright.getByRole('button', { name, exact: true });
+      control = tab.playwright.getByRole('switch', { name: toggleName, exact: true });
     } else if (step === 'file-menu') {
       if (!dom.includes('button "package.json"')) throw new Error(`${item.page}: package.json row not present in current DOM`);
       control = tab.playwright.getByRole('row', { name: /package\.json/ });
@@ -59,6 +56,10 @@ async function prepare(tab, item, locale) {
     if (step === 'file-menu') await control.click({button:'right'});
     else await control.click();
     dom = await tab.playwright.domSnapshot();
+    if (step === 'save-settings') {
+      await tab.playwright.getByText(index ? 'Settings saved.' : '设置已保存。', {exact:true}).waitFor({state:'visible'});
+      dom = await tab.playwright.domSnapshot();
+    }
     if (step === 'connect' && !['host-key','host-key-changed','authentication','connection-error'].includes(item.page)) {
       await tab.playwright.getByText(index ? 'Shell ready' : 'Shell 就绪', {exact:true}).waitFor({state:'visible'});
       await tab.playwright.locator('.xterm-rows').filter({hasText:'Release 2.14.0 activated'}).waitFor({state:'visible'});
@@ -94,7 +95,7 @@ async function prepare(tab, item, locale) {
   }[item.page];
   if (expected && !dom.includes(expected[index])) throw new Error(`${item.page}: expected screen marker ${expected[index]} missing`);
   if (item.page === 'terminal-image' || item.page === 'settings-terminal-image') {
-    const selector = item.page === 'terminal-image' ? '.terminal-background-layer' : '.terminal-background-preview-image';
+    const selector = item.page === 'terminal-image' ? '.terminal-background-layer' : '.terminal-appearance-image-thumbnail';
     const imageLayer = tab.playwright.locator(selector);
     await imageLayer.waitFor({state:'visible'});
     if (!(await imageLayer.getAttribute('style'))?.includes('app-icon-dark.png')) throw new Error(`${item.page}: visual image fixture did not resolve`);
