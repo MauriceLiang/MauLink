@@ -545,7 +545,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
         </div>
       </main>
       <TransferPanel :store="transfers" :open="transferDrawerOpen" :server-names="transferServerNames" @close="transferDrawerOpen = false" />
-      <LocalBackendStatus :state="backendState" :version="info?.version" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
+      <LocalBackendStatus :state="backendState" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
     </div>
     <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
       <p>{{ t('aboutLead') }}</p>

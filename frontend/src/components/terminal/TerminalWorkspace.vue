@@ -4,6 +4,7 @@ import { messages } from "../../i18n/locale";
 import { terminalMessages } from "../../i18n/terminal";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import MonitorView from "../monitor/MonitorView.vue";
+import Inspector from "../monitor/Inspector.vue";
 import type { MonitorStore } from "../../stores/monitor";
 import FilesPanel from "../files/FilesPanel.vue";
 import type { createSftpApi } from "../../ipc/sftp";
@@ -33,7 +34,7 @@ const emit = defineEmits<{ settings: []; disconnect: [stopActiveTransfers: boole
 const root = ref<HTMLElement | null>(null);
 const activeId = ref<string | null>(null);
 const disconnectOpen = ref(false); const focused = ref(false);
-const inspectorVisible = ref(true);
+const inspectorVisible = ref(false);
 const closeWorkspaceAfterDisconnect = ref(false);
 const tabs = computed(() => props.controller.tabs.value.filter(tab => tab.connectionId === props.snapshot.connectionId));
 const active = computed(() => tabs.value.find(tab => tab.id === activeId.value));
@@ -181,15 +182,18 @@ defineExpose({ serverId: props.server.id, connectionId: props.snapshot.connectio
   <section ref="root" class="terminal-workspace" :class="{ 'is-focused': focused, 'is-files': pane === 'files', 'is-monitor': pane === 'monitor' }" :aria-label="t('workspace', {name: server.name})">
     <header class="workspace-heading"><div><h1>{{ server.name }}</h1><span>{{ server.username }}@{{ server.host }}:{{ server.port }}</span><span v-if="environmentLabel || serverAppearance?.labelColor" class="workspace-server-environment"><i :style="serverAppearance?.labelColor ? { backgroundColor: serverAppearance.labelColor } : undefined"></i>{{ environmentLabel }}</span></div><span class="workspace-connection-state">{{ connectionStateText(snapshot.state) }}</span><div class="workspace-view-tabs" role="group" :aria-label="t('workspace', {name: server.name})"><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'terminal'" @click="view('terminal')">{{ t('terminal') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'files'" @click="view('files')">{{ t('files') }}</BaseButton><BaseButton class="workspace-view-tab" :aria-pressed="pane === 'monitor'" @click="view('monitor')">{{ t('monitor') }}</BaseButton></div><BaseIconButton class="workspace-heading-action" :label="t(inspectorVisible ? 'hideInspector' : 'showInspector')" :aria-pressed="inspectorVisible" @click="inspectorVisible = !inspectorVisible"><BaseIcon name="settings" /></BaseIconButton><BaseIconButton class="workspace-heading-action" :label="t('disconnect')" :disabled="!ready || busy || transfers.starting.value[snapshot.connectionId]" @click="disconnect"><BaseIcon name="power" /></BaseIconButton></header>
     <div v-show="pane === 'terminal'" class="terminal-toolbar"><TerminalTabs :tabs="tabs" :active-id="activeId" @activate="activate" @close="close" /><BaseIconButton class="terminal-new terminal-toolbar-action" :label="t('newTerminal')" :disabled="!ready || busy" @click="create"><BaseIcon name="plus" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="focused ? t('exitFocus') : t('focus')" :disabled="!active" :aria-pressed="focused" @click="toggleFocus"><BaseIcon :name="focused ? 'minimize' : 'maximize'" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('terminalSettings')" @click="emit('settings')"><BaseIcon name="settings" /></BaseIconButton><BaseIconButton class="terminal-toolbar-action" :label="t('clearTerminal')" :disabled="!active" @click="activeId && controller.clear(activeId)"><BaseIcon name="eraser" /></BaseIconButton></div>
-    <div v-show="pane === 'terminal' || pane === 'files'" class="terminal-main" :class="{ 'has-inline-files': pane === 'terminal' && filesExpanded, 'is-full-files': pane === 'files', 'has-inspector': inspectorVisible }">
+    <div v-show="pane === 'terminal' || pane === 'files'" class="terminal-main" :class="{ 'has-inline-files': pane === 'terminal' && filesExpanded, 'is-full-files': pane === 'files', 'has-inspector': inspectorVisible && !focused }">
       <div v-show="pane === 'terminal'" class="terminal-stack" :style="terminalStackStyle"><div v-if="backgroundImageUrl" class="terminal-background-layer" aria-hidden="true" :style="terminalBackgroundStyle"></div><div v-if="backgroundImageUrl" class="terminal-background-overlay" aria-hidden="true" :style="terminalOverlayStyle"></div><XtermHost v-for="tab in tabs" :key="tab.id" v-show="tab.id === activeId" :id="tab.id" :controller="controller" :active="visible && pane === 'terminal' && tab.id === activeId" /><p v-if="!tabs.length" class="terminal-empty">{{ ready ? t('selectNewTerminalToOpenAShell') : t('sshConnectionEnded') }}</p></div>
-      <MonitorView v-show="pane === 'terminal' && inspectorVisible && !focused" :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" quick @full="view('monitor')" />
+      <Inspector v-if="inspectorVisible && !focused && pane !== 'monitor'" :server="server" :snapshot="snapshot" :store="monitor" :ready="ready" :pane="pane" :terminals="tabs" :active-terminal="active ?? null" @close="inspectorVisible = false" @full="view('monitor')" />
       <div v-if="filesVisited" v-show="filesVisible && !directorySyncing" class="terminal-inline-files">
         <FilesPanel :api="sftp" :transfers="transfers" :preferences="preferences" :connection-id="snapshot.connectionId" :visible="visible && filesVisible" :ready="ready && !busy && !directorySyncing" :requested-directory="requestedDirectory" :compact-footer="pane === 'terminal' && filesExpanded" @pagination="filePageInfo = $event" />
       </div>
     </div>
     <footer v-show="pane === 'terminal'" class="terminal-footer" role="status"><span v-if="filesExpanded && filePageInfo">{{ filePageInfo }}</span><span>{{ active ? active.state === 'running' ? active.inputPaused ? t('inputPaused') : t('shellReady') : t('sessionStopped') : t('waitingForShell') }}</span><span>{{ active?.columns ?? '—' }} × {{ active?.rows ?? '—' }}</span><span>{{ t(tabs.length === 1 ? 'oneTerminal' : 'terminalCount', {count: tabs.length}) }}</span><BaseIconButton class="terminal-files-toggle" :label="t(filesExpanded ? 'collapseFiles' : 'expandFiles')" :disabled="!ready || busy" :aria-pressed="filesExpanded" @click="toggleFiles"><BaseIcon name="folder" /></BaseIconButton></footer>
-    <MonitorView v-show="pane === 'monitor'" :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" />
+    <div v-show="pane === 'monitor'" class="monitor-workspace" :class="{ 'has-inspector': inspectorVisible && !focused }">
+      <MonitorView :store="monitor" :connection-id="snapshot.connectionId" :ready="ready" :server-name="server.name" />
+      <Inspector v-if="inspectorVisible && !focused" :server="server" :snapshot="snapshot" :store="monitor" :ready="ready" :pane="pane" :terminals="tabs" :active-terminal="active ?? null" @close="inspectorVisible = false" @full="view('monitor')" />
+    </div>
     <p v-if="directoryWarning && filesVisible" class="terminal-warning" role="status">{{ directoryWarning }}</p>
     <p v-show="pane === 'terminal'" v-if="active?.error || preferences.error.value || backgroundError || error" class="terminal-warning" role="alert"><span v-if="active?.error">{{ active.error }}</span><span v-if="preferences.error.value">{{ preferences.error.value }}</span><span v-if="backgroundError">{{ backgroundError }}</span><span v-if="error">{{ presentError(error).message }}</span></p>
     <BaseDialog :open="disconnectOpen" size="standard" :title="t('disconnectSSH')" :busy="busy" @close="cancelDisconnect">

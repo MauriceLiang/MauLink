@@ -58,7 +58,10 @@ describe("application shell", () => {
     await flushPromises();
     expect(wrapper.get("h1").text()).toBe("还没有服务器");
     expect(wrapper.get('[role="status"]').text()).toContain("本地服务已就绪");
-    expect(wrapper.get('[role="status"]').text()).toContain("v0.1.0");
+    expect(wrapper.get(".shell-statusbar").text()).not.toContain("v0.1.0");
+    await wrapper.get('[aria-label="关于 MauLink"]').trigger("click");
+    await flushPromises();
+    expect(document.body.textContent).toContain("0.1.0");
     expect(wrapper.get('[aria-label="设置"]').element).toHaveProperty("disabled", false);
     expect(wrapper.get("main button").element).toHaveProperty("disabled", false);
   });

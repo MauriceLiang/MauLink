@@ -235,3 +235,20 @@ App.vue
 - `npm --prefix frontend run test -- tests/files.test.ts`：1 个文件、25 项通过。覆盖分页游标、目录/软链接导航、上传下载文件选择、取消与终态竞争、失败清理提示、跨服务器任务聚合、抽屉隐藏保留活动任务、右键菜单和 Enter/双击行为。
 - `npm --prefix frontend run type-check` 与 `git diff --check`：通过。
 - Web 使用 Typed Mock IPC；没有真实 SSH/SFTP 主机。本阶段未用浏览器模拟真实文件读写；真实 SSH/SFTP 与原生桌面复测留待 P8。P4 总状态：**Web 阶段通过**。
+
+## P5｜监控 / 检查器 / 状态栏
+
+### 实施内容
+
+- 新增可折叠主机检查器，统一展示当前主机、连接方式、QuickMonitor 和终端会话；检查器沿用共享 Monitor Store，不复制采样逻辑。
+- 完整监控采用双列紧凑指标布局，展示质量状态、最近采样时间、趋势及系统信息；历史不足或缺失时显示明确占位说明。
+- 检查器指标要求快照的 `connectionId` 与当前连接一致；无匹配数据时不显示其他主机数值。终端/文件和完整监控共用同一检查器入口。
+- 状态栏移除低频版本号；版本信息继续放在“关于”窗口。
+
+### 验收结果
+
+- 本地 Web Harness `http://127.0.0.1:1422/?harness=visual&page=transfer&theme=dark&locale=zh-CN`：重新加载后先显示“暂无打开的会话”，没有采样状态或虚构指标；选择 Web-01 后切到完整监控，展示 CPU、内存、主文件系统、网络、系统负载和系统信息六区，检查器初始收起，关闭后可再次展开。
+- 相同交互在 `locale=en` 下复验，完整监控标题、状态、指标及检查器标签均显示英文；两种语言页面均保持双列布局。
+- `npm --prefix frontend run test -- tests/monitor.test.ts tests/quick-monitor.test.ts tests/shell.test.ts`：3 个文件、53 项通过，覆盖连接隔离、无历史、错误/过期/不支持状态和版本信息位置。
+- `npm --prefix frontend run type-check` 与 `git diff --check`：通过。
+- 浏览器使用确定性 Typed Mock IPC。高 DPI 与窄窗口下的实机缩放、超长主机名截断，以及真实 SSH 采样尚未验证；留待 P7/P8 的尺寸矩阵和桌面验收。P5 总状态：**Web 阶段通过**。
