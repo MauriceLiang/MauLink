@@ -84,3 +84,7 @@ Both source and implementation reference images use CSS **988×756**, DPR **1**,
 The V3.3 verifier passed all 159 candidate images and confirmed candidate/baseline equality. The historical 82-image verifier also passed unchanged. The 159-page PDF was rendered and pages 1, 80, and 159 were inspected; each keeps the full screenshot and readable condition/page labels.
 
 **Final result: PASSED (Web visual scope).** Real SSH/SFTP, Core persistence across app restart, macOS native-window behavior, and Windows packaging/runtime are outside this browser evidence and remain in P8.
+
+## P8 桌面打包复核（2026-10-15）
+
+macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify` 与挂载后的 bundle/code-signature 检查通过；当前是 ad-hoc 签名且无 Apple 公证凭据。`open -n` 返回 `kLSNoExecutableErr (-10827)`，CUA 未获准控制此 app，因此原生窗口启动仍未验收。Windows MSI、macOS x64、真实 SSH/SFTP 与 Core 重启持久化未在当前主机验证。完整记录见 `docs/redesign-v33/00-audit.md`。

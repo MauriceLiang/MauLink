@@ -292,3 +292,19 @@ App.vue
 - PDF 由 159 张截图生成；`pdfinfo` 与 `pypdf` 均确认 159 页、A4 横向。抽查第 1、80、159 页渲染，截图完整且标题/页码可读。
 - 本阶段的浏览器视图和 Typed Mock IPC 不验证真实 SSH/SFTP、Core 设置跨重启持久化或原生窗口行为；这些仍留在 P8。Windows 环境未在 P7 运行。
 - P7 总状态：**Web 视觉回归通过**。原型只提供三张静态截图，完整 53 状态的逐像素原型映射仍不可声称；产品功能差异按真实契约保留并在本报告说明。
+
+## P8｜桌面打包与原生启动验收（2026-10-15）
+
+### macOS arm64
+
+- 环境：macOS 15.7.9，Apple Silicon；应用版本 `0.1.1-rc.8`。
+- `cargo tauri build --target aarch64-apple-darwin --bundles dmg --ci -- --locked` 的 Vite 与 Rust release 编译成功。受限执行环境内 `hdiutil create` 报“设备未配置”；在已授权的提升权限打包步骤后，`CI=true cargo tauri bundle --target aarch64-apple-darwin --bundles dmg --ci` 成功生成 DMG。
+- 产物：`target/aarch64-apple-darwin/release/bundle/dmg/MauLink_0.1.1-rc.8_aarch64.dmg`，13.21 MiB，SHA-256 `185c46c15096988329ff1b19a7553d65d748e17ee6dd75ae7d930bcc846b2847`。`hdiutil verify` 校验有效；只读挂载后确认 `CFBundleExecutable=maulink`、版本与 bundle ID 正确，`codesign --verify --deep --strict` 通过。
+- 当前使用 `APPLE_SIGNING_IDENTITY=-` 的 ad-hoc 签名。缺少 Apple Developer ID 与公证凭据，Tauri 明确跳过公证；该 DMG 不能据此视作已公证的公开发行包。`spctl --assess` 返回系统代码签名子系统内部错误，不能据此判定 Gatekeeper 接受或拒绝。
+- `open -n` 尝试启动 `.app` 时返回 `kLSNoExecutableErr (-10827)`，尽管 app bundle 内可见 arm64 可执行文件且签名校验通过。CUA 未获准控制此 app，故未能从原生窗口确认界面是否出现。原生启动结果：**未通过验收 / 尚未定位**；不以 Web Harness 截图替代。
+
+### 其他平台与真实主机
+
+- macOS x64 与 Windows x64 MSI：**未运行**。当前主机只有 arm64 macOS target；Windows 构建和安装需由对应 CI runner 或 Windows 主机完成。仓库 `Packaging Smoke` 在 PR 到 `main` 或手动触发时会上传 7 天有效的各平台安装包。
+- 真实 SSH/SFTP、Core 设置跨重启持久化及系统更新安装流程：**未运行**；本次没有提供真实远端主机，且未执行实际安装或更新。
+- P8 总状态：**部分完成**（macOS arm64 DMG 已生成且容器与签名结构通过检查；LaunchServices 启动、Gatekeeper/公证、macOS x64、Windows、真实 SSH/SFTP 仍未验收）。
