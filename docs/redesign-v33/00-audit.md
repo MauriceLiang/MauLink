@@ -260,12 +260,14 @@ App.vue
 - 逐项核对 `AppSettings` 设置页控件与保存路径；为已存在于契约及 Core、但原本缺少 UI 的 `terminalLineHeight` 和 `terminalCursorBlink` 增加可达控件、双语标签和自动保存更新。
 - 将这两个终端字段加入终端设置草稿、重置、自动保存以及 `SettingsWorkspace` 的终端字段路由，沿用现有 350ms 自动保存与 revision 更新流程。
 - 修复全局搜索输入框焦点下 ⌘K/Ctrl+K 被普通输入控件快捷键保护拦截的问题；浏览器确认可从搜索框打开命令面板。
+- 为设置侧栏“返回工作区”按钮补齐缺失的 `BaseIcon` 导入，避免浏览器运行时组件解析警告并恢复箭头图标。
 - `downloadDirectoryToken` 仍是契约/Core 中的系统管理 opaque token；当前没有目录选择器或下载目标消费流程。未提供一个只能修改 token、却不能实际选择和使用目录的误导性设置项。
 
 ### 验收结果
 
 - Web Harness 中访问 General、Security & Privacy、Appearance、Files、Network、Terminal、Language 七个设置区；外观主题/颜色与语言切换即时反映，网络查询模式可切换，设置页自动保存状态可见。
 - Terminal 设置中行高可改为 `1.5`、光标闪烁可关闭；离开后返回仍显示修改值。浏览器从全局搜索框触发 ⌘K/Ctrl+K，命令面板正常打开。
+- 重新加载 Web Harness 并进入设置后，“返回工作区”箭头 SVG 存在，组件解析警告为 0。
 - `npm --prefix frontend run test -- tests/settings-workspace.test.ts tests/settings.test.ts tests/geoip-settings.test.ts tests/security-settings.test.ts tests/appearance-controls.test.ts tests/terminal-theme.test.ts tests/terminal.test.ts`：相关设置用例通过；`npm --prefix frontend run type-check`、`git diff --check` 通过。`cargo test -p maulink-core settings::tests`：11 项通过，覆盖设置验证、revision 和迁移。
 - 同批扩展回归中 `tests/server-management.test.ts` 有 1 项失败：旧测试仍用不含连接状态的完整 `aria-label` 查找 Web-01；当前树项标签已附加“未连接”。该用例与 P6 设置变更无关，已定位为测试语义过期，纳入 P7 一并更新。
 - 浏览器使用 Typed Mock IPC，重载后的值来自当前 Harness 状态，不能证明真实桌面 Core 数据库重启持久化；留待 P8。目录 token 无对应用户工作流，列为当前契约的未实现/系统管理字段。P6 总状态：**Web 阶段通过**。

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { messages } from '../../i18n/locale';
 import { settingsMessages } from '../../i18n/settings';
 import BaseButton from '../../components/base/BaseButton.vue';
+import BaseIcon from '../../components/base/BaseIcon.vue';
 import type { SettingsSection } from './settings-navigation';
 import { settingsNavigation } from './settings-navigation';
 
