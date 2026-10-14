@@ -9,7 +9,9 @@
   border-radius: var(--radius);
   color: var(--color-text-primary);
   background: var(--color-surface);
+  font-size: 13px;
   cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .base-button:hover:not(:disabled) { border-color: var(--color-border-hover); background: var(--color-bg-hover); }
@@ -42,7 +44,7 @@
 .base-field { display: grid; gap: 8px; }
 .base-field-label { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
 .base-field-label > label { min-width: 0; }
-.base-input { width: 100%; min-height: var(--app-density-input-height, 36px); padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-primary); background: var(--color-surface); }
+.base-input { width: 100%; min-height: var(--app-density-input-height, 36px); padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-primary); background: var(--color-surface); font-size: 13px; transition: border-color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-input:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-input[aria-invalid="true"], .base-input[aria-invalid="true"]:hover { border-color: var(--color-danger); }
 .base-input:disabled { opacity: .52; cursor: not-allowed; }

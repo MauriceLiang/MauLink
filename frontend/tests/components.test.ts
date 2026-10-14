@@ -3,6 +3,8 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import BaseButton from "../src/components/base/BaseButton.vue";
 import BaseDialog from "../src/components/base/BaseDialog.vue";
 import BaseInput from "../src/components/base/BaseInput.vue";
+import BaseIcon from "../src/components/base/BaseIcon.vue";
+import ShellIcon from "../src/app/ShellIcon.vue";
 import FoundationsHarness from "../src/harness/FoundationsHarness.vue";
 
 const wrappers: VueWrapper[] = [];
@@ -199,5 +201,23 @@ describe("base keyboard interactions", () => {
     await flushPromises();
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("浏览器 Mock IPC 已加载：0 台服务器");
+  });
+});
+
+describe("shared icon system", () => {
+  it("renders shell icons through the same accessible 24px stroke geometry as BaseIcon", () => {
+    const names = ["house", "search", "plus", "settings", "info", "server", "transfer"] as const;
+    for (const name of names) {
+      const shell = mount(ShellIcon, { props: { name } });
+      const shared = mount(BaseIcon, { props: { name: name === "transfer" ? "upload" : name } });
+      wrappers.push(shell, shared);
+      const svg = shell.get("svg");
+      expect(svg.classes()).toContain("base-icon");
+      expect(svg.classes()).toContain("shell-icon");
+      expect(svg.attributes("viewBox")).toBe("0 0 24 24");
+      expect(svg.attributes("stroke-width")).toBe("1.8");
+      expect(svg.attributes("aria-hidden")).toBe("true");
+      expect(svg.element.innerHTML).toBe(shared.get("svg").element.innerHTML);
+    }
   });
 });

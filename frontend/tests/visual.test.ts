@@ -10,6 +10,7 @@ describe('deterministic visual fixtures', () => {
   it('validates stable page/theme/locale/customization inputs and falls back safely', () => {
     expect(new Set(cases.map(item=>item.page)).size).toBe(cases.length);
     expect(visualConfig(new URLSearchParams('page=host-key&theme=dark&locale=en'))).toEqual(config('host-key'));
+    expect(visualConfig(new URLSearchParams('page=servers&theme=system'))).toMatchObject({page:'servers',theme:'system'});
     expect(visualConfig(new URLSearchParams('page=settings-appearance&theme=light&accentColor=custom&customAccentColor=%23D92D20&uiDensity=compact'))).toMatchObject({page:'settings-appearance',theme:'light',accentColor:'custom',customAccentColor:'#D92D20',uiDensity:'compact'});
     expect(visualConfig(new URLSearchParams('page=https://example.test/&theme=unknown&locale=unknown&accentColor=invalid&customAccentColor=red&uiDensity=invalid'))).toEqual({page:'servers',theme:'light',locale:'zh-CN',accentColor:'blue',customAccentColor:null,uiDensity:'standard'});
   });

@@ -1,0 +1,18 @@
+[
+  {
+    "page": "terminal",
+    "file": "terminal-dark-zh-CN-988x756.jpg",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=terminal&theme=dark&locale=zh-CN&accentColor=blue&customAccentColor=%233B82F6&uiDensity=standard",
+    "density": "standard",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 756,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "dark",
+    "width": 988,
+    "sha256": "043a3b6c33c9bda4efc4602e8a89d4d75c6c3fb44b9413cae51f27322ea2b90a",
+    "repeatSha256": "043a3b6c33c9bda4efc4602e8a89d4d75c6c3fb44b9413cae51f27322ea2b90a",
+    "identical": true
+  }
+]

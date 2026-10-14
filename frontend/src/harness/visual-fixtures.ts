@@ -29,7 +29,7 @@ const visualBackgroundImage: BackgroundImageAsset = { id: visualBackgroundImageI
 const terminalThemeModes: Record<string, TerminalThemeMode> = {
   'terminal-light': 'light', 'terminal-dark': 'dark', 'terminal-custom': 'customColor', 'terminal-image': 'image', 'settings-terminal-image': 'image',
 };
-export interface VisualConfig { page: string; theme: 'light' | 'dark'; locale: 'zh-CN' | 'en'; accentColor: AccentColor; customAccentColor: string | null; uiDensity: UiDensity; }
+export interface VisualConfig { page: string; theme: 'system' | 'light' | 'dark'; locale: 'zh-CN' | 'en'; accentColor: AccentColor; customAccentColor: string | null; uiDensity: UiDensity; }
 export function visualConfig(params: URLSearchParams): VisualConfig {
   const page = params.get('page') ?? 'servers';
   const accent = params.get('accentColor');
@@ -37,7 +37,7 @@ export function visualConfig(params: URLSearchParams): VisualConfig {
   const customAccentColor = params.get('customAccentColor');
   return {
     page: cases.some(value => value.page === page) ? page : 'servers',
-    theme: params.get('theme') === 'dark' ? 'dark' : 'light',
+    theme: params.get('theme') === 'dark' ? 'dark' : params.get('theme') === 'system' ? 'system' : 'light',
     locale: params.get('locale') === 'en' ? 'en' : 'zh-CN',
     accentColor,
     customAccentColor: accentColor === 'custom' && /^#[\da-f]{6}$/i.test(customAccentColor ?? '') ? customAccentColor : null,

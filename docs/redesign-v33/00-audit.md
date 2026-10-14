@@ -156,3 +156,20 @@ App.vue
 - P0 总状态：**通过**。逐项原型细节和所有状态的精确像素差异仍将在 P1–P7 的视觉实现/回归中处理。
 
 后续阶段按用户授权自动推进。涉及原型尚未明确的关闭工作区、连接状态或默认外观时，遵循主方案中安全的兼容路径：关闭前保留传输确认；同服务器维持唯一 SSH 连接并允许其下多个终端标签；默认中性色仅用于新安装，所有已保存的用户外观设置继续保留。
+
+## P1｜视觉 Token、图标与基础控件
+
+### 实施内容
+
+- 浅色、深色和系统深色 token 已按 V3.3 Graphite 中性色更新；`--color-bg-active` 独立于 accent，服务器树选中态使用中性色。主题切换仍读取现有设置，蓝/红/自定义 accent 的 CTA、强调和焦点环仍使用用户颜色。
+- `ShellIcon` 现在转发到 `BaseIcon` 的统一 24px SVG 几何；删除空闲页装饰性服务器图标和设置分类前置图标。按钮与输入控件统一 13px 文本、focus/hover/active 状态和过渡；服务器树 hover/active 不再位移或放大。
+- 视觉 Harness 现在接受 `theme=system`，按实际系统偏好应用系统色值；旧 Harness 曾把该值降级为浅色，已补充解析与回归断言。
+- 未改 `AppSettings`、Core 默认值、设置存储、连接流程或旧视觉基线。
+
+### 验收结果
+
+- `npm --prefix frontend run type-check`：通过。
+- `npm --prefix frontend run test -- tests/components.test.ts tests/settings.test.ts tests/appearance-controls.test.ts tests/visual.test.ts`：4 个文件、47 项通过。Vitest 仍输出既有的 canvas mock 提示与 Vite `configLoader` 兼容性警告，不影响退出状态。
+- Web Harness 以 `988×756`、简体中文，对系统、浅色、深色、红色 accent、`#FF2D8D` 自定义 accent 分别捕获终端工作区；每种条件独立重载两次且图像哈希一致。截图与 manifest 在 `screenshots/p1-candidate/{system,light,dark,red,custom}/`。
+- 浏览器实测：浅色选中底色为 `#DFE4E6`，深色/当前系统深色为 `#30363B`；红色与自定义 accent 能改变 CTA/焦点环，选中底色保持中性。通过键盘 Tab 实际聚焦按钮，确认 `:focus-visible` 焦点环可见。
+- P1 总状态：**通过**；在现有 `dev/app-updates` 工作树进入 P2。
