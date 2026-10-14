@@ -506,8 +506,9 @@ watch(() => selectedId.value ? connections.snapshots.value[selectedId.value]?.st
 
 function onKeydown(event: KeyboardEvent) {
   if (isTerminalTarget(event.target) || document.querySelector('[role="dialog"]') || connections.challenge.value || about.value || editor.value || manageGroups.value || deleteTarget.value) return;
-  if (event.target instanceof HTMLElement && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return;
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+  const commandPaletteShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+  if (event.target instanceof HTMLElement && (event.target.isContentEditable || (/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) && !(commandPaletteShortcut && event.target.id === "shell-global-search")))) return;
+  if (commandPaletteShortcut) {
     event.preventDefault();
     paletteOpen.value = true;
   } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {

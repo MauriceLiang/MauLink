@@ -30,6 +30,8 @@ export const terminalMessages = {
   stopped: ["已停止", "Stopped"],
   fontSize: ["字号", "Font size"],
   cursor: ["光标", "Cursor"],
+  lineHeight: ["行高", "Line height"],
+  cursorBlink: ["光标闪烁", "Blink cursor"],
   block: ["方块", "Block"],
   bar: ["竖线", "Bar"],
   underline: ["下划线", "Underline"],
