@@ -188,6 +188,8 @@ App.vue
 
 - Web Harness `?harness=visual&page=workspace-tabs`：树点击真实 mock 连接；Web-01/DB-01 形成两个独立 UI 工作区；命令面板搜索 DB-01 后激活对应工作区；生产分组可折叠/展开，方向键在树项间移动焦点；关闭最后工作区并确认断开后返回“暂无打开的会话”，无残留工作区。
 - 无服务器 `?harness=visual&page=empty`：只出现一个可达的“添加服务器”主入口；服务器列表空态不再重复显示主页卡片。
+- P2 补充 Web 复验：关闭 Web-01 后工作区归零；再次连接得到新的 connection ID，只出现新建的 `Terminal 3`，旧终端标签未被复用。Harness 现按服务器连接次数分配 ID，避免模拟出生产环境不会复用的连接标识。
+- `npm run test -- tests/visual.test.ts tests/terminal-disconnect.test.ts tests/shell.test.ts tests/workspace-ui.test.ts`：4 个文件、28 项通过；覆盖重连 ID 唯一性与工作区关闭事件参数。
 - `npm run test -- tests/shell.test.ts tests/workspace-ui.test.ts`：2 个文件、12 项通过。
 - `npm run test -- tests/connections.test.ts`：1 个文件、17 项通过；连接安全弹窗测试通过显式详情入口进入。
 - `npm run type-check`：通过。

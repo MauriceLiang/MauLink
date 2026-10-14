@@ -80,8 +80,8 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
   const terminalBackgroundImage = { ...defaultSettings.terminalBackgroundImage, imageId: terminalThemeMode === 'image' ? visualBackgroundImageId : null };
   let settings: SettingsRecord = { value: { ...defaultSettings, theme: config.theme, language: config.locale, accentColor: config.accentColor, customAccentColor: config.customAccentColor, uiDensity: config.uiDensity, terminalThemeMode, terminalCustomColors, terminalBackgroundImage }, revision: 1, updatedAtMs: visualEpoch };
   const connections = new Map<string, ConnectionSnapshot>();
-  let connectionSequence = 0;
-  const initialConnectionId = 'visual-connection-web-01';
+  const connectionAttempts = new Map<string, number>();
+  const initialConnectionId = 'visual-connection-web-01-1';
   const updateConnection = (id: string, patch: Partial<ConnectionSnapshot>) => {
     const current = connections.get(id);
     if (!current) throw fixtureError('RESOURCE_NOT_FOUND', 'errors.connectionNotFound');
@@ -95,7 +95,10 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
     return structuredClone(current);
   };
   const startConnection = (serverId: string | null, mode: ConnectionSnapshot['mode']) => {
-    const connectionId = serverId === 'web-01' ? initialConnectionId : `visual-connection-${serverId ?? 'draft'}-${++connectionSequence}`;
+    const identity = serverId ?? 'draft';
+    const attempt = (connectionAttempts.get(identity) ?? 0) + 1;
+    connectionAttempts.set(identity, attempt);
+    const connectionId = `visual-connection-${identity}-${attempt}`;
     let snapshot: ConnectionSnapshot = { connectionId, serverId, mode, state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: visualEpoch, updatedAtMs: visualEpoch };
     if (config.page === 'server-overview') snapshot = { ...snapshot, state: 'closed' };
     if (config.page === 'host-key' || config.page === 'host-key-changed') snapshot = { ...snapshot, state: 'awaitingHostTrust', hostKeyChallenge: { challengeId: `visual-host-key-${connectionId}`, connectionId, host: '192.168.1.20', port: 22, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-current-fingerprint', previousFingerprintSha256: config.page === 'host-key-changed' ? 'SHA256:visual-previous-fingerprint' : null, previousRevision: config.page === 'host-key-changed' ? 1 : null, expiresAtMs: 4102444800000 } };

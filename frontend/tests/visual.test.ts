@@ -38,6 +38,14 @@ describe('deterministic visual fixtures', () => {
     expect(snapshot.state).toBe(page==='authentication'?'awaitingCredentials':page==='connection-error'?'failed':'awaitingHostTrust');
     expect(snapshot.createdAtMs).toBe(visualEpoch);
   });
+  it('assigns a fresh connection ID when a server reconnects after disconnect', async () => {
+    const client=createIpcClient(createVisualMock(config('workspace-tabs')));
+    const source={kind:'saved' as const,serverId:'web-01',expectedRevision:1};
+    const first=await client.call('connection_start',{source,mode:'workspace'});
+    await client.call('connection_disconnect',{connectionId:first.connectionId,stopActiveTransfers:false});
+    const second=await client.call('connection_start',{source,mode:'workspace'});
+    expect(second.connectionId).not.toBe(first.connectionId);
+  });
   it('feeds fixed UTF-8 output through the real Channel boundary before open resolves', async () => {
     const client=createIpcClient(createVisualMock(config('terminal'))); const received=vi.fn();
     const channel={onmessage:received} as unknown as Channel<TerminalChunk>;
