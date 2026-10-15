@@ -11,12 +11,14 @@ import { formatSize, metricValue, percent, rate, sparkline, uptime } from '../sr
 import { createMonitorMock, monitorFixture } from '../src/harness/monitor-fixtures';
 import { fixtureError } from '../src/harness/server-fixtures';
 import MonitorView from '../src/components/monitor/MonitorView.vue';
+import Inspector from '../src/components/monitor/Inspector.vue';
+import { shellServers } from '../src/harness/shell-fixtures';
 import MonitorHarness from '../src/harness/MonitorHarness.vue';
 const stores: ReturnType<typeof createMonitorStore>[] = []; const wrappers: VueWrapper[] = [];
 afterEach(() => { wrappers.splice(0).forEach(value => value.unmount()); stores.splice(0).forEach(value => value.dispose()); vi.useRealTimers(); document.body.innerHTML = ''; });
 function controller(handlers: MockHandlers = {}) {
   const get = vi.fn(({ connectionId }: { connectionId: string }) => monitorFixture(connectionId));
-  const history = vi.fn(({ connectionId, metric }: { connectionId: string; metric: MonitorHistoryMetric }) => ({ connectionId, metric, samples: [{ sampledAtMs: Date.now(), value: 0 }] }));
+  const history = vi.fn(({ connectionId, metric }: { connectionId: string; metric: MonitorHistoryMetric }) => ({ connectionId, metric, samples: [{ sampledAtMs: Date.now() - 1000, value: 0 }, { sampledAtMs: Date.now(), value: 1 }] }));
   const refresh = vi.fn(({ connectionId }: { connectionId: string }) => monitorFixture(connectionId)); const activity = vi.fn();
   const store = createMonitorStore(createMonitorApi(createIpcClient(createMockIpc({ monitor_get_snapshot: get, monitor_get_history: history, monitor_refresh: refresh, workspace_set_activity: activity, ...handlers })))); stores.push(store);
   return { store, get, history, refresh, activity };
@@ -83,6 +85,30 @@ describe('truthful monitor presentation', () => {
     expect(quick.emitted('full')).toHaveLength(1);
   });
 
+  it('keeps the inspector tied to its connection and shows no monitor numbers without a matching snapshot', () => {
+    const { store } = controller();
+    store.snapshot.value = monitorFixture('other-connection');
+    const server = shellServers[0]!;
+    const wrapper = mount(Inspector, { props: {
+      server,
+      snapshot: { connectionId: 'conn-a', serverId: server.id, mode: 'workspace', state: 'ready', hostKeyChallenge: null, authenticationChallenge: null, negotiatedAlgorithms: null, error: null, createdAtMs: 0, updatedAtMs: 0 },
+      store, ready: true, pane: 'terminal', terminals: [], activeTerminal: null,
+    } });
+    wrappers.push(wrapper);
+    expect(wrapper.text()).toContain('Web-01');
+    expect(wrapper.get('.quick-monitor-hero-value').text()).toBe('—');
+    expect(wrapper.text()).not.toContain('24.5%');
+  });
+
+  it('reports missing history rather than drawing an empty trend chart', async () => {
+    const { store } = controller({ monitor_get_history: ({ connectionId, metric }) => ({ connectionId, metric, samples: [] }) });
+    store.activate('conn-a', true);
+    await flushPromises();
+    const full = view(store);
+    expect(full.get('[aria-label="CPU 使用率"] .monitor-history-empty').text()).toBe('暂无历史趋势');
+    expect(full.find('[aria-label="CPU 使用率"] .monitor-chart').exists()).toBe(false);
+  });
+
   it.each(['ok', 'warmingUp', 'stale', 'unsupported', 'error'] as const)('renders %s consistently across Quick and Full Monitor', async status => {
     const { store } = controller({ monitor_get_snapshot: ({ connectionId }) => monitorFixture(connectionId, status) }); store.activate('conn-a', true); await flushPromises(); const quick = view(store, true); const full = view(store);
     if (status === 'warmingUp') expect(quick.get('[aria-label="CPU 使用率"] .quick-monitor-hero-value').text()).toBe('—');
@@ -99,7 +125,7 @@ describe('truthful monitor presentation', () => {
   });
   it('updates charts and cards without rerendering the workspace xterm host', async () => {
     vi.useFakeTimers(); let renders = 0; const host = defineComponent({ props: ['id', 'controller', 'active'], setup: props => () => { renders++; return h('div', { 'data-terminal-id': props.id }); } });
-    const wrapper = mount(MonitorHarness, { attachTo: document.body, global: { stubs: { XtermHost: host, Teleport: true } } }); wrappers.push(wrapper); await flushPromises(); await wrapper.get('[aria-label="查看 Web-01 · 尚未连接"]').trigger('click'); await wrapper.findAll('button').find(value => value.text() === '连接服务器')!.trigger('click'); await flushPromises();
+    const wrapper = mount(MonitorHarness, { attachTo: document.body, global: { stubs: { XtermHost: host, Teleport: true } } }); wrappers.push(wrapper); await flushPromises(); await wrapper.get('[aria-label="Web-01 · 192.168.1.20 · 未连接"]').trigger('click'); await flushPromises();
     await wrapper.findAll('button').find(value => value.text() === '监控')!.trigger('click'); await flushPromises();
     // Isolate monitor updates from the existing 1.4-second connection snapshot polling.
     const baseline = renders; expect(baseline).toBeGreaterThan(0);

@@ -9,6 +9,8 @@ import type { SftpDirectoryPage } from '../../contracts/v1/SftpDirectoryPage';
 import { createIpcClient } from '../src/ipc/client';
 import { createMockIpc, type MockHandlers } from '../src/ipc/mock';
 import { createSftpApi } from '../src/ipc/sftp';
+import { createSettingsApi } from '../src/ipc/settings';
+import { createTerminalPreferences } from '../src/terminal/preferences';
 import { createFilesStore } from '../src/stores/files';
 import { createTransferStore } from '../src/stores/transfers';
 import { breadcrumbs, joinRemotePath, validBasename, formatSize } from '../src/files/path';
@@ -16,6 +18,7 @@ import { createFilesMock } from '../src/harness/files-fixtures';
 import { fixtureError } from '../src/harness/server-fixtures';
 import FilesHarness from '../src/harness/FilesHarness.vue';
 import TransferPanel from '../src/components/files/TransferPanel.vue';
+import FilesPanel from '../src/components/files/FilesPanel.vue';
 const disposals: (() => void)[] = []; const wrappers: VueWrapper[] = [];
 afterEach(() => { wrappers.splice(0).forEach(value => value.unmount()); disposals.splice(0).forEach(dispose => dispose()); vi.useRealTimers(); document.body.innerHTML = ''; });
 const apiFor = (handlers: MockHandlers) => createSftpApi(createIpcClient(createMockIpc(handlers)));
@@ -27,6 +30,15 @@ function tasks(handlers: MockHandlers = {}, picker = vi.fn(async () => ({ token:
   disposals.push(store.dispose); return { store, channel, picker, upload, cancel };
 }
 async function harness() { const wrapper = mount(FilesHarness, { attachTo: document.body }); wrappers.push(wrapper); await flushPromises(); return wrapper; }
+async function filePanel() {
+  const mock = createFilesMock(); disposals.push(mock.dispose);
+  const client = createIpcClient(mock.transport); const api = createSftpApi(client);
+  const wrapper = mount(FilesPanel, { attachTo: document.body, props: {
+    api, transfers: tasks().store, preferences: createTerminalPreferences(createSettingsApi(client), () => {}),
+    connectionId: 'files-fixture', ready: true, visible: true,
+  } });
+  wrappers.push(wrapper); await flushPromises(); return wrapper;
+}
 const button = (wrapper: VueWrapper, text: string) => wrapper.findAll('button').find(value => value.text() === text)!;
 describe('remote paths and directory lifecycle', () => {
   it('preserves POSIX basenames, quotes, Unicode and backslashes without shell escaping', () => {
@@ -120,14 +132,71 @@ describe('transfer metadata and authoritative cancellation', () => {
   });
   it('shows zero-byte completed files as complete rather than an indeterminate transfer', async () => {
     const { store } = tasks({ sftp_transfer_list: () => [{ ...initial, totalBytes: '0', transferredBytes: '0', state: 'completed' }] }); await store.load('conn-a');
-    const wrapper = mount(TransferPanel, { props: { store, connectionId: 'conn-a' } }); wrappers.push(wrapper); expect(wrapper.get('progress').attributes('value')).toBe('100'); expect(wrapper.text()).toContain('已完成');
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01' } } }); wrappers.push(wrapper); expect(wrapper.get('progress').attributes('value')).toBe('100'); expect(wrapper.text()).toContain('已完成');
   });
   it('presents Core failure and cleanup warnings without raw diagnostic details', async () => {
     const { store, channel } = tasks(); await store.start('upload', 'conn-a', '/fixture', () => true); channel.onmessage({ ...initial, state: 'failed', error: fixtureError('LOCAL_DISK_FULL', 'errors.localDiskFull'), cleanupRequired: true, temporaryPath: '/fixture/.part' });
-    const wrapper = mount(TransferPanel, { props: { store, connectionId: 'conn-a' } }); wrappers.push(wrapper); expect(wrapper.text()).toContain('磁盘空间不足'); expect(wrapper.text()).toContain('/fixture/.part'); expect(wrapper.text()).not.toContain('Fixture debug'); expect(wrapper.findAll('button').some(value => value.text() === '取消传输')).toBe(false);
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01' } } }); wrappers.push(wrapper); expect(wrapper.text()).toContain('磁盘空间不足'); expect(wrapper.text()).toContain('/fixture/.part'); expect(wrapper.text()).not.toContain('Fixture debug'); expect(wrapper.findAll('button').some(value => value.text() === '取消传输')).toBe(false);
+  });
+  it('aggregates transfers from multiple servers and keeps them alive while the global drawer is hidden', async () => {
+    const { store } = tasks();
+    store.snapshots.value = [
+      { ...initial, state: 'completed', transferredBytes: initial.totalBytes! },
+      { ...initial, transferId: 'task-b', connectionId: 'conn-b', fileName: 'b.txt', finalPath: '/srv/b.txt', state: 'transferring', transferredBytes: '100' },
+    ];
+    const wrapper = mount(TransferPanel, { props: { store, open: true, serverNames: { 'conn-a': 'Web-01', 'conn-b': 'DB-01' } } }); wrappers.push(wrapper);
+    expect(wrapper.text()).toContain('Web-01'); expect(wrapper.text()).toContain('DB-01'); expect(wrapper.findAll('li')).toHaveLength(2);
+    await button(wrapper, '清除已完成').trigger('click');
+    expect(store.snapshots.value.map(task => task.transferId)).toEqual(['task-b']);
+    await wrapper.setProps({ open: false });
+    expect((wrapper.element as HTMLElement).style.display).toBe('none');
+    expect(store.snapshots.value[0]?.state).toBe('transferring');
+    await wrapper.setProps({ open: true });
+    expect(wrapper.text()).toContain('b.txt');
   });
 });
 describe('file UI acceptance', () => {
+  it('opens the requested terminal directory and resynchronizes after manual navigation', async () => {
+    const wrapper = await filePanel(); const panel = wrapper;
+    await panel.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 1 } }); await flushPromises();
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/nested');
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1);
+    await wrapper.get('[aria-label="远程路径"]').setValue('/fixture/empty'); await wrapper.get('.files-location').trigger('submit'); await flushPromises();
+    expect(wrapper.text()).toContain('目录为空');
+    await panel.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 2 } }); await flushPromises();
+    await wrapper.get('.file-name').trigger('dblclick'); await flushPromises();
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('/fixture/nested/readme.md');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Remote fixture');
+  });
+  it('opens directories with Enter and does not reopen them when the Open button bubbles a double click', async () => {
+    const wrapper = await filePanel();
+    const api = wrapper.props('api'); const listStart = vi.spyOn(api, 'listStart');
+    await wrapper.find('.file-name').trigger('keydown', { key: 'Enter' }); await flushPromises();
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
+    await wrapper.find('.files-parent-action').trigger('click'); await flushPromises();
+    const openButton = wrapper.find('.file-open');
+    await openButton.trigger('click'); await flushPromises();
+    const callsAfterOpen = listStart.mock.calls.length;
+    await openButton.trigger('dblclick'); await flushPromises();
+    expect(listStart).toHaveBeenCalledTimes(callsAfterOpen);
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
+  });
+  it('defers terminal directory synchronization until a file mutation completes', async () => {
+    const wrapper = await filePanel(); const panel = wrapper;
+    let finish!: (entry: RemoteFileEntry) => void;
+    const api = panel.props('api'); const start = vi.spyOn(api, 'listStart');
+    vi.spyOn(api, 'mkdir').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    await wrapper.get('[aria-label="新建文件夹"]').trigger('click'); await flushPromises();
+    const body = new DOMWrapper(document.body);
+    await body.get('[aria-label="文件名称"]').setValue('new-folder');
+    await body.findAll('button').find(value => value.text() === '保存')!.trigger('click'); await flushPromises();
+    await panel.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 1 } }); await flushPromises();
+    expect(start).not.toHaveBeenCalled();
+    finish({ name: 'new-folder', path: '/fixture/new-folder', fileType: 'directory', isSymlink: false, sizeBytes: null, modifiedAtMs: null, permissions: null });
+    await flushPromises();
+    expect(start).toHaveBeenCalledWith({ connectionId: 'files-fixture', path: '/fixture/nested' });
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/nested');
+  });
   it('renders bounded pages, empty/denied locations, and keeps preview/edit disabled', async () => {
     const wrapper = await harness(); expect(wrapper.findAll('tbody tr')).toHaveLength(200); expect(wrapper.get('[aria-label="查看 / 编辑"]').attributes('disabled')).toBeDefined();
     await button(wrapper, '下一页').trigger('click'); await flushPromises(); expect(wrapper.findAll('tbody tr')).toHaveLength(200); expect(wrapper.text()).toContain('第 2 页');

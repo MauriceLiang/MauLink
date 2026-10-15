@@ -19,7 +19,7 @@ const items = computed(() => settingsNavigation(props.hasGeoIp));
     <h2 class="settings-sidebar__title">{{ t('settings') }}</h2>
     <nav class="settings-sidebar__navigation" :aria-label="t('sections')">
       <BaseButton v-for="item in items" :key="item.id" variant="ghost" size="md" block class="settings-sidebar__item" :aria-label="t(item.label)" :aria-current="section === item.id ? 'page' : undefined" :disabled="busy" @click="emit('update:section', item.id)">
-        <BaseIcon :name="item.icon" /><span>{{ t(item.label) }}</span>
+        <span>{{ t(item.label) }}</span>
       </BaseButton>
     </nav>
   </aside>

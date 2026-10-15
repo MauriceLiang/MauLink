@@ -17,7 +17,7 @@ import { resolveTerminalAppearance } from "./appearance";
 import { resolveTerminalTheme } from "./theme";
 import type { ServerAppearance } from "../../../contracts/v1/ServerAppearance";
 const t = messages(terminalMessages);
-export interface TerminalTab { id: string; connectionId: string; serverId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; }
+export interface TerminalTab { id: string; connectionId: string; serverId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; workingDirectory: string | null; }
 interface Runtime {
   terminal: Terminal; fit: FitAddon; mount: HTMLElement; channel: Channel<TerminalChunk>;
   opened: TerminalOpenResult | null; early: TerminalChunk[]; earlyBytes: number;
@@ -25,11 +25,13 @@ interface Runtime {
   input: Promise<void>; inputSeq: string; inputBytes: number; inputStopped: boolean; outputStopped: boolean;
   closing: boolean; disposed: boolean; timer?: ReturnType<typeof setTimeout>; resizeTimer?: ReturnType<typeof setTimeout>; copyTimer?: ReturnType<typeof setTimeout>;
   resize: Promise<void>; lastSize: string; polling: boolean; ended: boolean;
+  directoryGeneration: number; directoryRequests: number;
 }
 
 export function createTerminalController(api: ReturnType<typeof createTerminalApi>, channelFactory = () => new Channel<TerminalChunk>()) {
   // Runtime data, Channel chunks and xterm instances never enter Vue reactive state.
   const runtimes = new Map<string, Runtime>();
+  const directoryTracking = new Set<string>();
   const tabs = shallowRef<TerminalTab[]>([]);
   let settings = defaultSettings;
   const serverAppearances = new Map<string, ServerAppearance>();
@@ -48,7 +50,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   }
   function create(connectionId: string, serverId: string) {
     const id = crypto.randomUUID();
-    tabs.value = [...tabs.value, { id, connectionId, serverId, title: `Terminal ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false }];
+    tabs.value = [...tabs.value, { id, connectionId, serverId, title: `Terminal ${number++}`, terminalId: null, state: 'opening', columns: 80, rows: 24, error: '', inputPaused: false, workingDirectory: null }];
     return id;
   }
   function fail(id: string, error: unknown, stream = false) {
@@ -88,9 +90,34 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
         if (!runtime.disposed) runtime.terminal.write(`\r\n\x1b[90m[${t('shellEnded')}]\x1b[0m\r\n`);
         return;
       }
+      if (directoryTracking.has(id) && !runtime.directoryRequests) await refreshWorkingDirectory(id);
     } catch (reason) { update(id, { error: presentError(mapError(reason)).message }); }
     finally { runtime.polling = false; }
     if (!runtime.disposed && !runtime.closing) runtime.timer = setTimeout(() => { void poll(id); }, 1200);
+  }
+  async function refreshWorkingDirectory(id: string): Promise<string | null> {
+    const runtime = runtimes.get(id);
+    if (!runtime?.opened || runtime.disposed || runtime.closing || tab(id)?.state !== 'running') return null;
+    const generation = ++runtime.directoryGeneration;
+    ++runtime.directoryRequests;
+    try {
+      await runtime.input;
+      if (runtime.disposed || runtime.closing || generation !== runtime.directoryGeneration) return null;
+      let directory: string | null;
+      try { directory = await api.workingDirectory({ terminalId: runtime.opened.terminalId }); }
+      catch { directory = null; }
+      if (runtime.disposed || runtime.closing || generation !== runtime.directoryGeneration) return null;
+      update(id, { workingDirectory: directory });
+      return directory;
+    } finally { --runtime.directoryRequests; }
+  }
+  function trackWorkingDirectory(id: string, enabled: boolean) {
+    if (enabled) directoryTracking.add(id);
+    else {
+      directoryTracking.delete(id);
+      const runtime = runtimes.get(id);
+      if (runtime) ++runtime.directoryGeneration;
+    }
   }
   function send(id: string, bytes: Uint8Array) {
     const runtime = runtimes.get(id);
@@ -153,6 +180,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   function release(id: string) {
     const runtime = runtimes.get(id); if (!runtime) return;
     runtime.disposed = true;
+    directoryTracking.delete(id);
     clearTimeout(runtime.timer); clearTimeout(runtime.resizeTimer); clearTimeout(runtime.copyTimer);
     runtime.channel.onmessage = () => undefined;
     runtime.terminal.dispose(); runtime.mount.remove(); runtimes.delete(id);
@@ -167,7 +195,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     const terminal = new Terminal({ allowProposedApi: false, allowTransparency: appearance.transparent, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
-    runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false };
+    runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false, directoryGeneration: 0, directoryRequests: 0 };
     const entry = runtime;
     runtimes.set(id, entry);
     entry.output = createOutputConsumer((bytes, done) => terminal.write(bytes, done), chunk => api.ack({ terminalId: chunk.terminalId, streamId: chunk.streamId, seq: chunk.seq }));
@@ -189,7 +217,10 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
       const rect = mount.getBoundingClientRect();
       const opened = await api.open({ connectionId: metadata.connectionId, columns: terminal.cols, rows: terminal.rows, pixelWidth: Math.round(rect.width) || null, pixelHeight: Math.round(rect.height) || null }, channel);
       entry.opened = opened;
-      if (entry.disposed || disposed) return;
+      if (entry.disposed || disposed) {
+        try { await api.close({ terminalId: opened.terminalId }); } catch { /* The SSH connection may already have ended. */ }
+        return;
+      }
       update(id, { terminalId: opened.terminalId, state: 'running' });
       if (entry.outputStopped) { const closed = await api.close({ terminalId: opened.terminalId }); update(id, { state: closed.state }); return; }
       for (const chunk of entry.early.splice(0)) receive(id, chunk);
@@ -212,6 +243,11 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     }
   }
   async function refreshConnection(connectionId: string) { await Promise.all(tabs.value.filter(value => value.connectionId === connectionId).map(value => poll(value.id))); }
+  function disposeConnection(connectionId: string) {
+    const ids = tabs.value.filter(value => value.connectionId === connectionId).map(value => value.id);
+    ids.forEach(release);
+    if (ids.length) tabs.value = tabs.value.filter(value => value.connectionId !== connectionId);
+  }
   function applySettings(value: AppSettings) {
     settings = value;
     applyTerminalTheme();
@@ -223,10 +259,14 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     applyTerminalTheme();
   }
   function setCopyPreference(read: () => boolean) { copyOnSelect = read; }
-  function focus(id: string) { fit(id, true); }
+  function focus(id: string) {
+    const runtime = runtimes.get(id);
+    fit(id, true);
+    if (runtime && !runtime.disposed) runtime.terminal.refresh(0, runtime.terminal.rows - 1);
+  }
   function clear(id: string) { runtimes.get(id)?.terminal.clear(); focus(id); }
   function dispose() { disposed = true; systemThemeQuery?.removeEventListener('change', onSystemThemeChange); [...runtimes.keys()].forEach(release); ['--color-terminal-bg', '--color-terminal-text', '--color-terminal-cursor', '--color-terminal-selection'].forEach(name => document.documentElement.style.removeProperty(name)); }
-  return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, applySettings, setServerAppearance, setCopyPreference, dispose };
+  return { tabs, create, attach, detach, fit, focus, clear, close, refreshConnection, disposeConnection, refreshWorkingDirectory, trackWorkingDirectory, applySettings, setServerAppearance, setCopyPreference, dispose };
 }
 export type TerminalController = ReturnType<typeof createTerminalController>;
 export type TerminalChannelFactory = () => Channel<TerminalChunk>;

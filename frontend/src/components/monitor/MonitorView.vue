@@ -11,7 +11,7 @@ import BaseButton from "../base/BaseButton.vue";
 import MonitorChart from "./MonitorChart.vue";
 import QuickMonitorPanel from "./QuickMonitorPanel.vue";
 const t = messages(monitorMessages);
-const props = defineProps<{ store: MonitorStore; connectionId: string; quick?: boolean; ready: boolean }>();
+const props = defineProps<{ store: MonitorStore; connectionId: string; quick?: boolean; ready: boolean; serverName?: string }>();
 const emit = defineEmits<{ full: [] }>();
 const cpuChartDomain = [0, 100] as const;
 const snapshot = computed(() => props.store.snapshot.value?.connectionId === props.connectionId ? props.store.snapshot.value : null);
@@ -31,17 +31,18 @@ const latest = computed(() => snapshot.value ? Math.max(...cards.value.map(value
 <template>
   <QuickMonitorPanel v-if="quick" :store="store" :connection-id="connectionId" :ready="ready" @full="emit('full')" />
   <section v-else class="full-monitor" :aria-label="t('fullMonitorTitle')">
-    <header><div><h2>{{ t('serverOverview') }}</h2><p>{{ t('historyNote') }}</p></div><BaseButton :disabled="!ready || store.pending.value" :loading="store.refreshing.value" @click="store.refresh()">{{ t('refreshNow') }}</BaseButton></header>
+    <header><div><h2>{{ t('performanceMonitor') }}</h2><p><span v-if="serverName">{{ serverName }} · </span>{{ t('historyNote') }}</p></div><BaseButton :disabled="!ready || store.pending.value" :loading="store.refreshing.value" @click="store.refresh()">{{ t('refreshNow') }}</BaseButton></header>
     <p v-if="!ready" class="monitor-notice" role="status">{{ snapshot ? t('connectionEndedLastSampleRetained') : t('connectionEndedNoSamplesAvailable') }}</p>
     <BaseAlert v-if="store.error.value" class="monitor-notice" >{{ presentError(store.error.value).message }}<span v-if="snapshot"> {{ t('snapshotNote') }}</span></BaseAlert>
     <BaseAlert v-if="store.activityError.value" class="monitor-notice" >{{ t('syncFailed') }}{{ presentError(store.activityError.value).message }}</BaseAlert>
     <BaseAlert v-for="(failure, metric) in store.historyErrors.value" v-show="failure" :key="metric" class="monitor-notice" >{{ {cpuUsage: 'CPU', memoryUsage: t('memory'), diskUsage: t('disk'), networkReceiveRate: t('receiveRate'), networkTransmitRate: t('transmitRate'), loadOneMinute: t('load')}[metric] }}{{ t('historyFailed') }}{{ failure && presentError(failure).message }}</BaseAlert>
     <p class="monitor-updated" role="status">{{ latest ? t('latest', {time: new Date(latest).toLocaleTimeString()}) : t('awaitingSamples') }}</p>
-    <div class="monitor-grid"><article v-for="card in cards" :key="card.key" :aria-label="card.label" class="monitor-card" :data-quality="effectiveStatus(card.quality, !!store.error.value || !ready)">
+    <div class="monitor-grid"><article v-for="card in cards" :key="card.key" :aria-label="card.label" class="monitor-card" :class="{ 'monitor-network': card.key === 'network' }" :data-quality="effectiveStatus(card.quality, !!store.error.value || !ready)">
       <div class="monitor-card-heading"><h3>{{ card.label }}</h3><span>{{ qualityLabel(effectiveStatus(card.quality, !!store.error.value || !ready)) }}</span></div>
       <strong class="monitor-value">{{ metricValue(card.value, card.quality) }}</strong>
       <p v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'">{{ card.detail }}</p>
-      <MonitorChart v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :domain="card.key === 'cpu' ? cpuChartDomain : undefined" :label="t('history', {name: card.label})" />
+      <MonitorChart v-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error' && samples(card.metric).length >= 2" :samples="samples(card.metric)" :secondary="card.key === 'network' ? samples('networkTransmitRate') : undefined" :domain="card.key === 'cpu' ? cpuChartDomain : undefined" :label="t('history', {name: card.label})" />
+      <p v-else-if="card.quality?.status !== 'unsupported' && card.quality?.status !== 'error'" class="monitor-history-empty">{{ t(store.historyErrors.value[card.metric] ? 'historyUnavailable' : 'historyNoData') }}</p>
     </article><article class="monitor-card monitor-system" :aria-label="t('systemInformation')" :data-quality="effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)"><div class="monitor-card-heading"><h3>{{ t('systemInformation') }}</h3><span>{{ qualityLabel(effectiveStatus(snapshot?.system.quality, !!store.error.value || !ready)) }}</span></div>
       <dl><dt>{{ t('host') }}</dt><dd>{{ metricValue(snapshot?.system.hostname ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('system') }}</dt><dd>{{ metricValue(snapshot?.system.os ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('kernel') }}</dt><dd>{{ metricValue(snapshot?.system.kernel ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ metricValue(snapshot?.system.architecture ?? '—', snapshot?.system.quality) }}</dd><dt>{{ t('uptime') }}</dt><dd>{{ metricValue(uptime(snapshot?.uptime.seconds), snapshot?.uptime.quality) }} · {{ qualityLabel(effectiveStatus(snapshot?.uptime.quality, !!store.error.value || !ready)) }}</dd></dl>
     </article></div>

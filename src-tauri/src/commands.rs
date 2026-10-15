@@ -825,6 +825,18 @@ pub fn terminal_get(
 }
 
 #[tauri::command]
+pub async fn terminal_get_working_directory(
+    request: ApiRequest<TerminalIdPayload>,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<Option<String>, AppError> {
+    let (request_id, payload) = request.validate()?;
+    attach_request_id(
+        request_id,
+        state.terminals.working_directory(&payload).await,
+    )
+}
+
+#[tauri::command]
 pub async fn terminal_write(
     request: ApiRequest<TerminalWritePayload>,
     state: tauri::State<'_, DesktopState>,

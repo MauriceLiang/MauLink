@@ -143,6 +143,16 @@ describe('secure connection flow', () => {
     await store.start(server); await store.disconnect(server.id, true);
     expect(disconnect).toHaveBeenCalledWith({ connectionId: initial.connectionId, stopActiveTransfers: true });
   });
+  it('keeps the workspace ready and exposes an error when disconnect fails', async () => {
+    const failure = fixtureError('CONNECTION_TIMEOUT', 'errors.connectionTimeout');
+    const disconnect = vi.fn(() => { throw failure; });
+    const store = storeFor(createMockIpc({ connection_start: () => ({ ...initial, state: 'ready' }), connection_disconnect: disconnect }));
+    await store.start(server);
+    await store.disconnect(server.id);
+    expect(disconnect).toHaveBeenCalledWith({ connectionId: initial.connectionId, stopActiveTransfers: false });
+    expect(store.snapshots.value[server.id]?.state).toBe('ready');
+    expect(store.errors.value[server.id]?.code).toBe(failure.code);
+  });
   it('shows retry only for retryable terminal errors; host-key changes stay blocked even with retryable true', async () => {
     const store = storeFor(); const error = { ...fixtureError('CONNECTION_TIMEOUT','errors.connectionTimeout'), retryable: true, stage: 'connectingProxy', requestId: 'safe-request-id' };
     store.snapshots.value = { [server.id]: { ...initial, state: 'failed', error } };
@@ -161,7 +171,11 @@ describe('secure connection flow', () => {
   it('restores focus to a current action when a security dialog closes and its original trigger disappeared', async () => {
     const mock = createConnectionMock(() => 'changed');
     const wrapper = mount(AppShell, { attachTo: document.body, props: { client: createIpcClient(mock.transport) } }); wrappers.push(wrapper);
-    await flushPromises(); await ui().get('[aria-label="查看 Web-01 · 尚未连接"]').trigger('click');
+    await flushPromises();
+    await ui().get('.shell-server-item').trigger('contextmenu', { button: 2, clientX: 10, clientY: 10 });
+    await flushPromises();
+    await ui().get('[data-action="details"]').trigger('click');
+    await flushPromises();
     button(wrapper, '连接服务器').element.focus(); await button(wrapper, '连接服务器').trigger('click'); await flushPromises();
     await vi.waitFor(() => expect(ui().find('[role="dialog"], [role="alertdialog"]').exists()).toBe(true));
     await ui().get('[role="dialog"], [role="alertdialog"]').trigger('keydown', { key: 'Escape' }); await flushPromises();

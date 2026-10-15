@@ -2,7 +2,9 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const cases = JSON.parse(await readFile(new URL('./cases.json', import.meta.url), 'utf8'));
-export { cases };
+const casesV33 = JSON.parse(await readFile(new URL('./cases-v33.json', import.meta.url), 'utf8'));
+const visualCasesV33 = [...cases, ...casesV33];
+export { cases, casesV33, visualCasesV33 };
 export async function saveCapture(outputDir, name, screenshots, update = false) {
   const sha256 = hash(screenshots[0]); const repeatSha256 = hash(screenshots[1]);
   if (sha256 !== repeatSha256) {
@@ -21,52 +23,95 @@ export async function saveCapture(outputDir, name, screenshots, update = false) 
 }
 const hash = value => createHash('sha256').update(value).digest('hex');
 const labels = {
-  add: ['添加服务器', 'Add Server'], 'server-menu': ['更多操作 Web-01', 'More actions Web-01'],
-  edit: ['编辑服务器 Web-01', 'Edit server Web-01'], 'delete-server': ['删除服务器 Web-01', 'Delete server Web-01'],
+  add: ['添加服务器', 'Add Server'], details: ['查看连接信息', 'View connection details'],
+  edit: ['编辑服务器', 'Edit Server'], 'delete-server': ['删除服务器', 'Delete Server'],
   'group-manager': ['管理分组', 'Manage groups'], 'delete-production-group': ['删除分组 Production', 'Delete group Production'],
   disconnect: ['断开连接', 'Disconnect'], 'credential-actions': ['更多凭据操作', 'More credential actions'], 'reveal-credential': ['查看已保存密码', 'View saved password'],
-  select: ['查看 Web-01 · 尚未连接', 'View Web-01 · Not connected'], connect: ['连接服务器', 'Connect server'], focus: ['专注', 'Focus'],
+  select: ['Web-01 · 192.168.1.20', 'Web-01 · 192.168.1.20'], focus: ['专注', 'Focus'],
   files: ['文件', 'Files'], terminal: ['终端', 'Terminal'], monitor: ['监控', 'Monitor'], settings: ['设置', 'Settings'],
-  general: ['通用', 'General'], security: ['安全与隐私', 'Security & Privacy'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'],
+  general: ['通用', 'General'], security: ['安全与隐私', 'Security & Privacy'], appearance: ['外观', 'Appearance'], 'terminal-section': ['终端', 'Terminal'], network: ['网络', 'Network'],
   language: ['语言', 'Language'],
   palette: ['命令面板', 'Command palette'], 'file-menu': ['package.json 操作', 'package.json Actions'],
   'delete-file': ['删除', 'Delete'], 'save-settings': ['保存更改', 'Save changes'], 'confirm-disconnect': ['断开连接前确认', 'Confirm before disconnecting'],
+  'filter-db': ['搜索服务器', 'Search servers'], 'collapse-production': ['Production', 'Production'],
+  'close-workspace': ['关闭 Web-01 工作区', 'Close Web-01 workspace'],
+  inspector: ['显示检查器', 'Show inspector'],
+  'confirm-disconnect-dialog': ['确认断开', 'Confirm disconnect'],
+  'new-terminal': ['新建终端', 'New terminal'], 'open-empty-directory': ['打开 empty', 'Open empty'],
+  'open-source-directory': ['src', 'src'],
+  'next-page': ['下一页', 'Next page'],
 };
 async function prepare(tab, item, locale) {
   const index = locale === 'en' ? 1 : 0;
   await tab.playwright.getByRole('button', { name: labels.settings[index], exact: true }).waitFor({state:'visible'});
   let dom = await tab.playwright.domSnapshot();
   for (const step of item.steps) {
-    const name = labels[step][index];
+    const name = labels[step]?.[index];
     // Read state before every action. All actions target actual rendered controls.
     let control;
-    if (step === 'save-settings') {
+    if (step === 'filter-db') {
+      control = tab.playwright.getByRole('searchbox', { name, exact: true });
+      await control.fill('DB');
+      dom = await tab.playwright.domSnapshot();
+      continue;
+    } else if (step === 'open-transfer') {
+      control = tab.playwright.locator('.shell-transfer-status');
+    } else if (step === 'server-menu') {
+      if (!(await tab.playwright.locator('.shell-server-item').count())) throw new Error(`${item.page}: server tree row not present in current DOM`);
+      await tab.playwright.locator('.shell-server-item').first().click({button:'right'});
+      dom = await tab.playwright.domSnapshot();
+      continue;
+    } else if (step === 'open-second') {
+      if ((await tab.playwright.locator('.shell-server-item').count()) < 2) throw new Error(`${item.page}: second server row not present in current DOM`);
+      control = tab.playwright.locator('.shell-server-item').nth(1);
+    } else if (step === 'select') {
+      if (!(await tab.playwright.locator('.shell-server-item').count())) throw new Error(`${item.page}: server tree row not present in current DOM`);
+      control = tab.playwright.locator('.shell-server-item').first();
+    } else if (step === 'save-settings') {
       const toggleName = labels['confirm-disconnect'][index];
       if (!dom.includes(`"${toggleName}"`)) throw new Error(`${item.page}: settings toggle not present in current DOM (${toggleName})`);
-      await tab.playwright.getByRole('switch', { name: toggleName, exact: true }).click();
-      dom = await tab.playwright.domSnapshot();
-      if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: save action not present in current DOM (${name})`);
+      control = tab.playwright.getByRole('switch', { name: toggleName, exact: true });
+    } else if (step === 'collapse-production') {
+      control = tab.playwright.getByRole('treeitem', { name: /Production/ }).first();
+    } else if (step === 'open-empty-directory') {
+      control = tab.playwright.getByRole('button', { name, exact: true });
+    } else if (step === 'open-source-directory') {
+      control = tab.playwright.getByRole('button', { name, exact: true });
+    } else if (step === 'close-workspace' || step === 'confirm-disconnect-dialog' || step === 'new-terminal' || step === 'next-page' || step === 'inspector') {
       control = tab.playwright.getByRole('button', { name, exact: true });
     } else if (step === 'file-menu') {
       if (!dom.includes('button "package.json"')) throw new Error(`${item.page}: package.json row not present in current DOM`);
       control = tab.playwright.getByRole('row', { name: /package\.json/ });
     } else {
       if (!dom.includes(`"${name}"`)) throw new Error(`${item.page}: ${step} not present in current DOM (${name})`);
-      const role = ['edit', 'delete-server', 'delete-file', 'reveal-credential'].includes(step) ? 'menuitem' : 'button';
+      const role = ['edit', 'details', 'delete-server', 'delete-file', 'reveal-credential'].includes(step) ? 'menuitem' : 'button';
       control = tab.playwright.getByRole(role, { name, exact: true });
-      if (step === 'add') control = tab.playwright.getByRole('banner').getByRole('button', { name, exact: true });
+      if (step === 'add') control = tab.playwright.locator('.shell-sidebar-header').getByRole('button', { name, exact: true });
     }
     if (step === 'file-menu') await control.click({button:'right'});
+    else if (step === 'open-source-directory') await control.dblclick();
     else await control.click();
     dom = await tab.playwright.domSnapshot();
-    if (step === 'connect' && !['host-key','host-key-changed','authentication','connection-error'].includes(item.page)) {
-      await tab.playwright.getByText(index ? 'Shell ready' : 'Shell 就绪', {exact:true}).waitFor({state:'visible'});
-      await tab.playwright.locator('.xterm-rows').filter({hasText:'Release 2.14.0 activated'}).waitFor({state:'visible'});
+    if (step === 'open-source-directory') {
+      await tab.playwright.getByRole('button', { name: 'App.vue', exact: true }).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();
     }
-    if (step === 'files') {
-      await tab.playwright.locator('.files-table-scroll[aria-busy="false"]').waitFor({state:'visible'});
-      await tab.playwright.getByRole('button', {name:'package.json',exact:true}).waitFor({state:'visible'});
+    if (step === 'save-settings') {
+      await tab.playwright.getByText(index ? 'Settings saved.' : '设置已保存。', {exact:true}).waitFor({state:'visible'});
+      dom = await tab.playwright.domSnapshot();
+    }
+    if (['select','open-second'].includes(step) && !['host-key','host-key-changed','authentication','connection-error','connecting'].includes(item.page)) {
+      await tab.playwright.getByText(index ? 'Shell ready' : 'Shell 就绪', {exact:true}).filter({visible:true}).first().waitFor({state:'visible'});
+      await tab.playwright.locator('.xterm-rows').filter({hasText:'Release 2.14.0 activated'}).filter({visible:true}).first().waitFor({state:'visible'});
+      dom = await tab.playwright.domSnapshot();
+    }
+    if (step === 'files' && !item.page.startsWith('settings-')) {
+      const filesTable = tab.playwright.locator('.files-table-scroll[aria-busy="false"]');
+      await filesTable.waitFor({state:'visible'});
+      const filesTableHeight = await filesTable.evaluate(element => element.getBoundingClientRect().height);
+      if (filesTableHeight < 100) throw new Error(`${item.page}: file list height is only ${filesTableHeight}px`);
+      if (item.page === 'files-paginated') await tab.playwright.getByRole('button', {name:'page-item-001.txt',exact:true}).waitFor({state:'visible'});
+      else await tab.playwright.getByRole('button', {name:'package.json',exact:true}).waitFor({state:'visible'});
       if (item.page === 'disconnect-transfer') await tab.playwright.getByText(index ? '1 transfer' : '1 项传输', {exact:true}).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();
     }
@@ -84,19 +129,29 @@ async function prepare(tab, item, locale) {
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
     'settings-security':['禁止查看明文','Disable plaintext viewing'],
     'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
+    'settings-files':['显示大小列','Show size column'], 'settings-network':['IP 信息查询方式','IP information lookup method'],
     'settings-language':['中文','English'], palette:['combobox','combobox'],
     'terminal-light':['Shell 就绪','Shell ready'], 'terminal-dark':['Shell 就绪','Shell ready'],
     'terminal-custom':['Shell 就绪','Shell ready'], 'terminal-image':['Shell 就绪','Shell ready'],
     'settings-terminal-image':['背景图片','Background image'],
     'server-overview':['连接信息','Connection information'],
     transfer:['config.yml','config.yml'], monitor:['24.5%','24.5%'], 'monitor-unavailable':['不支持','Unsupported'],
+    'tree-50':['Node-50','Node-50'], 'tree-long-names':['Unassigned Staging API Gateway','Unassigned Staging API Gateway'],
+    'tree-filter':['DB-01','DB-01'], 'tree-collapsed':['Development','Development'], connecting:['正在连接','Connecting'],
+    'close-last-workspace':['暂无打开的会话','No open sessions'], 'workspace-multi-terminal':['Terminal 3','Terminal 3'],
+    'files-empty':['目录为空','Directory is empty'], 'files-directory-open':['App.vue','App.vue'], 'files-paginated':['page-item-011.txt','page-item-011.txt'],
+    'files-long-name':['release-candidate-production-artifact-with-a-very-long-filename-2026-10-15.tar.gz','release-candidate-production-artifact-with-a-very-long-filename-2026-10-15.tar.gz'],
+    'transfer-empty':['传输任务','Transfers'], 'transfer-multi-server':['DB-01','DB-01'],
+    'monitor-stale':['数据已过期','Stale'], 'monitor-error':['暂不可用','Unavailable'],
     toast:['设置已保存。','Settings saved.'],
   }[item.page];
   if (expected && !dom.includes(expected[index])) throw new Error(`${item.page}: expected screen marker ${expected[index]} missing`);
+  if (item.page === 'tree-filter' && dom.includes('Web-01 ·')) throw new Error('tree-filter: unfiltered server remains visible');
+  if (item.page === 'tree-collapsed' && dom.includes('Web-01 ·')) throw new Error('tree-collapsed: Production group remains expanded');
   if (item.page === 'terminal-image' || item.page === 'settings-terminal-image') {
-    const selector = item.page === 'terminal-image' ? '.terminal-background-layer' : '.terminal-background-preview-image';
+    const selector = item.page === 'terminal-image' ? '.terminal-background-layer' : '.terminal-appearance-image-thumbnail';
     const imageLayer = tab.playwright.locator(selector);
-    await imageLayer.waitFor({state:'visible'});
+    if (!(await imageLayer.isVisible())) throw new Error(`${item.page}: image fixture layer is not visible`);
     if (!(await imageLayer.getAttribute('style'))?.includes('app-icon-dark.png')) throw new Error(`${item.page}: visual image fixture did not resolve`);
     if (item.page === 'terminal-image') {
       const viewportBackground = await tab.playwright.locator('.xterm-viewport').evaluate(element => getComputedStyle(element).backgroundColor);
@@ -105,10 +160,16 @@ async function prepare(tab, item, locale) {
   }
   return dom;
 }
-export async function captureCases({ tab, viewport, outputDir, width, height, theme, locale, pages, accentColor = 'blue', customAccentColor = '#3B82F6', uiDensity = 'standard', update = false, baseUrl = 'http://127.0.0.1:1420/' }) {
+export async function captureCases({ tab, viewport, outputDir, width, height, theme, locale, pages, manifestId, resume = false, caseSet = visualCasesV33, accentColor = 'blue', customAccentColor = '#3B82F6', uiDensity = 'standard', update = false, baseUrl = 'http://127.0.0.1:1420/' }) {
   await mkdir(outputDir, {recursive:true}); await viewport.set({width,height});
-  const results = [];
-  for (const item of cases.filter(item => !pages || pages.includes(item.page))) {
+  const checkpointPath = `${outputDir}/.capture-${theme}-${locale}-${width}x${height}.json`;
+  let results = [];
+  if (resume) {
+    try { results = JSON.parse(await readFile(checkpointPath, 'utf8')); }
+    catch(error) { if(error.code !== 'ENOENT') throw error; }
+  }
+  const completed = new Set(results.map(result => result.page));
+  for (const item of caseSet.filter(item => (!pages || pages.includes(item.page)) && !completed.has(item.page))) {
     const params = new URLSearchParams({ harness:'visual', page:item.page, theme, locale, accentColor, customAccentColor, uiDensity });
     const url = `${baseUrl}?${params.toString()}`;
     const screenshots = []; const observations = [];
@@ -124,17 +185,18 @@ export async function captureCases({ tab, viewport, outputDir, width, height, th
         fonts: document.fonts.status,
       })));
       const observed = observations.at(-1);
-      if (observed.width !== width || observed.height !== height || observed.theme !== theme || observed.locale !== locale || observed.density !== uiDensity || observed.overflow || observed.fonts !== 'loaded') throw new Error(`${item.page}: capture condition mismatch ${JSON.stringify(observed)}`);
+      const themeMatches = theme === 'system' ? ['light', 'dark', 'system'].includes(observed.theme) : observed.theme === theme;
+      if (observed.width !== width || observed.height !== height || !themeMatches || observed.locale !== locale || observed.density !== uiDensity || observed.overflow || observed.fonts !== 'loaded') throw new Error(`${item.page}: capture condition mismatch ${JSON.stringify(observed)}`);
       screenshots.push(await tab.screenshot({fullPage:false}));
     }
     const name = `${item.page}-${theme}-${locale}-${width}x${height}.jpg`;
     const comparison = await saveCapture(outputDir,name,screenshots,update);
-    const result = { page:item.page, file:name, url, ...observations[0], ...comparison };
+    const result = { page:item.page, file:name, url, themePreference:theme, manifestId:manifestId ?? null, accentColor, customAccentColor: accentColor === 'custom' ? customAccentColor : null, uiDensity, ...observations[0], ...comparison };
     results.push(result);
     // Persist a checkpoint after every page so interrupted runs remain reviewable.
-    await writeFile(`${outputDir}/.capture-${theme}-${locale}-${width}x${height}.json`, JSON.stringify(results,null,2)+'\n');
+    await writeFile(checkpointPath, JSON.stringify(results,null,2)+'\n');
   }
-  const suffix=pages?'-'+pages.join('_'):'';
+  const suffix=manifestId?`-${manifestId}`:pages?'-'+pages.join('_'):'';
   await writeFile(`${outputDir}/capture-${theme}-${locale}-${width}x${height}${suffix}.json`,JSON.stringify(results,null,2)+'\n');
   await unlink(`${outputDir}/.capture-${theme}-${locale}-${width}x${height}.json`);
   return results;

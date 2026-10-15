@@ -12,7 +12,16 @@
   {
     "page": "server-overview",
     "steps": [
-      "select"
+      "server-menu",
+      "details"
+    ],
+    "reference": null
+  },
+  {
+    "page": "workspace-tabs",
+    "steps": [
+      "select",
+      "open-second"
     ],
     "reference": null
   },
@@ -50,32 +59,28 @@
   {
     "page": "host-key",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": "view=home&modal=hostkey"
   },
   {
     "page": "host-key-changed",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": "view=home&modal=changed"
   },
   {
     "page": "authentication",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": "view=home&modal=cred"
   },
   {
     "page": "connection-error",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": "view=home&modal=err"
   },
@@ -83,7 +88,6 @@
     "page": "disconnect",
     "steps": [
       "select",
-      "connect",
       "disconnect"
     ],
     "reference": null
@@ -92,7 +96,6 @@
     "page": "disconnect-transfer",
     "steps": [
       "select",
-      "connect",
       "files",
       "terminal",
       "disconnect"
@@ -112,8 +115,7 @@
   {
     "page": "terminal",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": "view=workspace&select=web-01&term=inline"
   },
@@ -121,39 +123,35 @@
     "page": "quick-monitor",
     "steps": [
       "select",
-      "connect"
+      "inspector"
     ],
     "reference": null
   },
   {
     "page": "terminal-light",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": null
   },
   {
     "page": "terminal-dark",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": null
   },
   {
     "page": "terminal-custom",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": null
   },
   {
     "page": "terminal-image",
     "steps": [
-      "select",
-      "connect"
+      "select"
     ],
     "reference": null
   },
@@ -161,7 +159,6 @@
     "page": "focus",
     "steps": [
       "select",
-      "connect",
       "focus"
     ],
     "reference": "view=workspace&select=web-01&term=inline&modal=focus"
@@ -170,7 +167,6 @@
     "page": "files",
     "steps": [
       "select",
-      "connect",
       "files"
     ],
     "reference": "view=files&select=web-01"
@@ -179,8 +175,7 @@
     "page": "transfer",
     "steps": [
       "select",
-      "connect",
-      "files"
+      "open-transfer"
     ],
     "reference": "view=files&select=web-01&transfers=1"
   },
@@ -188,7 +183,6 @@
     "page": "file-delete",
     "steps": [
       "select",
-      "connect",
       "files",
       "file-menu",
       "delete-file"
@@ -199,7 +193,6 @@
     "page": "monitor",
     "steps": [
       "select",
-      "connect",
       "monitor"
     ],
     "reference": "view=monitor&select=web-01"
@@ -208,7 +201,6 @@
     "page": "monitor-unavailable",
     "steps": [
       "select",
-      "connect",
       "monitor"
     ],
     "reference": null
@@ -272,7 +264,6 @@
     "page": "context-menu",
     "steps": [
       "select",
-      "connect",
       "files",
       "file-menu"
     ],

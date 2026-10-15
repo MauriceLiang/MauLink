@@ -11,7 +11,7 @@ import BaseIcon from "../base/BaseIcon.vue";
 import MonitorChart from "./MonitorChart.vue";
 
 const t = messages(monitorMessages);
-const props = defineProps<{ store: MonitorStore; connectionId: string; ready: boolean }>();
+const props = withDefaults(defineProps<{ store: MonitorStore; connectionId: string; ready: boolean; showFullMonitorButton?: boolean }>(), { showFullMonitorButton: true });
 const emit = defineEmits<{ full: [] }>();
 const cpuChartDomain = [0, 100] as const;
 
@@ -160,7 +160,7 @@ const timeText = computed(() => {
         </div>
       </div>
 
-      <div class="quick-monitor-footer">
+      <div v-if="showFullMonitorButton" class="quick-monitor-footer">
         <BaseButton class="monitor-open-full" variant="softPrimary" size="md" block :disabled="!ready" @click="emit('full')">
           <BaseIcon name="monitor" />{{ t('openFullMonitor') }}
         </BaseButton>

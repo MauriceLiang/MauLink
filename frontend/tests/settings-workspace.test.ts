@@ -127,6 +127,15 @@ describe('settings workspace page', () => {
     expect(fixture.current().value.terminalFontSize).toBe(18);
     expect(fixture.update).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 1, value: expect.objectContaining({ terminalFontSize: 18 }) }));
     expect(fontSize.value).toBe('18');
+
+    await wrapper.get('input[name="terminalLineHeight"]').setValue('1.5');
+    const cursorBlink = [...document.querySelectorAll<HTMLElement>('[role="checkbox"]')].find(element => element.parentElement?.textContent?.includes('光标闪烁'))!;
+    expect(cursorBlink.getAttribute('aria-checked')).toBe('true');
+    cursorBlink.click();
+    await flushPromises();
+    await waitForAutoSave();
+    expect(fixture.current().value).toMatchObject({ terminalFontSize: 18, terminalLineHeight: 1.5, terminalCursorBlink: false });
+    expect(fixture.update).toHaveBeenCalledTimes(2);
   });
 
   it('persists an imported terminal image automatically and cleans it up after removal is saved', async () => {

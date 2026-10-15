@@ -12,7 +12,7 @@ import { createTerminalPreferences, defaultSettings } from '../src/terminal/pref
 import { createOutputConsumer, encodeBytesBase64, decodeBase64, nextSequence } from '../src/terminal/codec';
 const renderers = vi.hoisted(() => {
   class Renderer {
-    options: Record<string, unknown>; cols = 80; rows = 24; output: Uint8Array[] = []; disposed = false; focus = vi.fn(); clear = vi.fn();
+    options: Record<string, unknown>; cols = 80; rows = 24; output: Uint8Array[] = []; disposed = false; focus = vi.fn(); clear = vi.fn(); refresh = vi.fn();
     data: (value: string) => void = () => {}; binary: (value: string) => void = () => {}; selected: () => void = () => {}; selection = '';
     constructor(options: Record<string, unknown>) { this.options = options; instances.push(this); }
     loadAddon() {} open() {} dispose() { this.disposed = true; }
@@ -105,6 +105,29 @@ describe('terminal byte flow', () => {
   it('explicit close succeeds before removing the tab and disposing xterm', async () => {
     const {controller,close}=controllerFor();const {id,renderer}=await attach(controller);expect(await controller.close(id)).toBe(true);expect(close).toHaveBeenCalledOnce();expect(controller.tabs.value).toHaveLength(0);expect(renderer.disposed).toBe(true);
   });
+  it('repaints the existing xterm after its workspace receives focus', async () => {
+    const {controller}=controllerFor(); const {id,renderer}=await attach(controller);
+    controller.focus(id);
+    expect(renderer.refresh).toHaveBeenCalledWith(0,23);
+  });
+  it('disposes only the local terminals belonging to a disconnected connection', async () => {
+    const {controller,close}=controllerFor(); const {renderer: disconnectedRenderer}=await attach(controller);
+    const otherId=controller.create('connection-b','server-b'); const otherHost=document.createElement('div'); document.body.append(otherHost); await controller.attach(otherId,otherHost);
+    const otherRenderer=renderers.instances.at(-1)!;
+    controller.disposeConnection('connection-a');
+    expect(controller.tabs.value.map(value=>value.id)).toEqual([otherId]);
+    expect(disconnectedRenderer.disposed).toBe(true); expect(otherRenderer.disposed).toBe(false);
+    expect(close).not.toHaveBeenCalled();
+  });
+  it('closes a terminal that finishes opening after its connection was disposed', async () => {
+    let resolveOpen!: (value: {terminalId:string;streamId:string})=>void;
+    const {controller,close}=controllerFor({terminal_open:()=>new Promise(resolve=>{resolveOpen=resolve;})});
+    const host=document.createElement('div'); document.body.append(host); const id=controller.create('connection-a','server-a'); const opening=controller.attach(id,host);
+    await flushPromises(); controller.disposeConnection('connection-a');
+    resolveOpen({terminalId:'terminal-a',streamId:'stream-a'}); await opening;
+    expect(close).toHaveBeenCalledWith({terminalId:'terminal-a'});
+    expect(controller.tabs.value).toHaveLength(0); expect(renderers.instances[0]?.disposed).toBe(true);
+  });
   it('applies settings to all runtimes and uses opt-in selection copying', async () => {
     vi.useFakeTimers();const {controller}=controllerFor();const {renderer}=await attach(controller);const clipboard=vi.fn(async()=>{});vi.stubGlobal('navigator',{clipboard:{writeText:clipboard}});
     renderer.selection='fixture selection';renderer.selected();await vi.advanceTimersByTimeAsync(150);expect(clipboard).not.toHaveBeenCalled();
@@ -141,6 +164,62 @@ describe('terminal byte flow', () => {
     Object.defineProperty(query,'matches',{value:true,configurable:true});listener?.({matches:true} as MediaQueryListEvent);
     expect((renderer.options.theme as {background:string}).background).toBe('#111318');
     expect(open).toHaveBeenCalledOnce();
+  });
+});
+describe('terminal working directory', () => {
+  it('waits for queued terminal input before querying the current directory', async () => {
+    let written!: () => void;
+    const directory = vi.fn(async () => '/srv/current');
+    const { controller } = controllerFor({
+      terminal_write: ({ inputSeq }) => new Promise(resolve => { written = () => resolve({ inputSeq, duplicate: false }); }),
+      terminal_get_working_directory: directory,
+    });
+    const { id, renderer } = await attach(controller);
+    renderer.data('cd /srv/current\r');
+    const refreshing = controller.refreshWorkingDirectory(id);
+    await flushPromises();
+    expect(directory).not.toHaveBeenCalled();
+    written();
+    expect(await refreshing).toBe('/srv/current');
+    expect(controller.tabs.value[0]?.workingDirectory).toBe('/srv/current');
+  });
+
+  it('polls directories only for terminals with visible file panes and stops after disabling tracking', async () => {
+    vi.useFakeTimers();
+    const directory = vi.fn(async () => '/srv/current');
+    const { controller } = controllerFor({ terminal_get_working_directory: directory });
+    const { id } = await attach(controller);
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(directory).not.toHaveBeenCalled();
+    controller.trackWorkingDirectory(id, true);
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(directory).toHaveBeenCalledOnce();
+    controller.trackWorkingDirectory(id, false);
+    await vi.advanceTimersByTimeAsync(2400);
+    expect(directory).toHaveBeenCalledOnce();
+  });
+
+  it('does not replace a newer directory with a delayed response or update a disposed terminal', async () => {
+    let resolveOld!: (path: string) => void;
+    let calls = 0;
+    const { controller } = controllerFor({ terminal_get_working_directory: () => ++calls === 1 ? new Promise(resolve => { resolveOld = resolve; }) : '/new' });
+    const { id } = await attach(controller);
+    const old = controller.refreshWorkingDirectory(id);
+    await flushPromises();
+    expect(await controller.refreshWorkingDirectory(id)).toBe('/new');
+    resolveOld('/old');
+    expect(await old).toBeNull();
+    expect(controller.tabs.value[0]?.workingDirectory).toBe('/new');
+
+    let resolveDisposed!: (path: string) => void;
+    const other = controllerFor({ terminal_get_working_directory: () => new Promise(resolve => { resolveDisposed = resolve; }) });
+    const attached = await attach(other.controller);
+    const pending = other.controller.refreshWorkingDirectory(attached.id);
+    await flushPromises();
+    other.controller.dispose();
+    resolveDisposed('/disposed');
+    expect(await pending).toBeNull();
+    expect(other.controller.tabs.value[0]?.workingDirectory).toBeNull();
   });
 });
 describe('terminal preferences',()=>{

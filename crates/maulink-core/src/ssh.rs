@@ -43,6 +43,7 @@ const SFTP_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 const MONITOR_EXEC_OUTPUT_LIMIT: usize = 256 * 1024;
 const SUDO_WRITE_TIMEOUT: Duration = Duration::from_secs(90);
 const SUDO_EXEC_OUTPUT_LIMIT: usize = 16 * 1024;
+const TERMINAL_SHELL_PROBE: &str = "/bin/sh -c 'case \"$SHELL\" in /*) test -x \"$SHELL\" || exit 0;; *) exit 0;; esac; case \"${SHELL##*/}\" in bash|zsh|sh|dash|ksh|mksh|ash|fish|csh|tcsh) printf \"MAULINK_LOGIN_SHELL_SUPPORTED\\n\";; esac'";
 
 #[derive(Clone)]
 pub struct SshConnector {
@@ -818,7 +819,15 @@ impl SshConnectionManager {
         rows: u32,
         pixel_width: u32,
         pixel_height: u32,
-    ) -> Result<(russh::ChannelReadHalf, russh::ChannelWriteHalf<client::Msg>), AppError> {
+        process_marker: &str,
+    ) -> Result<
+        (
+            russh::ChannelReadHalf,
+            russh::ChannelWriteHalf<client::Msg>,
+            bool,
+        ),
+        AppError,
+    > {
         let deadline = tokio::time::Instant::now() + TERMINAL_OPEN_TIMEOUT;
         loop {
             let snapshot = self.connections.get(connection_id)?;
@@ -838,7 +847,13 @@ impl SshConnectionManager {
                 }
                 return tokio::time::timeout(
                     remaining,
-                    session.open_terminal_channel(columns, rows, pixel_width, pixel_height),
+                    session.open_terminal_channel(
+                        columns,
+                        rows,
+                        pixel_width,
+                        pixel_height,
+                        process_marker,
+                    ),
                 )
                 .await
                 .map_err(|_| terminal_open_timeout())?;
@@ -1548,7 +1563,31 @@ impl SshSession {
         rows: u32,
         pixel_width: u32,
         pixel_height: u32,
-    ) -> Result<(russh::ChannelReadHalf, russh::ChannelWriteHalf<client::Msg>), AppError> {
+        process_marker: &str,
+    ) -> Result<
+        (
+            russh::ChannelReadHalf,
+            russh::ChannelWriteHalf<client::Msg>,
+            bool,
+        ),
+        AppError,
+    > {
+        let cancellation = self.connections.cancellation_token(&self.connection_id)?;
+        let probe = self
+            .execute_fixed_command(TERMINAL_SHELL_PROBE, TERMINAL_OPEN_TIMEOUT, &cancellation)
+            .await;
+        let tracks_process = match probe {
+            Ok(probe) => {
+                probe.exit_status == Some(0)
+                    && probe
+                        .stdout
+                        .lines()
+                        .any(|line| line == "MAULINK_LOGIN_SHELL_SUPPORTED")
+            }
+            // Servers may permit an interactive shell while forbidding exec channels.
+            Err(error) if error.code == ErrorCode::ChannelOpenFailed => false,
+            Err(error) => return Err(error),
+        };
         let mut channel = self
             .handle
             .channel_open_session()
@@ -1567,12 +1606,25 @@ impl SshSession {
             .await
             .map_err(map_terminal_open_error)?;
         wait_for_channel_success(&mut channel, "pty").await?;
-        channel
-            .request_shell(true)
-            .await
-            .map_err(map_terminal_open_error)?;
-        wait_for_channel_success(&mut channel, "shell").await?;
-        Ok(channel.split())
+        if tracks_process {
+            // exec preserves the PID across the bootstrap and the user's login shell.
+            let command = format!(
+                "/bin/sh -c 'printf \"\\033]777;maulink-pid={process_marker};%s\\007\" \"$$\"; exec \"$SHELL\" -l'"
+            );
+            channel
+                .exec(true, command)
+                .await
+                .map_err(map_terminal_open_error)?;
+            wait_for_channel_success(&mut channel, "shell").await?;
+        } else {
+            channel
+                .request_shell(true)
+                .await
+                .map_err(map_terminal_open_error)?;
+            wait_for_channel_success(&mut channel, "shell").await?;
+        }
+        let (reader, writer) = channel.split();
+        Ok((reader, writer, tracks_process))
     }
 
     async fn open_sftp_channel(&self) -> Result<russh::ChannelStream<client::Msg>, AppError> {

@@ -17,7 +17,7 @@ import BaseSelect from '../../components/base/BaseSelect.vue';
 import TerminalAppearanceEditor from '../../components/terminal/TerminalAppearanceEditor.vue';
 
 type TerminalSettingsDraft = Pick<AppSettings,
-  'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' |
+  'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' | 'terminalLineHeight' | 'terminalCursorBlink' |
   'terminalThemeMode' | 'terminalCustomColors' | 'terminalBackgroundImage'>;
 
 const props = defineProps<{
@@ -37,6 +37,8 @@ const font = ref('monospace');
 const size = ref(14);
 const cursor = ref(defaultSettings.terminalCursorStyle);
 const scrollback = ref(10000);
+const lineHeight = ref(defaultSettings.terminalLineHeight);
+const cursorBlink = ref(defaultSettings.terminalCursorBlink);
 const copy = ref(false);
 const themeMode = ref<TerminalThemeMode>('followApp');
 const customColors = ref<TerminalCustomColors>({ ...defaultSettings.terminalCustomColors });
@@ -68,12 +70,14 @@ function emitDraft() {
     terminalFontSize: size.value,
     terminalCursorStyle: cursor.value,
     terminalScrollbackLines: scrollback.value,
+    terminalLineHeight: lineHeight.value,
+    terminalCursorBlink: cursorBlink.value,
     terminalThemeMode: themeMode.value,
     terminalCustomColors: { ...customColors.value },
     terminalBackgroundImage: { ...backgroundSettings.value },
   });
 }
-watch([font, size, cursor, scrollback, themeMode, customColors, backgroundSettings], emitDraft, { deep: true });
+watch([font, size, cursor, scrollback, lineHeight, cursorBlink, themeMode, customColors, backgroundSettings], emitDraft, { deep: true });
 watch(copy, value => { if (initialized.value) emit('update:copyOnSelect', value); });
 
 async function reset() {
@@ -85,6 +89,8 @@ async function reset() {
   size.value = value.terminalFontSize;
   cursor.value = value.terminalCursorStyle;
   scrollback.value = value.terminalScrollbackLines;
+  lineHeight.value = value.terminalLineHeight;
+  cursorBlink.value = value.terminalCursorBlink;
   copy.value = props.copyOnSelect;
   themeMode.value = value.terminalThemeMode;
   customColors.value = { ...value.terminalCustomColors };
@@ -187,6 +193,8 @@ defineExpose({ discard, commit, validate, reset, get busy() { return imageBusy.v
       />
       <label class="terminal-settings-row"><span>{{ t('fontSize') }}</span><input class="base-input" v-model.number="size" type="number" min="8" max="72" step="1" required /></label>
       <BaseSelect class="terminal-settings-row terminal-settings-select" v-model="cursor" :label="t('cursor')" :options="[{value:'block',label:t('block')},{value:'bar',label:t('bar')},{value:'underline',label:t('underline')}]" />
+      <label class="terminal-settings-row"><span>{{ t('lineHeight') }}</span><input class="base-input" name="terminalLineHeight" v-model.number="lineHeight" type="number" min="1" max="2" step="0.05" required /></label>
+      <div class="terminal-settings-row"><BaseCheckbox v-model="cursorBlink" :label="t('cursorBlink')" /></div>
       <label class="terminal-settings-row"><span>{{ t('fontFamily') }}</span><input class="base-input" v-model="font" maxlength="128" required /></label>
       <label class="terminal-settings-row"><span>{{ t('scrollbackLines') }}</span><input class="base-input" v-model.number="scrollback" type="number" min="1000" max="100000" step="1" required /></label>
       <div class="terminal-settings-row terminal-settings-copy-row"><BaseCheckbox v-model="copy" :label="t('copyOnSelect')" /><p class="connection-muted">{{ t('copyNote') }}</p></div>

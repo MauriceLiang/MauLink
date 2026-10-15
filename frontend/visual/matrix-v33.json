@@ -1,0 +1,100 @@
+[
+  {
+    "id": "dark-zh-standard-988x756",
+    "width": 988,
+    "height": 756,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "standard"
+  },
+  {
+    "id": "light-zh-standard-1440x920",
+    "width": 1440,
+    "height": 920,
+    "theme": "light",
+    "locale": "zh-CN",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "standard",
+    "pages": ["empty", "servers", "workspace-tabs", "add-server", "edit-server", "delete-server", "delete-group", "host-key", "authentication", "connection-error", "terminal", "focus", "files", "files-directory-open", "files-paginated", "file-delete", "transfer", "monitor", "quick-monitor", "settings-general", "settings-security", "settings-appearance", "settings-files", "settings-network", "settings-language", "close-last-workspace"]
+  },
+  {
+    "id": "dark-en-standard-860x640",
+    "width": 860,
+    "height": 640,
+    "theme": "dark",
+    "locale": "en",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "standard",
+    "pages": ["empty", "servers", "workspace-tabs", "add-server", "edit-server", "host-key", "authentication", "connection-error", "terminal", "files", "files-directory-open", "transfer", "monitor", "settings-general", "settings-security", "settings-appearance", "settings-files", "settings-network", "settings-language", "tree-long-names", "close-last-workspace"]
+  },
+  {
+    "id": "system-zh-standard-988x756",
+    "width": 988,
+    "height": 756,
+    "theme": "system",
+    "locale": "zh-CN",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "standard",
+    "pages": ["empty", "servers", "terminal", "files", "monitor", "settings-general", "settings-appearance", "settings-terminal-image"]
+  },
+  {
+    "id": "dark-zh-compact-988x756",
+    "width": 988,
+    "height": 756,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "compact",
+    "pages": ["servers", "tree-50", "tree-long-names", "tree-filter", "tree-collapsed", "workspace-tabs", "workspace-multi-terminal", "files", "files-paginated", "files-long-name", "transfer-multi-server", "monitor-stale", "settings-files", "settings-network"]
+  },
+  {
+    "id": "dark-zh-red-988x756",
+    "width": 988,
+    "height": 756,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "accentColor": "red",
+    "customAccentColor": "#D92D20",
+    "uiDensity": "standard",
+    "pages": ["servers", "tree-filter", "terminal", "files", "transfer", "monitor", "settings-general", "settings-appearance"]
+  },
+  {
+    "id": "dark-zh-custom-blue-988x756",
+    "width": 988,
+    "height": 756,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "accentColor": "custom",
+    "customAccentColor": "#0057FF",
+    "uiDensity": "standard",
+    "pages": ["servers", "tree-50", "terminal", "files", "transfer-multi-server", "monitor", "settings-general", "settings-appearance"]
+  },
+  {
+    "id": "light-zh-compact-860x640",
+    "width": 860,
+    "height": 640,
+    "theme": "light",
+    "locale": "zh-CN",
+    "accentColor": "red",
+    "customAccentColor": "#D92D20",
+    "uiDensity": "compact",
+    "pages": ["empty", "servers", "tree-long-names", "workspace-multi-terminal", "files", "files-long-name", "transfer-empty", "monitor-stale", "settings-files", "settings-network", "settings-language"]
+  },
+  {
+    "id": "dark-zh-standard-1440x920",
+    "width": 1440,
+    "height": 920,
+    "theme": "dark",
+    "locale": "zh-CN",
+    "accentColor": "blue",
+    "customAccentColor": "#3B82F6",
+    "uiDensity": "standard",
+    "pages": ["tree-50", "tree-long-names", "workspace-tabs", "workspace-multi-terminal", "files-paginated", "transfer-multi-server", "monitor-stale", "monitor-error", "settings-terminal-image", "quick-monitor"]
+  }
+]

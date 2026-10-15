@@ -58,3 +58,26 @@ node frontend/visual/verify.mjs
 ## 后续品牌更新
 
 2026-10-01 顶部 logo 已替换。上述 Phase 10 图片保留历史 M 标记，当前主题实测及严格截图回归的环境限制见 `docs/refactor/frontend-logo-update.md`；不将历史资料完整性校验等同于新界面像素回归通过。
+
+## V3.3 截图矩阵
+
+V3.3 使用独立的 `cases-v33.json`、`matrix-v33.json`、`capture-v33.mjs` 与 `verify-v33.mjs`。矩阵共有 9 个条件、159 个页面状态，覆盖 Light/Dark/System、中文/英文、标准/紧凑、红色与自定义蓝色 accent，以及 `860×640`、`988×756`、`1440×920`。输出位于 `docs/redesign-v33/screenshots/candidate/`；审阅后的参考位于 `docs/redesign-v33/screenshots/baseline-v33/`，不触碰旧 82 张 MauLink Blue 基线。
+
+在 CUA 内置浏览器活动 Tab 已打开 Vite Harness 后，从 `cua_repl` 导入并运行：
+
+```js
+const capture = await import(`${repoRoot}/frontend/visual/capture-v33.mjs`);
+await capture.captureMatrixV33({ tab, viewport,
+  outputRoot: `${repoRoot}/docs/redesign-v33/screenshots/candidate`,
+  baseUrl: 'http://127.0.0.1:1422/' });
+```
+
+采集逐页重载两次，并验证 CSS 尺寸、DPR、主题、语言、字体状态、横向溢出及截图哈希。中断后会从每页 checkpoint 恢复。审阅 candidate 后再更新 baseline；检查候选与基线：
+
+```bash
+node frontend/visual/verify-v33.mjs \
+  docs/redesign-v33/screenshots/candidate \
+  docs/redesign-v33/screenshots/baseline-v33
+```
+
+报告和完整 159 页 PDF 见 `docs/redesign-v33/00-audit.md` 与 `docs/redesign-v33/screenshots/`。原型只提供三张静态参照图，V3.3 交互页面的数据和产品能力仍以真实 Vue/Tauri 实现为准；Mock 截图不代表 SSH、SFTP 或原生桌面验收。
