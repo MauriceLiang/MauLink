@@ -114,7 +114,7 @@ async function reveal() {
 </script>
 
 <template>
-  <BaseDialog :open="open && !!server" size="standard" :title="server?.name ?? t('revealSavedPassword')" :close-label="t('close')" panel-class="credential-reveal-dialog" @close="emit('close')">
+  <BaseDialog :open="open && !!server" size="standard" variant="security" :title="server?.name ?? t('revealSavedPassword')" :close-label="t('close')" panel-class="credential-reveal-dialog" @close="emit('close')">
     <BaseAlert v-if="error" role="alert">{{ error }}</BaseAlert>
     <p v-if="policy?.mode === 'deny'" class="credential-reveal-denied" role="status">{{ t('revealDenied') }}</p>
     <template v-else-if="policy?.mode === 'protected' && !revealedValue">
@@ -131,8 +131,8 @@ async function reveal() {
     <template #footer>
       <BaseButton v-if="policy?.mode === 'deny'" @click="emit('openSecurity')">{{ t('openSecuritySettings') }}</BaseButton>
       <BaseButton v-else-if="revealedValue" @click="hideValue">{{ t('hideCredential') }}</BaseButton>
-      <BaseButton v-else-if="policy?.mode === 'protected'" variant="primary" :loading="busy" :disabled="busy || !secondaryPassword" @click="reveal">{{ t('reveal') }}</BaseButton>
-      <BaseButton v-else-if="policy?.mode === 'direct'" variant="primary" :loading="busy" :disabled="busy" @click="reveal">{{ t('showSavedCredential') }}</BaseButton>
+      <BaseButton v-else-if="policy?.mode === 'protected'" variant="neutralPrimary" :loading="busy" :disabled="busy || !secondaryPassword" @click="reveal">{{ t('reveal') }}</BaseButton>
+      <BaseButton v-else-if="policy?.mode === 'direct'" variant="neutralPrimary" :loading="busy" :disabled="busy" @click="reveal">{{ t('showSavedCredential') }}</BaseButton>
       <BaseButton @click="emit('close')">{{ t('close') }}</BaseButton>
     </template>
   </BaseDialog>

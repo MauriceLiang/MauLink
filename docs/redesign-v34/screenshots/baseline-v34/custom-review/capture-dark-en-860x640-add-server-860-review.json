@@ -1,0 +1,23 @@
+[
+  {
+    "page": "add-server",
+    "file": "add-server-dark-en-860x640.jpg",
+    "url": "http://127.0.0.1:1422/?harness=visual&page=add-server&theme=dark&locale=en&accentColor=blue&customAccentColor=%233B82F6&uiDensity=standard",
+    "themePreference": "dark",
+    "manifestId": "add-server-860-review",
+    "accentColor": "blue",
+    "customAccentColor": null,
+    "uiDensity": "standard",
+    "density": "standard",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 640,
+    "locale": "en",
+    "overflow": false,
+    "theme": "dark",
+    "width": 860,
+    "sha256": "f2089d16a5c1c8249fa772e30c2b0f3ba6f77906ac55f34ad9eeef40afabe411",
+    "repeatSha256": "f2089d16a5c1c8249fa772e30c2b0f3ba6f77906ac55f34ad9eeef40afabe411",
+    "identical": true
+  }
+]

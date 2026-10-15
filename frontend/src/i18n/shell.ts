@@ -46,7 +46,6 @@ export const shellMessages = {
   noOpenSessions: ["暂无打开的会话", "No open sessions"],
   selectServerToStart: ["从左侧服务器资源树选择服务器以开始工作", "Select a server from the resource tree to get started."],
   addFirstServerLead: ["添加一台服务器以开始使用 MauLink。", "Add a server to get started with MauLink."],
-  toggleServerResources: ["切换服务器资源树", "Toggle server resources"],
   showServerResources: ["显示服务器资源树", "Show server resources"],
   hideServerResources: ["隐藏服务器资源树", "Hide server resources"],
   notConnected: ["未连接", "Not connected"],

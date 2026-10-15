@@ -548,6 +548,28 @@ describe("server management contracts", () => {
     expect(startDraftTest).toHaveBeenCalledWith(expect.objectContaining({ host: current.host }), null, undefined);
   });
 
+  it("keeps save disabled while a draft connection test is running", async () => {
+    let finishTest!: (snapshot: null) => void;
+    const startDraftTest = vi.fn(() => new Promise<null>(resolve => { finishTest = resolve; }));
+    const connectionStore = {
+      snapshots: ref({}), startDraftTest, cancel: vi.fn(), dismiss: vi.fn(),
+    } as unknown as ConnectionStore;
+    const wrapper = mountEditor(makeStore(), null, connectionStore);
+    await flushPromises();
+    await enterRequired(wrapper);
+
+    const test = ui().findAll("button").find(button => button.text().trim() === "测试连接");
+    await test!.trigger("click");
+    await flushPromises();
+
+    expect(test!.attributes("aria-busy")).toBe("true");
+    const save = ui().findAll("button").find(button => button.text().trim() === "保存");
+    expect((save?.element as HTMLButtonElement).disabled).toBe(true);
+
+    finishTest(null);
+    await flushPromises();
+  });
+
   it("reads the current profile before editing and submits its revision rather than stale list data", async () => {
     const current = { ...profile, revision: 7, hasSavedCredential: true };
     const update = vi.fn(() => ({ server: { ...current, revision: 8 }, credentialCleanupPending: true }));
@@ -616,7 +638,7 @@ describe("server management contracts", () => {
     await flushPromises();
     expect(remove).not.toHaveBeenCalled();
     const dialog = ui().get('[role="alertdialog"]');
-    expect(dialog.attributes("data-dialog-size")).toBe("standard");
+    expect(dialog.attributes("data-dialog-size")).toBe("compact");
     expect(document.activeElement).toBe(ui().get('[data-dialog-cancel]').element);
     await ui().get('button.base-button--danger').trigger("click");
     await flushPromises();

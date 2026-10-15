@@ -10,7 +10,7 @@ const t = messages(updaterMessages);
 </script>
 
 <template>
-  <BaseDialog :open="open" :busy="busy" :title="t('confirmTitle')" :alert="true" size="compact" @close="emit('cancel')">
+  <BaseDialog :open="open" :busy="busy" :title="t('confirmTitle')" :alert="true" size="compact" variant="confirmation" @close="emit('cancel')">
     <p>{{ t('confirmDescription') }}</p>
     <ul class="update-install-confirm__activity">
       <li v-if="activeConnections">{{ t('activeConnections', { count: activeConnections }) }}</li>
@@ -18,7 +18,7 @@ const t = messages(updaterMessages);
     </ul>
     <template #footer>
       <BaseButton variant="secondary" data-dialog-cancel :disabled="busy" @click="emit('cancel')">{{ t('continueWorking') }}</BaseButton>
-      <BaseButton variant="primary" :disabled="busy" @click="emit('confirm')">{{ t('disconnectAndInstall') }}</BaseButton>
+      <BaseButton variant="neutralPrimary" :disabled="busy" @click="emit('confirm')">{{ t('disconnectAndInstall') }}</BaseButton>
     </template>
   </BaseDialog>
 </template>

@@ -718,7 +718,7 @@ async function saveAll() {
 </script>
 
 <template>
-  <BaseDialog :open="open" size="form" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" initial-focus="input" panel-class="server-dialog" @close="requestClose">
+  <BaseDialog :open="open" size="form" variant="form" :title="t(serverId ? 'edit' : 'add')" :busy="busy" :close-label="t('cancel')" initial-focus="input" panel-class="server-dialog" @close="requestClose">
     <div v-if="phase === 'loading'" class="server-dialog-loading" role="status">{{ t('loading') }}</div>
     <TabsRoot v-else v-model="section" class="server-dialog-layout">
       <TabsList class="server-dialog-tabs" :aria-label="t('serverConfigSections')">
@@ -852,7 +852,7 @@ async function saveAll() {
       </div>
       <div class="server-dialog-footer-actions">
         <BaseButton :disabled="busy" @click="requestClose">{{ t('cancel') }}</BaseButton>
-        <BaseButton variant="primary" type="submit" :form="formId" :disabled="saveDisabled" :loading="phase === 'saving'">{{ t(phase === 'saving' ? 'saving' : 'save') }}</BaseButton>
+        <BaseButton variant="neutralPrimary" type="submit" :form="formId" :disabled="saveDisabled" :loading="phase === 'saving'">{{ t(phase === 'saving' ? 'saving' : 'save') }}</BaseButton>
       </div>
     </template>
   </BaseDialog>

@@ -55,11 +55,11 @@ describe("SSH disconnect confirmation", () => {
   it("toggles the quick inspector without changing the selected workspace view", async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
-    const toggle = wrapper.get('[aria-label="隐藏检查器"]');
-    expect(toggle.attributes("aria-pressed")).toBe("true");
+    const toggle = wrapper.get('[aria-label="显示检查器"]');
+    expect(toggle.attributes("aria-pressed")).toBe("false");
     await toggle.trigger("click");
     await flushPromises();
-    expect(wrapper.get('[aria-label="显示检查器"]').attributes("aria-pressed")).toBe("false");
+    expect(wrapper.get('[aria-label="隐藏检查器"]').attributes("aria-pressed")).toBe("true");
   });
 
   it("requires explicit transfer stop consent and emits the selected value once", async () => {
@@ -69,7 +69,7 @@ describe("SSH disconnect confirmation", () => {
     await flushPromises();
 
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
-    expect(dialog?.getAttribute("data-dialog-size")).toBe("standard");
+    expect(dialog?.getAttribute("data-dialog-size")).toBe("compact");
     expect(dialog?.textContent).toContain("Web-01");
     expect(dialog?.textContent).toContain("停止该连接的传输任务后断开");
     const confirm = Array.from(dialog?.querySelectorAll<HTMLButtonElement>("button") ?? []).find(button => button.textContent?.includes("确认断开"));
@@ -79,7 +79,7 @@ describe("SSH disconnect confirmation", () => {
     document.querySelector<HTMLElement>('[role="checkbox"]')?.click();
     await flushPromises();
     expect(confirm?.disabled).toBe(false);
-    document.querySelector<HTMLButtonElement>('button.base-button--danger')?.click();
+    document.querySelector<HTMLButtonElement>('[role="dialog"] button.base-button--danger')?.click();
     expect(wrapper.emitted("disconnect")).toEqual([[true, false]]);
   });
 
@@ -98,7 +98,7 @@ describe("SSH disconnect confirmation", () => {
     await flushPromises();
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
-    document.querySelector<HTMLButtonElement>('button.base-button--danger')?.click();
+    document.querySelector<HTMLButtonElement>('[role="dialog"] button.base-button--neutralPrimary')?.click();
     expect(wrapper.emitted("disconnect")).toEqual([[false, true]]);
   });
 });

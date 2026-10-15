@@ -48,6 +48,7 @@
 .files-pagination span { flex: 1; }
 .files-pagination .base-button { min-height: 24px; padding: 2px 8px; }
 .file-name-field { display: flex; align-items: center; gap: 12px; }
+.file-delete-path { display: block; margin-top: 8px; color: var(--color-text-secondary); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; user-select: text; }
 .file-editor-dialog { width: min(900px, calc(100vw - 32px)); }
 .file-editor-dialog .base-dialog-content { min-height: 0; }
 .file-editor-path { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }

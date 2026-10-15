@@ -46,7 +46,7 @@
 .shell-group-title { display: flex; width: 100%; justify-content: flex-start; gap: 6px; margin: 0; padding: 4px 8px; color: var(--color-text-secondary); font-size: 11px; font-weight: 600; text-align: left; }
 .shell-group-title > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell-group-title > :nth-child(2) { margin-left: auto; color: var(--color-text-tertiary); font-size: 10px; }
-.shell-group-title .base-icon { width: 13px; height: 13px; transition: transform var(--motion-fast) var(--ease-standard); }
+.shell-group-title .base-icon { width: 16px; height: 16px; transition: transform var(--motion-fast) var(--ease-standard); }
 .shell-group-title .base-icon.is-collapsed { transform: rotate(-90deg); }
 .shell-server-item { display: flex; width: 100%; min-height: var(--app-density-sidebar-row-height, 42px); justify-content: flex-start; gap: 9px; padding: 7px 9px; border-color: transparent; background: transparent; box-shadow: none; text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .shell-server-item:hover:not(:disabled) { background: var(--color-bg-hover); }
@@ -77,13 +77,14 @@
 .shell-workspace-tab__name { overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 .shell-workspace-tab .base-icon-button { width: 25px; min-height: 25px; flex: none; align-self: center; padding: 0; border-color: transparent; color: var(--color-text-tertiary); background: transparent; }
 .shell-workspace-tab .base-icon-button:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-bg-hover); }
-.shell-workspace-tab .base-icon-button .base-icon { width: 13px; height: 13px; }
+.shell-workspace-tab .base-icon-button .base-icon { width: 16px; height: 16px; }
 .shell-main-content .shell-welcome { align-self: center; }
 .shell-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; animation: view-enter var(--motion-slow) var(--ease-enter); }
 @keyframes view-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .shell-welcome h1 { margin: 0 0 10px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
 .shell-welcome p { max-width: 440px; margin: 0 0 26px; color: var(--color-text-secondary); font-size: 13.5px; line-height: 1.7; white-space: pre-line; }
-.shell-welcome .base-button { height: 36px; padding: 0 18px; font-size: 12.5px; font-weight: 600; }
+.shell-welcome .base-button { height: 34px; padding: 0 14px; font-size: 12px; font-weight: 600; }
+.shell-welcome--no-servers h1 { font-size: 17px; }
 .shell-learn-link { margin-top: var(--space-5); padding: 0; border: 0; color: var(--color-primary); background: transparent; font-size: 12.5px; cursor: pointer; }
 .shell-statusbar { display: flex; grid-column: 1 / -1; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-bg-subtle); font-size: 10px; white-space: nowrap; }
 .shell-backend-status { display: inline-flex; align-items: center; gap: var(--space-2); }

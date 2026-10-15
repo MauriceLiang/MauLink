@@ -192,11 +192,11 @@ onBeforeUnmount(() => { disposed = true; ++folderSizeGeneration; files.dispose()
       </tbody></table><p v-if="pending" class="files-empty" role="status">{{ t('readingDirectory') }}</p><p v-else-if="!entries.length && !error" class="files-empty">{{ t('directoryIsEmpty') }}</p></div>
       <footer class="files-pagination"><span v-if="!compactFooter">{{ t('pagination', {page, count: entries.length}) }}</span><BaseButton :disabled="!ready || pending || mutating || page <= 1" @click="navigate(path)">{{ t('firstPage') }}</BaseButton><BaseButton :disabled="unavailable || !cursor" @click="files.load(path, true)">{{ t('nextPage') }}</BaseButton></footer>
     </section>
-    <component :is="operation === 'delete' ? BaseAlertDialog : BaseDialog" :open="!!operation" :title="operation === 'mkdir' ? t('newFolder') : operation === 'rename' ? t('renameFile') : t('confirmDeletion')" :busy="mutating" @close="operation = null">
-      <p v-if="operation === 'delete'">{{ t('deleteNote', {name: target?.name ?? '—'}) }}</p>
+    <component :is="operation === 'delete' ? BaseAlertDialog : BaseDialog" :open="!!operation" :size="operation === 'delete' ? 'compact' : 'standard'" :variant="operation === 'delete' ? 'confirmation' : 'form'" :title="operation === 'mkdir' ? t('newFolder') : operation === 'rename' ? t('renameFile') : t('confirmDeletion')" :busy="mutating" @close="operation = null">
+      <template v-if="operation === 'delete'"><p>{{ t('deleteNote', {name: target?.name ?? '—'}) }}</p><code v-if="target?.path" class="file-delete-path">{{ target.path }}</code></template>
       <form v-else id="file-operation" @submit.prevent="submit"><label class="file-name-field">{{ t('name') }}<input v-model="name" :aria-label="t('fileName')" :disabled="mutating" /></label><p v-if="!validBasename(name)">{{ t('nameInvalid') }}</p></form>
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
-      <template #footer><BaseButton data-dialog-cancel :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'primary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
+      <template #footer><BaseButton data-dialog-cancel :disabled="mutating" @click="operation = null">{{ t('cancel') }}</BaseButton><BaseButton :variant="operation === 'delete' ? 'danger' : 'neutralPrimary'" :disabled="unavailable || (operation !== 'delete' && !validBasename(name))" @click="submit">{{ operation === 'delete' ? t('confirmDeletion2') : t('save') }}</BaseButton></template>
     </component>
     <RemoteTextFileDialog v-if="fileToOpen" :api="api" :connection-id="connectionId" :entry="fileToOpen" :open="true" @close="fileToOpen = null" @saved="files.load()" @open-linked-file="fileToOpen = $event" />
   </div>

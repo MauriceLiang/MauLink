@@ -70,7 +70,7 @@ function cancelDelete() {
 </script>
 
 <template>
-  <component :is="deleting ? BaseAlertDialog : BaseDialog" :key="deleting ? 'group-delete' : 'group-manager'" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :size="deleting ? 'compact' : 'form'" :open="open" :title="deleting ? t('groupDeleteTitle') : t('groups')" :busy="busy" :close-label="t('cancel')" :panel-class="deleting ? 'server-group-delete-dialog' : 'server-group-dialog'" @close="deleting ? cancelDelete() : $emit('close')">
+  <component :is="deleting ? BaseAlertDialog : BaseDialog" :key="deleting ? 'group-delete' : 'group-manager'" :initial-focus="deleting ? '[data-dialog-cancel]' : 'input'" :size="deleting ? 'compact' : 'standard'" :variant="deleting ? 'confirmation' : 'form'" :open="open" :title="deleting ? t('groupDeleteTitle') : t('groups')" :busy="busy" :close-label="t('cancel')" :panel-class="deleting ? 'server-group-delete-dialog' : 'server-group-dialog'" @close="deleting ? cancelDelete() : $emit('close')">
     <template v-if="deleting"><div class="server-delete-summary"><strong>{{ deleting.name }}</strong><p>{{ t('groupDeleteNote') }}</p></div></template>
     <template v-else>
       <ul v-if="groups.length" class="server-group-manager"><li v-for="group in groups" :key="group.id"><span>{{ group.name }}</span>
@@ -78,7 +78,7 @@ function cancelDelete() {
         <BaseButton :disabled="busy" :aria-label="`${t('deleteGroup')} ${group.name}`" @click="deleting = { ...group }; error = ''; conflict = false">{{ t('deleteGroup') }}</BaseButton>
       </li></ul>
       <form class="server-group-form" @submit.prevent="save"><BaseInput :id="nameId" v-model="name" :label="t('groupName')" :disabled="busy" maxlength="64" />
-        <BaseButton v-if="editing" :disabled="busy" @click="reset">{{ t('cancel') }}</BaseButton><BaseButton type="submit" variant="primary" :loading="busy">{{ t(editing ? 'save' : 'newGroup') }}</BaseButton>
+        <BaseButton v-if="editing" :disabled="busy" @click="reset">{{ t('cancel') }}</BaseButton><BaseButton type="submit" variant="neutralPrimary" :loading="busy">{{ t(editing ? 'save' : 'newGroup') }}</BaseButton>
       </form>
     </template>
     <p v-if="error" class="server-form-error" role="alert">{{ error }}</p>

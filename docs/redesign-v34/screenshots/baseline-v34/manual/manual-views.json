@@ -1,0 +1,87 @@
+[
+  {
+    "name": "add-server-advanced",
+    "url": "http://127.0.0.1:1422/?harness=visual&theme=dark&locale=en&accentColor=blue&uiDensity=standard",
+    "observation": {
+      "density": "standard",
+      "dpr": 1,
+      "fonts": "loaded",
+      "height": 756,
+      "locale": "en",
+      "overflow": false,
+      "theme": "dark",
+      "width": 988
+    },
+    "sha256": "5f745746d3cdaa41841165d9b7a7d2fb164af282f87ee014bc55f53bc41ac50a",
+    "repeatSha256": "5f745746d3cdaa41841165d9b7a7d2fb164af282f87ee014bc55f53bc41ac50a",
+    "identical": true
+  },
+  {
+    "name": "add-server-ssh-key",
+    "url": "http://127.0.0.1:1422/?harness=visual&theme=dark&locale=en&accentColor=blue&uiDensity=standard",
+    "observation": {
+      "density": "standard",
+      "dpr": 1,
+      "fonts": "loaded",
+      "height": 756,
+      "locale": "en",
+      "overflow": false,
+      "theme": "dark",
+      "width": 988
+    },
+    "sha256": "72c022d5da8637df81d086309e4086e82593aa4f14376c92e721b725a42b5ee6",
+    "repeatSha256": "72c022d5da8637df81d086309e4086e82593aa4f14376c92e721b725a42b5ee6",
+    "identical": true
+  },
+  {
+    "name": "edit-server-appearance",
+    "url": "http://127.0.0.1:1422/?harness=visual&theme=dark&locale=en&accentColor=blue&uiDensity=standard",
+    "observation": {
+      "density": "standard",
+      "dpr": 1,
+      "fonts": "loaded",
+      "height": 756,
+      "locale": "en",
+      "overflow": false,
+      "theme": "dark",
+      "width": 988
+    },
+    "sha256": "f8f337d9b98c3eb5ef198bd413f155790b0bc40c7b8f4ca25590de25980d8749",
+    "repeatSha256": "f8f337d9b98c3eb5ef198bd413f155790b0bc40c7b8f4ca25590de25980d8749",
+    "identical": true
+  },
+  {
+    "name": "add-server-validation-error",
+    "url": "http://127.0.0.1:1422/?harness=visual&theme=dark&locale=en&accentColor=blue&uiDensity=standard",
+    "observation": {
+      "density": "standard",
+      "dpr": 1,
+      "fonts": "loaded",
+      "height": 756,
+      "locale": "en",
+      "overflow": false,
+      "theme": "dark",
+      "width": 988
+    },
+    "sha256": "b02724d9c98efdbb3680254b9f8aadd5a263f259b3424865f43427ff66d10638",
+    "repeatSha256": "b02724d9c98efdbb3680254b9f8aadd5a263f259b3424865f43427ff66d10638",
+    "identical": true
+  },
+  {
+    "name": "add-server-validation-error",
+    "url": "http://127.0.0.1:1422/?harness=visual&theme=dark&locale=en&accentColor=blue&uiDensity=standard",
+    "observation": {
+      "density": "standard",
+      "dpr": 1,
+      "fonts": "loaded",
+      "height": 756,
+      "locale": "en",
+      "overflow": false,
+      "theme": "dark",
+      "width": 988
+    },
+    "sha256": "a4ca2a89edc386181fe1f5e0c3b41ac15b01fbb208319c966fd2fea00ef7b9c1",
+    "repeatSha256": "a4ca2a89edc386181fe1f5e0c3b41ac15b01fbb208319c966fd2fea00ef7b9c1",
+    "identical": true
+  }
+]

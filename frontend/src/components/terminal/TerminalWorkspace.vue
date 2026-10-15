@@ -196,11 +196,12 @@ defineExpose({ serverId: props.server.id, connectionId: props.snapshot.connectio
     </div>
     <p v-if="directoryWarning && filesVisible" class="terminal-warning" role="status">{{ directoryWarning }}</p>
     <p v-show="pane === 'terminal'" v-if="active?.error || preferences.error.value || backgroundError || error" class="terminal-warning" role="alert"><span v-if="active?.error">{{ active.error }}</span><span v-if="preferences.error.value">{{ preferences.error.value }}</span><span v-if="backgroundError">{{ backgroundError }}</span><span v-if="error">{{ presentError(error).message }}</span></p>
-    <BaseDialog :open="disconnectOpen" size="standard" :title="t('disconnectSSH')" :busy="busy" @close="cancelDisconnect">
+    <BaseDialog :open="disconnectOpen" size="compact" variant="confirmation" :title="t('disconnectSSH')" :busy="busy" @close="cancelDisconnect">
       <p>{{ t('disconnectNote', {name: server.name}) }}</p>
+      <p v-if="activeTransfers" class="disconnect-transfer-warning">{{ t('activeTransfersWarning', {count: activeTransfers}) }}</p>
       <BaseCheckbox v-if="requireStopConfirmation" v-model="stopTransfers" :disabled="busy" :label="t('stopTransfersForThisConnectionBeforeDisconnecting')" />
       <p v-if="error" role="alert">{{ presentError(error).message }}</p>
-      <template #footer><BaseButton size="md" :disabled="busy" @click="cancelDisconnect">{{ t('keepConnection') }}</BaseButton><BaseButton size="md" variant="danger" :disabled="busy || (requireStopConfirmation && !stopTransfers)" @click="confirmDisconnect">{{ t('confirmDisconnect') }}</BaseButton></template>
+      <template #footer><BaseButton size="md" :disabled="busy" @click="cancelDisconnect">{{ t('keepConnection') }}</BaseButton><BaseButton size="md" :variant="requireStopConfirmation ? 'danger' : 'neutralPrimary'" :disabled="busy || (requireStopConfirmation && !stopTransfers)" @click="confirmDisconnect">{{ t('confirmDisconnect') }}</BaseButton></template>
     </BaseDialog>
   </section>
 </template>
