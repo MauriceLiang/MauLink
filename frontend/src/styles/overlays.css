@@ -9,12 +9,12 @@
   .base-toast { animation: none !important; transition: none !important; }
 }
 .base-icon { width: 16px; height: 16px; flex: none; vertical-align: middle; }
-.base-select-trigger { width: 100%; min-height: var(--app-density-input-height, 38px); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
+.base-select-trigger { width: 100%; min-height: var(--app-density-input-height, 36px); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
 .base-select-trigger:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-select-trigger:focus-visible { outline: 3px solid var(--color-focus-ring); border-color: var(--color-border-active); }
 .base-select-trigger[aria-invalid="true"] { border-color: var(--color-danger); }
 .base-select-trigger:disabled, [data-disabled].base-select-item { opacity: .52; cursor: not-allowed; }
-.base-select-content { z-index: var(--z-dropdown); min-width: var(--reka-select-trigger-width); max-height: min(320px, var(--reka-select-content-available-height)); overflow: auto; padding: 5px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
+.base-select-content { z-index: var(--z-dropdown); min-width: var(--reka-select-trigger-width); max-height: min(320px, var(--reka-select-content-available-height)); overflow: auto; padding: 5px; border: 1px solid var(--color-border); border-radius: var(--radius-popover); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
 .base-select-item { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; color: var(--color-text-primary); border-radius: var(--radius-sm); outline: none; cursor: default; transition: background-color var(--motion-instant) var(--ease-standard), color var(--motion-instant) var(--ease-standard); }
 .base-select-item[data-highlighted] { background: var(--color-bg-hover); }
 .base-select-item[data-state="checked"] { color: var(--color-primary); background: var(--color-primary-soft); }
@@ -23,7 +23,7 @@
 .base-menu-trigger[data-state="open"] { color: var(--color-text-primary); background: var(--color-bg-active); }
 .base-menu-trigger:disabled { opacity: .52; cursor: not-allowed; }
 .base-menu-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.base-menu-content { z-index: var(--z-dropdown); min-width: 160px; max-height: var(--reka-popper-available-height); overflow: auto; padding: 5px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
+.base-menu-content { z-index: var(--z-dropdown); min-width: 160px; max-height: var(--reka-popper-available-height); overflow: auto; padding: 5px; border: 1px solid var(--color-border); border-radius: var(--radius-popover); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
 .base-menu-separator { height: 1px; margin: 5px 4px; background: var(--color-divider); }
 .base-menu-item { min-height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border-radius: var(--radius-sm); font-size: 13px; color: var(--color-text-primary); outline: none; cursor: default; transition: background-color var(--motion-instant) var(--ease-standard), color var(--motion-instant) var(--ease-standard); }
 .base-menu-item[data-highlighted] { background: var(--color-bg-hover); }
@@ -85,7 +85,7 @@
 .base-slider-thumb { display: block; width: 16px; height: 16px; border: 2px solid var(--color-surface-elevated); border-radius: 50%; background: var(--color-primary); box-shadow: var(--shadow-sm); }
 .base-slider-thumb:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
 .base-slider[data-disabled] .base-slider-thumb, .base-slider-field[data-disabled] { opacity: .58; }
-.base-color-trigger { display: flex; min-width: 0; min-height: var(--app-density-input-height, 38px); align-items: center; gap: 8px; padding: 5px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); cursor: pointer; text-align: left; }
+.base-color-trigger { display: flex; min-width: 0; min-height: var(--app-density-input-height, 36px); align-items: center; gap: 8px; padding: 5px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text-primary); background: var(--color-surface); cursor: pointer; text-align: left; }
 .base-color-trigger:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-color-trigger:focus-visible { outline: 3px solid var(--color-focus-ring); border-color: var(--color-border-active); }
 .base-color-trigger:disabled { opacity: .58; cursor: not-allowed; }
@@ -121,7 +121,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 .base-button--loading .base-button-label { opacity: 0; }
 .base-button-spinner { position: absolute; left: calc(50% - 8px); animation: spinner-turn calc(var(--motion-slow) * 3) linear infinite; }
 @keyframes spinner-turn { to { transform: rotate(360deg); } }
-.base-input { min-height: var(--app-density-input-height, 38px); border-radius: var(--radius-md); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.base-input { min-height: var(--app-density-input-height, 36px); border-radius: var(--radius-control); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-input:focus-visible { outline: none; border-color: var(--color-border-active); box-shadow: 0 0 0 3px var(--color-focus-ring); }
 .base-select-trigger { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-checkbox, .base-switch { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
@@ -134,7 +134,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 .base-select-indicator, .base-checkbox-indicator { display: inline-flex; align-items: center; justify-content: center; animation: check-in var(--motion-fast) var(--ease-enter); }
 @keyframes check-in { from { opacity: 0; transform: scale(.75); } to { opacity: 1; transform: scale(1); } }
 .base-icon-button:focus-visible { outline-color: var(--color-border-active); }
-.base-popover-content { z-index: calc(var(--z-popup-context) + var(--z-popover)); max-width: min(320px, calc(100vw - 16px)); padding: 14px; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
+.base-popover-content { z-index: calc(var(--z-popup-context) + var(--z-popover)); max-width: min(320px, calc(100vw - 16px)); padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-popover); color: var(--color-text-primary); background: var(--color-surface-elevated); box-shadow: var(--shadow-md); }
 .base-popover-content h3 { margin: 0 0 8px; font-size: 14px; }
 .base-info-trigger { display: inline-grid; width: 24px; height: 24px; flex: none; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); color: var(--color-text-tertiary); background: transparent; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
 .base-info-trigger .base-icon { width: 16px; height: 16px; }

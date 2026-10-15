@@ -46,10 +46,22 @@
   --space-2: 8px;
   --space-4: 16px;
   --space-6: 24px;
+  --radius-control: 6px;
+  --radius-popover: 7px;
+  --radius-dialog: 8px;
   --radius: 8px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --ui-button-height: 34px;
+  --ui-button-height-compact: 32px;
+  --ui-control-height: 36px;
+  --ui-control-height-compact: 34px;
+  --ui-dialog-inset-inline: 20px;
+  --ui-dialog-inset-block: 18px;
+  --ui-action-primary-bg: var(--color-text-primary);
+  --ui-action-primary-text: var(--color-bg-app);
+  --ui-action-primary-hover: color-mix(in srgb, var(--ui-action-primary-bg) 85%, var(--color-surface));
   --motion-instant: 80ms;
   --motion-fast: 120ms;
   --motion-normal: 180ms;
@@ -77,16 +89,16 @@
   --app-traffic-light-space: 78px;
   --app-traffic-light-narrow-space: 68px;
   --app-search-width: 300px;
-  --app-density-button-height: 36px;
-  --app-density-input-height: 38px;
+  --app-density-button-height: var(--ui-button-height);
+  --app-density-input-height: var(--ui-control-height);
   --app-density-file-row-padding: 8px 12px;
   --app-density-sidebar-row-height: 42px;
 }
 
 :root[data-density="compact"] {
   --app-toolbar-height: 44px;
-  --app-density-button-height: 34px;
-  --app-density-input-height: 34px;
+  --app-density-button-height: var(--ui-button-height-compact);
+  --app-density-input-height: var(--ui-control-height-compact);
   --app-density-file-row-padding: 6px 9px;
   --app-density-sidebar-row-height: 36px;
 }

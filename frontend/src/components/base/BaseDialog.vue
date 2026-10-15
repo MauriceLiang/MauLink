@@ -5,8 +5,8 @@ import { locale } from '../../i18n/locale';
 import BaseIconButton from './BaseIconButton.vue';
 import BaseIcon from './BaseIcon.vue';
 import { dialogEscapeKey } from './dialog-context';
-import type { DialogSize } from './dialog.types';
-const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; alert?: boolean; size?: DialogSize }>(), { busy:false, closeLabel:'', panelClass:'', initialFocus: undefined, alert:false, size:'standard' });
+import type { DialogSize, DialogVariant } from './dialog.types';
+const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; alert?: boolean; size?: DialogSize; variant?: DialogVariant }>(), { busy:false, closeLabel:'', panelClass:'', initialFocus: undefined, alert:false, size:'standard', variant: undefined });
 const emit = defineEmits<{ close: []; closed: [] }>();
 // Both modal types share the same surface and external API; Reka owns their behavior.
 const parts = computed(() => props.alert
@@ -33,7 +33,7 @@ function outside(event: Event) { if (props.busy) event.preventDefault(); }
   <component :is="parts.Root" :open="open" @update:open="update">
     <component :is="parts.Portal">
       <component :is="parts.Overlay" class="base-dialog-overlay" />
-      <component :is="parts.Content" class="base-dialog" :class="[`base-dialog--${size}`, panelClass]" :data-dialog-size="size" :aria-busy="busy" aria-modal="true" :aria-describedby="undefined" @open-auto-focus="openAutoFocus" @close-auto-focus="closeAutoFocus" @escape-key-down="escape" @interact-outside="outside">
+      <component :is="parts.Content" class="base-dialog" :class="[`base-dialog--${size}`, variant ? `base-dialog--variant-${variant}` : '', panelClass]" :data-dialog-size="size" :data-dialog-variant="variant" :aria-busy="busy" aria-modal="true" :aria-describedby="undefined" @open-auto-focus="openAutoFocus" @close-auto-focus="closeAutoFocus" @escape-key-down="escape" @interact-outside="outside">
         <header class="base-dialog-heading"><component :is="parts.Title" as="h2">{{ title }}</component>
           <BaseIconButton class="base-dialog-close" :label="closeLabel || (locale === 'en' ? 'Close dialog' : '关闭对话框')" :disabled="busy" @click="update(false)"><BaseIcon name="x" /></BaseIconButton>
         </header>

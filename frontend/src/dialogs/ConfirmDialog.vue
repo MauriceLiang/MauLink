@@ -38,7 +38,7 @@ async function reload() {
 </script>
 
 <template>
-  <BaseAlertDialog :open="!!server" size="standard" :title="t('deleteTitle')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
+  <BaseAlertDialog :open="!!server" size="compact" variant="confirmation" :title="t('deleteTitle')" :busy="busy" :close-label="t('cancel')" @close="$emit('close')">
     <div class="server-delete-summary"><strong>{{ server?.name }}</strong><p>{{ t('deleteNote') }}</p></div>
     <p v-if="error" role="alert" class="server-form-error">{{ error }}</p>
     <BaseButton v-if="conflict" size="md" :disabled="busy" @click="reload">{{ t('reload') }}</BaseButton>

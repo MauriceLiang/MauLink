@@ -94,6 +94,7 @@ export const terminalMessages = {
   keepConnection: ["保留连接", "Keep connection"],
   confirmDisconnect: ["确认断开", "Confirm disconnect"],
   stopTransfersForThisConnectionBeforeDisconnecting: ["停止该连接的传输任务后断开", "Stop transfers for this connection before disconnecting"],
+  activeTransfersWarning: ["该连接有 {count} 项传输任务，确认后这些任务将停止。", "This connection has {count} active transfers. They will stop when you confirm."],
   saveSettings: ["保存设置", "Save settings"],
   reloadSettingsDiscardChanges: ["重新加载设置（放弃修改）", "Reload settings (discard changes)"],
   workspace: ["{name} 工作区", "{name} workspace"],

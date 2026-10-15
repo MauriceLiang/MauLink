@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseDialog from './BaseDialog.vue';
-import type { DialogSize } from './dialog.types';
-withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; size?: DialogSize }>(), { size: 'compact' });
+import type { DialogSize, DialogVariant } from './dialog.types';
+withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; size?: DialogSize; variant?: DialogVariant }>(), { size: 'compact' });
 defineEmits<{ close: []; closed: [] }>();
 </script>
 <template>

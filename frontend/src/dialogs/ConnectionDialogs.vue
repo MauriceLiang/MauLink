@@ -35,7 +35,7 @@ async function authenticate() {
 function reject() { void props.store.respondHostKey(serverId.value, 'reject'); }
 </script>
 <template>
-  <component :is="changed ? BaseAlertDialog : BaseDialog" :open="!!host && !suspended" :size="changed ? 'large' : 'standard'" :title="changed ? t('serverIdentityChanged') : t('verifyServerIdentity')" :busy="busy" :close-label="t('rejectConnection')" panel-class="connection-dialog" @close="reject">
+  <component :is="changed ? BaseAlertDialog : BaseDialog" :open="!!host && !suspended" :size="changed ? 'large' : 'standard'" variant="security" :title="changed ? t('serverIdentityChanged') : t('verifyServerIdentity')" :busy="busy" :close-label="t('rejectConnection')" panel-class="connection-dialog" @close="reject">
     <template v-if="host">
       <p class="connection-kicker" :class="{ 'connection-danger': changed }">{{ changed ? 'HOST IDENTITY CHANGED' : 'FIRST CONNECTION' }}</p>
       <p>{{ changed ? t('changedIdentityNote') : t('firstIdentityNote') }}</p>
@@ -49,13 +49,13 @@ function reject() { void props.store.respondHostKey(serverId.value, 'reject'); }
     </template>
     <template #footer>
       <BaseButton data-dialog-cancel :disabled="busy" @click="reject">{{ t('rejectConnection') }}</BaseButton>
-      <template v-if="!changed"><BaseButton :disabled="busy" @click="store.respondHostKey(serverId, 'trustOnce')">{{ t('trustOnce') }}</BaseButton><BaseButton variant="primary" :disabled="busy" @click="store.respondHostKey(serverId, 'trustAndSave')">{{ t('trustAndSave') }}</BaseButton></template>
+      <template v-if="!changed"><BaseButton :disabled="busy" @click="store.respondHostKey(serverId, 'trustOnce')">{{ t('trustOnce') }}</BaseButton><BaseButton variant="neutralPrimary" :disabled="busy" @click="store.respondHostKey(serverId, 'trustAndSave')">{{ t('trustAndSave') }}</BaseButton></template>
     </template>
   </component>
-  <BaseDialog :open="!!auth && !suspended" size="standard" :title="auth?.credentialKind === 'passphrase' ? t('enterPrivateKeyPassphrase') : t('enterSSHPassword')" :busy="busy" :close-label="t('cancelConnection')" panel-class="connection-dialog" @close="store.cancel(serverId)">
+  <BaseDialog :open="!!auth && !suspended" size="standard" variant="security" :title="auth?.credentialKind === 'passphrase' ? t('enterPrivateKeyPassphrase') : t('enterSSHPassword')" :busy="busy" :close-label="t('cancelConnection')" panel-class="connection-dialog" @close="store.cancel(serverId)">
     <p>{{ server?.username }} · {{ server?.host }}</p><p class="connection-muted">{{ t('credentialNote') }}</p>
     <form id="connection-auth-form" @submit.prevent="authenticate"><BaseInput v-model="secret" :label="auth?.credentialKind === 'passphrase' ? t('passphrase') : t('password')" type="password" autocomplete="off" :disabled="busy" :error="validation" /></form>
     <ConnectionError v-if="store.errors.value[serverId]" :error="store.errors.value[serverId]!" />
-    <template #footer><BaseButton :disabled="busy" @click="store.cancel(serverId)">{{ t('cancelConnection') }}</BaseButton><BaseButton variant="primary" type="submit" form="connection-auth-form" :loading="busy">{{ t('continueConnection') }}</BaseButton></template>
+    <template #footer><BaseButton :disabled="busy" @click="store.cancel(serverId)">{{ t('cancelConnection') }}</BaseButton><BaseButton variant="neutralPrimary" type="submit" form="connection-auth-form" :loading="busy">{{ t('continueConnection') }}</BaseButton></template>
   </BaseDialog>
 </template>

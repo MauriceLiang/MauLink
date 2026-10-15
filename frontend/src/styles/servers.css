@@ -17,15 +17,15 @@
 .server-card-actions { position: relative; z-index: 2; display: flex; flex: none; align-items: center; }
 .server-card-menu summary { padding: 4px; border-radius: 4px; cursor: pointer; list-style: none; }
 .server-card-menu summary::-webkit-details-marker { display: none; }
-.server-dialog { --server-dialog-label-width: 128px; height: auto; max-height: min(620px, calc(100dvh - 40px)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+.server-dialog { --server-dialog-label-width: 108px; width: min(580px, calc(100vw - 32px)); height: min(620px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .server-dialog .base-dialog-heading { border-bottom: 0; }
 .server-dialog .base-dialog-heading h2 { font-size: 16px; }
 .server-dialog .base-dialog-footer { align-items: center; justify-content: space-between; padding: 8px 20px 16px; border-top: 0; }
 .server-dialog-footer-actions { display: flex; align-items: center; gap: 8px; }
 .server-dialog .base-dialog-content { min-height: 0; overflow: hidden; padding: 0; }
 .server-dialog-layout { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; }
-.server-dialog-tabs { display: flex; flex: none; align-items: center; gap: 24px; height: 44px; padding: 0 20px; border-bottom: 0; background: var(--color-surface-elevated); }
-.server-dialog-tab { position: relative; height: 44px; padding: 0 2px; border: 0; color: var(--color-text-secondary); background: transparent; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard); }
+.server-dialog-tabs { display: flex; flex: none; align-items: center; gap: 24px; height: 40px; padding: 0 20px; border-bottom: 0; background: var(--color-surface-elevated); }
+.server-dialog-tab { position: relative; height: 40px; padding: 0 2px; border: 0; color: var(--color-text-secondary); background: transparent; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard); }
 .server-dialog-tab:hover:not(:disabled) { color: var(--color-text-primary); }
 .server-dialog-tab[data-state="active"] { color: var(--color-primary); }
 .server-dialog-tab:focus-visible { border-radius: 3px; outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
@@ -38,7 +38,7 @@
 .server-dialog-loading { display: grid; height: 100%; min-height: 0; place-items: center; padding: 24px; color: var(--color-text-secondary); }
 .server-form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .server-field-full { grid-column: 1 / -1; }
-.server-host-port-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px; align-items: start; gap: 12px; }
+.server-host-port-row { display: grid; grid-template-columns: minmax(0, 1fr) 104px; align-items: start; gap: 12px; }
 .server-dialog .base-field { display: grid; grid-template-columns: var(--server-dialog-label-width) minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-text-secondary); }
 .server-dialog .base-field > label, .server-dialog .base-field > span, .server-dialog .base-field > .base-field-label { grid-column: 1; }
 .server-dialog .base-field > input, .server-dialog .base-field > .base-select-trigger, .server-dialog .base-field > .server-auth-options, .server-dialog .base-field > .base-field-error { grid-column: 2; }
@@ -94,9 +94,11 @@
 .server-advanced-section { display: grid; gap: 16px; min-width: 0; }
 .server-advanced-section-heading { display: grid; gap: 4px; }
 .server-advanced-section-heading h3 { margin: 0; color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
-.server-advanced-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; align-items: end; }
+.server-advanced-row { display: grid; grid-template-columns: minmax(0, 1fr) 104px; gap: 12px; align-items: end; }
 .server-dependent-fields { animation: feedback-in var(--motion-normal) var(--ease-enter); }
-.server-connection-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.server-connection-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.server-connection-settings .base-field { grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; }
+.server-connection-settings .base-field > span, .server-connection-settings .base-field > input { grid-column: 1; }
 .server-form-error { margin: 12px 0 0; color: var(--color-danger); font-size: 13px; line-height: 1.6; animation: feedback-in var(--motion-normal) var(--ease-enter); }
 .server-form-error + .base-button { margin-top: 12px; }
 .server-dialog-panel > .base-button { margin-top: 12px; }
@@ -116,9 +118,10 @@
 .server-appearance-override-row .base-toggle-field { flex-direction: row-reverse; }
 .server-appearance-inherited-note { margin: 0; }
 .server-discard-dialog .base-dialog-content p { margin: 0; color: var(--color-text-secondary); line-height: 1.6; }
+.server-group-dialog { width: min(500px, calc(100vw - 32px)); }
 .server-group-dialog .base-dialog-heading, .server-group-dialog .base-dialog-footer { border: 0; }
 .server-group-dialog .base-dialog-heading { padding: 10px 16px; }
-.server-group-dialog .base-dialog-content { padding: 12px 16px 10px; }
+.server-group-dialog.base-dialog--variant-form .base-dialog-content { padding: 12px 16px 16px; }
 .server-group-dialog .base-dialog-footer { padding: 8px 16px 12px; }
 .server-delete-summary { display: grid; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .server-delete-summary strong { color: var(--color-text-primary); font-weight: 600; }

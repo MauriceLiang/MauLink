@@ -2,7 +2,7 @@
 .connection-panel h1 { font-size: 20px; }
 .connection-muted { color: var(--color-text-secondary); font-size: 13px; line-height: 1.7; }
 .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
-.connection-dialog { width: 526px; }
+.connection-dialog { width: min(526px, calc(100vw - 32px)); }
 .connection-dialog p { font-size: 13px; line-height: 1.7; }
 .connection-kicker { color: var(--color-primary); font-size: 11px !important; letter-spacing: .08em; }
 .connection-danger { color: var(--color-danger); }
