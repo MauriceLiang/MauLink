@@ -1,0 +1,23 @@
+[
+  {
+    "page": "terminal",
+    "file": "terminal-light-zh-CN-860x640.jpg",
+    "url": "http://127.0.0.1:1431/?harness=visual&page=terminal&theme=light&locale=zh-CN&accentColor=blue&customAccentColor=%233B82F6&uiDensity=standard",
+    "themePreference": "light",
+    "manifestId": null,
+    "accentColor": "blue",
+    "customAccentColor": null,
+    "uiDensity": "standard",
+    "density": "standard",
+    "dpr": 1,
+    "fonts": "loaded",
+    "height": 640,
+    "locale": "zh-CN",
+    "overflow": false,
+    "theme": "light",
+    "width": 860,
+    "sha256": "15b9d0915acb76334b2361432955958c3105da07f82950812fbaa7523a0ea393",
+    "repeatSha256": "15b9d0915acb76334b2361432955958c3105da07f82950812fbaa7523a0ea393",
+    "identical": true
+  }
+]

@@ -115,9 +115,18 @@
   {
     "page": "terminal",
     "steps": [
-      "select"
+      "select",
+      "collapse-inline-files"
     ],
     "reference": "view=workspace&select=web-01&term=inline"
+  },
+  {
+    "page": "inline-files",
+    "steps": [
+      "select",
+      "expand-inline-files"
+    ],
+    "reference": null
   },
   {
     "page": "quick-monitor",

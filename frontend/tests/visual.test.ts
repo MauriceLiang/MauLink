@@ -31,7 +31,7 @@ describe('deterministic visual fixtures', () => {
     expect(matrixV33.some(item => item.accentColor === 'red')).toBe(true);
     expect(matrixV33.some(item => item.accentColor === 'custom' && item.customAccentColor === '#0057FF')).toBe(true);
     for (const item of matrixV33) for (const page of item.pages ?? [...cases, ...casesV33].map(value => value.page)) expect(pages.has(page)).toBe(true);
-    expect(cases.map(item => item.page)).toHaveLength(36);
+    expect(cases.map(item => item.page)).toHaveLength(37);
   });
   it('covers V3.3 edge states with deterministic server, SFTP, transfer and monitor fixtures', async () => {
     expect(new Set(casesV33.map(item=>item.page)).size).toBe(casesV33.length);

@@ -33,6 +33,12 @@
 .terminal-empty { padding: 20px; color: var(--color-terminal-text); font-size: 13px; }
 .terminal-footer { display: flex; gap: 12px; align-items: center; min-height: 24px; padding: 0 8px 0 12px; background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: 11px; }
 .terminal-footer .terminal-files-toggle { width: 24px; min-width: 24px; min-height: 22px; padding: 0; }
+.terminal-files-splitter { position: relative; z-index: 1; min-width: 0; cursor: ns-resize; touch-action: none; }
+.terminal-files-splitter::before { position: absolute; inset: -2px 0; content: ""; }
+.terminal-files-splitter::after { position: absolute; top: 50%; left: 50%; width: 28px; height: 2px; border-radius: 2px; background: var(--color-border-hover); content: ""; transform: translate(-50%, -50%); transition: background-color var(--motion-fast) var(--ease-standard), width var(--motion-fast) var(--ease-standard); }
+.terminal-files-splitter:hover::after, .terminal-files-splitter:focus-visible::after { width: 36px; background: var(--color-primary); }
+.terminal-files-splitter:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -1px; }
+.terminal-workspace.is-focused .terminal-files-splitter { display: none; }
 .terminal-warning { margin: 0; padding: 8px 12px; color: var(--color-danger); font-size: 12px; background: var(--color-surface); }
 .disconnect-transfer-warning { color: var(--color-danger); font-size: 12px; line-height: 1.5; }
 .terminal-settings-form > fieldset { display: grid; gap: 14px; min-width: 0; padding: 0; border: 0; }
