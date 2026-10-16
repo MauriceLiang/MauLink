@@ -40,6 +40,7 @@ import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
 import BaseIcon from "../components/base/BaseIcon.vue";
+import BaseIconButton from "../components/base/BaseIconButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
 import BaseToastViewport from "../components/base/BaseToastViewport.vue";
@@ -63,12 +64,12 @@ import UpdateInstallConfirmDialog from "../components/update/UpdateInstallConfir
 import { createNativeUpdaterAdapter, createUnsupportedUpdaterAdapter } from "../updater/updater-adapter";
 import { inspectInstallActivity } from "../updater/install-safety";
 import { createUpdaterController } from "../updater/updater-controller";
-import type { UpdaterAdapter } from "../updater/updater-types";
+import type { UpdateErrorCode, UpdaterAdapter } from "../updater/updater-types";
 import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
 import { createWorkspaceUiStore } from "../stores/workspace-ui";
-import appIconLight from "../assets/app-icon-light.png";
-import appIconDark from "../assets/app-icon-dark.png";
+import logoLight from "../assets/maulink-logo-light.png";
+import logoDark from "../assets/maulink-logo-dark.png";
 const t = messages(shellMessages);
 
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
@@ -222,6 +223,41 @@ const manageGroups = ref(false);
 const deleteTarget = ref<ServerProfile | null>(null);
 const toast = useToast();
 const updaterText = messages(updaterMessages);
+const aboutUpdatePhase = computed(() => updaterController.state.value.phase);
+const aboutUpdateBusy = computed(() => ['checking', 'downloading', 'confirmingInstall', 'installing'].includes(aboutUpdatePhase.value));
+const aboutUpdateIcon = computed(() => aboutUpdateBusy.value ? 'spinner' : ['available', 'downloaded'].includes(aboutUpdatePhase.value) ? 'download' : 'refresh');
+const aboutUpdateLabel = computed(() => {
+  const state = updaterController.state.value;
+  switch (state.phase) {
+    case 'checking': return updaterText('checking');
+    case 'downloading': return updaterText('downloading');
+    case 'downloaded': return updaterText('downloaded');
+    case 'confirmingInstall': return updaterText('confirmingInstall');
+    case 'installing': return updaterText('installing');
+    case 'available': return updaterText('aboutViewUpdate', { version: state.latestVersion ?? '—' });
+    case 'blocked': return updaterText('blockedVersion', { current: state.currentVersion, target: state.latestVersion ?? '—' });
+    case 'unsupported': return updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop');
+    default: return updaterText('check');
+  }
+});
+const aboutUpdateLiveStatus = computed(() => aboutUpdateBusy.value ? aboutUpdateLabel.value : '');
+const aboutEnvironment = computed(() => {
+  const platform = info.value?.platform.trim();
+  if (!platform) return '—';
+  const normalizedPlatform = platform.toLowerCase();
+  const architecture = info.value?.architecture.trim().toLowerCase();
+  if (normalizedPlatform === 'macos') {
+    if (architecture === 'aarch64' || architecture === 'arm64') return 'macOS · Apple Silicon';
+    if (architecture === 'x86_64' || architecture === 'amd64') return 'macOS · Intel';
+    return 'macOS';
+  }
+  if (normalizedPlatform === 'windows') {
+    if (architecture === 'aarch64' || architecture === 'arm64') return 'Windows · ARM64';
+    if (architecture === 'x86_64' || architecture === 'amd64') return 'Windows · x64';
+    return 'Windows';
+  }
+  return platform;
+});
 const selected = computed(() => servers.value.find(server => server.id === selectedId.value));
 const backendState = computed(() => pending.value ? "pending" : error.value ? "error" : "ready");
 const shortcut = computed(() => info.value?.platform === "windows" ? "Ctrl K" : "⌘ K");
@@ -342,6 +378,47 @@ async function openUpdatesFromAbout() {
   openSettings('general');
   await nextTick();
   document.querySelector<HTMLButtonElement>('#settings-updates button')?.focus();
+}
+
+function updateErrorMessageKey(code?: UpdateErrorCode): keyof typeof updaterMessages {
+  switch (code) {
+    case 'network': return 'errorNetwork';
+    case 'metadata': return 'errorMetadata';
+    case 'signature': return 'errorSignature';
+    case 'storage': return 'errorStorage';
+    case 'permission': return 'errorPermission';
+    case 'install': return 'errorInstall';
+    case 'unsupported': return updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop';
+    default: return 'errorUnknown';
+  }
+}
+
+async function checkUpdatesFromAbout() {
+  const phase = updaterController.state.value.phase;
+  if (aboutUpdateBusy.value) return;
+  if (phase === 'available' || phase === 'downloaded' || phase === 'blocked') {
+    await openUpdatesFromAbout();
+    return;
+  }
+  if (phase === 'unsupported') {
+    toast.error(updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop'));
+    return;
+  }
+
+  await updaterController.checkForUpdates();
+  const result = updaterController.state.value;
+  switch (result.phase) {
+    case 'upToDate': toast.success(updaterText('upToDate')); break;
+    case 'channelEmpty': toast.info(updaterText('channelEmpty')); break;
+    case 'available':
+    case 'blocked':
+      if (about.value) await openUpdatesFromAbout();
+      else if (result.phase === 'available') toast.info(updaterText('foundUpdate', { version: result.latestVersion ?? '—' }));
+      else toast.warning(updaterText('blockedVersion', { current: result.currentVersion, target: result.latestVersion ?? '—' }));
+      break;
+    case 'error': toast.error(updaterText(updateErrorMessageKey(result.errorCode))); break;
+    case 'unsupported': toast.error(updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop')); break;
+  }
 }
 
 function openEditor(id: string | null = null) {
@@ -559,18 +636,22 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
       <LocalBackendStatus :state="backendState" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
     </div>
     <BaseDialog :open="about" size="compact" panel-class="shell-about-dialog" :title="t('aboutMauLink')" @close="about = false">
-      <div class="shell-about">
-        <div class="shell-about-identity">
-          <img :src="terminalPreferences.record.value?.value.appIconStyle === 'dark' ? appIconDark : appIconLight" alt="" width="48" height="48" />
-          <div><strong>MauLink Desktop</strong><p>{{ t('aboutLead') }}</p></div>
+      <section class="shell-about" aria-labelledby="shell-about-brand">
+        <div class="shell-about-logos" aria-hidden="true">
+          <img class="shell-about-logo shell-about-logo-light" :src="logoLight" alt="" width="68" height="68" />
+          <img class="shell-about-logo shell-about-logo-dark" :src="logoDark" alt="" width="68" height="68" />
         </div>
-        <dl class="shell-about-details">
-          <div><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd></div>
-          <div><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd></div>
-          <div><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></div>
-        </dl>
-      </div>
-      <template #footer><BaseButton variant="primary" @click="openUpdatesFromAbout"><BaseIcon name="refresh" />{{ updaterText('check') }}</BaseButton></template>
+        <h3 id="shell-about-brand">MauLink</h3>
+        <p class="shell-about-lead">{{ t('aboutLead') }}</p>
+        <div class="shell-about-version-row">
+          <span class="shell-about-version">v{{ info?.version ?? '—' }}</span>
+          <BaseIconButton class="shell-about-update-button" :label="aboutUpdateLabel" :aria-disabled="aboutUpdateBusy" :aria-busy="aboutUpdateBusy" :data-state="aboutUpdatePhase" @click="checkUpdatesFromAbout">
+            <BaseIcon :name="aboutUpdateIcon" :class="{ 'is-checking': aboutUpdateBusy }" />
+          </BaseIconButton>
+        </div>
+        <p class="shell-about-environment">{{ aboutEnvironment }}</p>
+        <span class="shell-about-live-status" role="status" aria-live="polite">{{ aboutUpdateLiveStatus }}</span>
+      </section>
     </BaseDialog>
     <UpdateInstallConfirmDialog :open="updateInstallDialogOpen" :busy="updateInstallBusy" :active-connections="updateActivity.activeConnections.length" :active-terminals="updateActivity.activeTerminals.length" @cancel="cancelUpdateInstall" @confirm="beginUpdateInstall(true)" />
     <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />

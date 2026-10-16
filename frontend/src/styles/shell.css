@@ -104,24 +104,32 @@
 .shell-transfer-status:focus-visible { border-radius: var(--radius-sm); outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
 .shell-transfer-status .shell-icon { width: 12px; height: 12px; }
 .shell-statusbar-separator { width: 1px; height: 13px; background: var(--color-border); }
-.shell-about-dialog { width: min(480px, calc(100vw - 32px)); }
-.shell-about-dialog .base-dialog-content { padding-top: 18px; }
-.shell-about { display: grid; gap: 14px; }
-.shell-about-identity { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--color-primary-border); border-radius: var(--radius-lg); background: linear-gradient(120deg, var(--color-primary-soft), var(--color-bg-subtle) 78%); }
-.shell-about-identity img { display: block; width: 48px; height: 48px; border-radius: 12px; }
-.shell-about-identity strong { color: var(--color-text-primary); font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
-.shell-about-identity p { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.45; }
-.shell-about-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
-.shell-about-details > div { min-width: 0; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-subtle); }
-.shell-about-details dt { color: var(--color-text-secondary); font-size: 11px; }
-.shell-about-details dd { margin: 6px 0 0; color: var(--color-text-primary); font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
-.shell-about-dialog .base-dialog-footer { padding: 14px 22px 20px; }
-.shell-about-dialog .base-dialog-footer .base-icon { width: 15px; height: 15px; }
-@media (max-width: 400px) {
-  .shell-about-details { gap: 6px; }
-  .shell-about-details > div { padding: 8px; }
-  .shell-about-details dt { font-size: 10px; }
+.shell-about-dialog { width: min(460px, calc(100vw - 32px)); border-radius: var(--radius-lg); }
+.shell-about-dialog .base-dialog-heading { position: relative; justify-content: flex-end; padding: 12px 16px 0; border: 0; }
+.shell-about-dialog .base-dialog-heading h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.shell-about-dialog .base-dialog-close { width: 32px; min-width: 32px; min-height: 32px; }
+.shell-about-dialog .base-dialog-content { padding: 4px 24px 22px; }
+.shell-about { display: flex; min-width: 0; flex-direction: column; align-items: center; text-align: center; }
+.shell-about-logo { display: block; width: 68px; height: 68px; object-fit: contain; }
+.shell-about-logo-dark { display: none; }
+:root[data-theme="dark"] .shell-about-logo-light { display: none; }
+:root[data-theme="dark"] .shell-about-logo-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .shell-about-logo-light { display: none; }
+  :root[data-theme="system"] .shell-about-logo-dark { display: block; }
 }
+.shell-about h3 { margin: 8px 0 0; color: var(--color-text-primary); font-size: 22px; font-weight: 600; line-height: 1.25; }
+.shell-about-lead { max-width: 100%; margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 400; line-height: 1.5; }
+.shell-about-version-row { display: flex; max-width: 100%; align-items: center; justify-content: center; margin-top: 14px; }
+.shell-about-version { min-width: 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.shell-about-update-button { margin-left: -4px; }
+.shell-about-update-button .base-icon { width: 17px; height: 17px; }
+.shell-about-update-button .base-icon.is-checking { animation: shell-about-spin 1.2s linear infinite; }
+.shell-about-environment { max-width: 100%; margin: 4px 0 0; color: var(--color-text-tertiary); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.shell-about-live-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes shell-about-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .shell-about-update-button .base-icon.is-checking { animation: none; } }
+@media (max-width: 400px) { .shell-about-dialog .base-dialog-content { padding-inline: 18px; } }
 @media (max-width: 1080px) {
   .application-shell { --app-sidebar-width: var(--app-sidebar-medium-width); }
 }
