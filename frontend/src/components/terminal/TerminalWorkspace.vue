@@ -31,13 +31,14 @@ import { resolveTerminalTheme } from "../../terminal/theme";
 import { DEFAULT_INLINE_FILES_PREFERENCE, normalizeInlineFilesRatio, readInlineFilesPreference, resolveInlineFilesLayout, saveInlineFilesPreference } from "../../stores/workspace-layout";
 const t = messages(terminalMessages);
 const props = defineProps<{ server: ServerProfile; serverAppearance?: ServerAppearance; snapshot: ConnectionSnapshot; controller: TerminalController; sftp: ReturnType<typeof createSftpApi>; transfers: TransferStore; monitor: MonitorStore; preferences: TerminalPreferences; backgroundImages: BackgroundImagesApi; visible: boolean; busy: boolean; error?: AppError | null }>();
-const emit = defineEmits<{ settings: []; disconnect: [stopActiveTransfers: boolean, closeWorkspaceAfter: boolean]; focusMode: [enabled: boolean]; view: [pane: 'terminal' | 'files' | 'monitor'] }>();
+type DisconnectDisposition = 'stay' | 'close-workspace' | 'return-home';
+const emit = defineEmits<{ settings: []; disconnect: [stopActiveTransfers: boolean, disposition: DisconnectDisposition]; focusMode: [enabled: boolean]; view: [pane: 'terminal' | 'files' | 'monitor'] }>();
 const root = ref<HTMLElement | null>(null);
 const terminalMain = ref<HTMLElement | null>(null);
 const activeId = ref<string | null>(null);
 const disconnectOpen = ref(false); const focused = ref(false);
 const inspectorVisible = ref(false);
-const closeWorkspaceAfterDisconnect = ref(false);
+const disconnectDisposition = ref<DisconnectDisposition>('stay');
 const tabs = computed(() => props.controller.tabs.value.filter(tab => tab.connectionId === props.snapshot.connectionId));
 const active = computed(() => tabs.value.find(tab => tab.id === activeId.value));
 const ready = computed(() => props.snapshot.state === 'ready');
@@ -234,16 +235,16 @@ async function toggleFocus() {
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   if (activeId.value) props.controller.focus(activeId.value);
 }
-function requestDisconnect(closeWorkspaceAfter = false) {
+function requestDisconnect(disposition: DisconnectDisposition = 'stay') {
   stopTransfers.value = false;
-  closeWorkspaceAfterDisconnect.value = closeWorkspaceAfter;
+  disconnectDisposition.value = disposition;
   if (requireStopConfirmation.value || (props.preferences.record.value?.value.confirmBeforeDisconnect ?? true)) disconnectOpen.value = true;
-  else emit('disconnect', false, closeWorkspaceAfter);
+  else emit('disconnect', false, disposition);
 }
-function disconnect() { requestDisconnect(false); }
-function requestWorkspaceClose() { requestDisconnect(true); }
-function cancelDisconnect() { disconnectOpen.value = false; closeWorkspaceAfterDisconnect.value = false; }
-function confirmDisconnect() { emit('disconnect', stopTransfers.value, closeWorkspaceAfterDisconnect.value); disconnectOpen.value = false; closeWorkspaceAfterDisconnect.value = false; }
+function disconnect() { requestDisconnect('return-home'); }
+function requestWorkspaceClose() { requestDisconnect('close-workspace'); }
+function cancelDisconnect() { disconnectOpen.value = false; disconnectDisposition.value = 'stay'; }
+function confirmDisconnect() { emit('disconnect', stopTransfers.value, disconnectDisposition.value); disconnectOpen.value = false; disconnectDisposition.value = 'stay'; }
 watch(() => props.busy, busy => { if (!busy && !ready.value) disconnectOpen.value = false; });
 defineExpose({ serverId: props.server.id, connectionId: props.snapshot.connectionId, view, requestWorkspaceClose });
 </script>

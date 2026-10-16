@@ -42,6 +42,10 @@ export function createWorkspaceUiStore() {
     return true;
   }
 
+  function returnHome() {
+    activeServerId.value = null;
+  }
+
   function setPane(serverId: string, activePane: WorkspacePane) {
     tabs.value = tabs.value.map(tab => tab.serverId === serverId ? { ...tab, activePane } : tab);
   }
@@ -66,7 +70,7 @@ export function createWorkspaceUiStore() {
     return removed ?? null;
   }
 
-  return { tabs, activeServerId, activeTab, open, select, setPane, syncConnection, setPhase, close };
+  return { tabs, activeServerId, activeTab, open, select, returnHome, setPane, syncConnection, setPhase, close };
 }
 
 export type WorkspaceUiStore = ReturnType<typeof createWorkspaceUiStore>;

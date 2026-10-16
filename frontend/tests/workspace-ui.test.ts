@@ -51,6 +51,19 @@ describe("workspace UI store", () => {
     expect(store.activeServerId.value).toBeNull();
   });
 
+  it("returns home after closing a disconnected workspace while preserving other tabs", () => {
+    const store = createWorkspaceUiStore();
+    store.open("web-01");
+    store.open("db-01");
+
+    store.close("db-01");
+    store.returnHome();
+
+    expect(store.tabs.value.map(tab => tab.serverId)).toEqual(["web-01"]);
+    expect(store.activeServerId.value).toBeNull();
+    expect(store.activeTab.value).toBeNull();
+  });
+
   it("keeps failed and closing phases distinct from a ready SSH connection", () => {
     const store = createWorkspaceUiStore();
     store.open("web-01");

@@ -414,7 +414,7 @@ function handleServerNavigation({ action, server }: ServerNavigationRequest) {
   }
 }
 
-function finishWorkspaceClose(serverId: string) {
+function finishWorkspaceClose(serverId: string, returnHome = false) {
   const snapshot = connections.snapshots.value[serverId];
   if (snapshot && !isFinished(snapshot)) return false;
   if (snapshot) {
@@ -422,6 +422,7 @@ function finishWorkspaceClose(serverId: string) {
     connections.dismiss(serverId);
   }
   workspaceUi.close(serverId);
+  if (returnHome) workspaceUi.returnHome();
   if (diagnosticServerId.value === serverId) diagnosticServerId.value = null;
   if (pendingServerNavigation.value?.serverId === serverId) pendingServerNavigation.value = null;
   return true;
@@ -434,7 +435,7 @@ async function closeWorkspace(serverId: string) {
   if (snapshot.state === 'ready') {
     const workspace = workspaceRefs.value.find(value => value.serverId === serverId);
     if (workspace) { workspace.requestWorkspaceClose(); return; }
-    await handleWorkspaceDisconnect(serverId, false, true);
+    await handleWorkspaceDisconnect(serverId, false, 'close-workspace');
     return;
   }
   workspaceUi.setPhase(serverId, 'closing');
@@ -442,10 +443,10 @@ async function closeWorkspace(serverId: string) {
   if (!finishWorkspaceClose(serverId)) workspaceUi.syncConnection(serverId, connections.snapshots.value[serverId] ?? null, !!connections.errors.value[serverId]);
 }
 
-async function handleWorkspaceDisconnect(serverId: string, stopActiveTransfers: boolean, closeAfterDisconnect = false) {
+async function handleWorkspaceDisconnect(serverId: string, stopActiveTransfers: boolean, disposition: 'stay' | 'close-workspace' | 'return-home' = 'stay') {
   await connections.disconnect(serverId, stopActiveTransfers);
   const snapshot = connections.snapshots.value[serverId];
-  if (closeAfterDisconnect && snapshot && isFinished(snapshot)) finishWorkspaceClose(serverId);
+  if (disposition !== 'stay' && snapshot && isFinished(snapshot)) finishWorkspaceClose(serverId, disposition === 'return-home');
 }
 
 function toggleSidebar() { sidebarVisible.value = !sidebarVisible.value; }
@@ -544,7 +545,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
           </BaseEmptyState>
           <IdleWorkspace v-else-if="!workspaceUi.activeTab.value" :has-servers="servers.length > 0" @add="requestSettingsLeave(() => openEditor())" />
         </template>
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, closeAfterDisconnect) => handleWorkspaceDisconnect(id, stopTransfers, closeAfterDisconnect)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, disposition) => handleWorkspaceDisconnect(id, stopTransfers, disposition)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
         </div>
       </main>
       <TransferPanel :store="transfers" :open="transferDrawerOpen" :server-names="transferServerNames" @close="transferDrawerOpen = false" />
