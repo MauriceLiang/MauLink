@@ -37,7 +37,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible,
 select:focus-visible, textarea:focus-visible {
   border-color: var(--color-border-active);
   outline: none;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 input[aria-invalid="true"]:focus-visible { border-color: var(--color-danger); }
 select:disabled, input:disabled, textarea:disabled { color: var(--color-text-disabled); }

@@ -122,7 +122,7 @@ body:has(.base-dialog[data-state="open"]) { --z-popup-context: var(--z-dialog); 
 .base-button-spinner { position: absolute; left: calc(50% - 8px); animation: spinner-turn calc(var(--motion-slow) * 3) linear infinite; }
 @keyframes spinner-turn { to { transform: rotate(360deg); } }
 .base-input { min-height: var(--app-density-input-height, 36px); border-radius: var(--radius-control); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
-.base-input:focus-visible { outline: none; border-color: var(--color-border-active); box-shadow: 0 0 0 3px var(--color-focus-ring); }
+.base-input:focus-visible { outline: none; border-color: var(--color-border-active); box-shadow: 0 0 0 2px var(--color-focus-ring); }
 .base-select-trigger { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .base-checkbox, .base-switch { transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
 .base-checkbox:active:not(:disabled) { transform: scale(.92); }
