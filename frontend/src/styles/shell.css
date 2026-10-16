@@ -120,9 +120,8 @@
 }
 .shell-about h3 { margin: 8px 0 0; color: var(--color-text-primary); font-size: 22px; font-weight: 600; line-height: 1.25; }
 .shell-about-lead { max-width: 100%; margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 400; line-height: 1.5; }
-.shell-about-version-row { display: flex; max-width: 100%; align-items: center; justify-content: center; margin-top: 14px; }
+.shell-about-version-row { display: flex; max-width: 100%; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
 .shell-about-version { min-width: 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.shell-about-update-button { margin-left: -4px; }
 .shell-about-update-button .base-icon { width: 17px; height: 17px; }
 .shell-about-update-button .base-icon.is-checking { animation: shell-about-spin 1.2s linear infinite; }
 .shell-about-environment { max-width: 100%; margin: 4px 0 0; color: var(--color-text-tertiary); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
