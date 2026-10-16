@@ -39,6 +39,7 @@ import { createServerAppearanceStore } from "../stores/server-appearance";
 import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
+import BaseIcon from "../components/base/BaseIcon.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
 import BaseToastViewport from "../components/base/BaseToastViewport.vue";
@@ -66,6 +67,8 @@ import type { UpdaterAdapter } from "../updater/updater-types";
 import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
 import { createWorkspaceUiStore } from "../stores/workspace-ui";
+import appIconLight from "../assets/app-icon-light.png";
+import appIconDark from "../assets/app-icon-dark.png";
 const t = messages(shellMessages);
 
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
@@ -555,10 +558,19 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
       <TransferPanel :store="transfers" :open="transferDrawerOpen" :server-names="transferServerNames" @close="transferDrawerOpen = false" />
       <LocalBackendStatus :state="backendState" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
     </div>
-    <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
-      <p>{{ t('aboutLead') }}</p>
-      <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
-      <template #footer><BaseButton variant="secondary" @click="openUpdatesFromAbout">{{ updaterText('check') }}</BaseButton></template>
+    <BaseDialog :open="about" size="compact" panel-class="shell-about-dialog" :title="t('aboutMauLink')" @close="about = false">
+      <div class="shell-about">
+        <div class="shell-about-identity">
+          <img :src="terminalPreferences.record.value?.value.appIconStyle === 'dark' ? appIconDark : appIconLight" alt="" width="48" height="48" />
+          <div><strong>MauLink Desktop</strong><p>{{ t('aboutLead') }}</p></div>
+        </div>
+        <dl class="shell-about-details">
+          <div><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd></div>
+          <div><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd></div>
+          <div><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></div>
+        </dl>
+      </div>
+      <template #footer><BaseButton variant="primary" @click="openUpdatesFromAbout"><BaseIcon name="refresh" />{{ updaterText('check') }}</BaseButton></template>
     </BaseDialog>
     <UpdateInstallConfirmDialog :open="updateInstallDialogOpen" :busy="updateInstallBusy" :active-connections="updateActivity.activeConnections.length" :active-terminals="updateActivity.activeTerminals.length" @cancel="cancelUpdateInstall" @confirm="beginUpdateInstall(true)" />
     <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />

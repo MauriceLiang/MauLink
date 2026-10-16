@@ -104,9 +104,24 @@
 .shell-transfer-status:focus-visible { border-radius: var(--radius-sm); outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
 .shell-transfer-status .shell-icon { width: 12px; height: 12px; }
 .shell-statusbar-separator { width: 1px; height: 13px; background: var(--color-border); }
-.shell-about-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-5); }
-.shell-about-details dt { color: var(--color-text-secondary); }
-.shell-about-details dd { margin: 0; }
+.shell-about-dialog { width: min(480px, calc(100vw - 32px)); }
+.shell-about-dialog .base-dialog-content { padding-top: 18px; }
+.shell-about { display: grid; gap: 14px; }
+.shell-about-identity { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--color-primary-border); border-radius: var(--radius-lg); background: linear-gradient(120deg, var(--color-primary-soft), var(--color-bg-subtle) 78%); }
+.shell-about-identity img { display: block; width: 48px; height: 48px; border-radius: 12px; }
+.shell-about-identity strong { color: var(--color-text-primary); font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
+.shell-about-identity p { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.45; }
+.shell-about-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.shell-about-details > div { min-width: 0; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-subtle); }
+.shell-about-details dt { color: var(--color-text-secondary); font-size: 11px; }
+.shell-about-details dd { margin: 6px 0 0; color: var(--color-text-primary); font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.shell-about-dialog .base-dialog-footer { padding: 14px 22px 20px; }
+.shell-about-dialog .base-dialog-footer .base-icon { width: 15px; height: 15px; }
+@media (max-width: 400px) {
+  .shell-about-details { gap: 6px; }
+  .shell-about-details > div { padding: 8px; }
+  .shell-about-details dt { font-size: 10px; }
+}
 @media (max-width: 1080px) {
   .application-shell { --app-sidebar-width: var(--app-sidebar-medium-width); }
 }
