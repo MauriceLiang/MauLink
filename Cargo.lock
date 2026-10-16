@@ -2613,7 +2613,7 @@ dependencies = [
 
 [[package]]
 name = "maulink-core"
-version = "0.1.1-rc.14"
+version = "0.1.1-rc.15"
 dependencies = [
  "aes-gcm",
  "apple-native-keyring-store",
@@ -2646,7 +2646,7 @@ dependencies = [
 
 [[package]]
 name = "maulink-desktop"
-version = "0.1.1-rc.14"
+version = "0.1.1-rc.15"
 dependencies = [
  "block2",
  "image",
