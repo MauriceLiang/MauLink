@@ -539,6 +539,10 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
             <BaseButton @click="load">{{ t('retry') }}</BaseButton>
           </BaseEmptyState>
           <ServerOverview v-else-if="diagnosticServerId && selected" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
+          <section v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready' && workspaceUi.activeTab.value.phase !== 'failed'" class="shell-connection-progress" role="status" aria-live="polite" aria-busy="true">
+            <span class="shell-connection-spinner" aria-hidden="true"></span>
+            <p>{{ activeWorkspaceStatus }}</p>
+          </section>
           <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" :title="activeWorkspaceStatus" :description="activeWorkspaceError || undefined">
             <BaseButton v-if="workspaceUi.activeTab.value.phase === 'failed'" @click="retryActiveWorkspace">{{ t('retry') }}</BaseButton>
             <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspace', { name: servers.find(item => item.id === workspaceUi.activeTab.value?.serverId)?.name ?? '' }) }}</BaseButton>

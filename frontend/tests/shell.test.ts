@@ -145,6 +145,9 @@ describe("application shell", () => {
     expect(connectionStart).toHaveBeenCalledTimes(1);
     expect(wrapper.get(".shell-workspace-tab__select").text()).toBe("Web-01");
     expect(wrapper.get(".shell-main-content").text()).toContain("正在连接");
+    expect(wrapper.get(".shell-connection-progress").attributes("aria-busy")).toBe("true");
+    expect(wrapper.find(".shell-connection-spinner").exists()).toBe(true);
+    expect(wrapper.find(".shell-main-content > .base-empty-state").exists()).toBe(false);
     expect(wrapper.get(".shell-server-item").attributes("aria-current")).toBe("page");
     expect(commands.filter(command => command === "settings_get")).toHaveLength(1);
     expect(commands.filter(command => command === "connection_start")).toHaveLength(1);
