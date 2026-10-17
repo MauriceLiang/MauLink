@@ -3,6 +3,7 @@
 .application-shell[data-sidebar-width="standard"] { --app-sidebar-width: 236px; }
 .application-shell[data-sidebar-width="wide"] { --app-sidebar-width: 286px; }
 .shell-icon { display: block; width: 16px; height: 16px; flex: none; }
+.shell-icon.base-icon--gear { width: 18px; height: 18px; }
 .shell-topbar { display: grid; grid-template-columns: var(--app-sidebar-width) minmax(180px, 1fr) var(--app-sidebar-width); align-items: center; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); padding-left: var(--app-traffic-light-space); }
 .shell-brand { display: flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; color: var(--color-text-primary); background: transparent; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }

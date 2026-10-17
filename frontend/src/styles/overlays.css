@@ -9,6 +9,7 @@
   .base-toast { animation: none !important; transition: none !important; }
 }
 .base-icon { width: 16px; height: 16px; flex: none; vertical-align: middle; }
+.base-icon--gear { width: 18px; height: 18px; }
 .base-select-trigger { width: 100%; min-height: var(--app-density-input-height, 36px); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
 .base-select-trigger:hover:not(:disabled) { border-color: var(--color-border-hover); }
 .base-select-trigger:focus-visible { outline: 3px solid var(--color-focus-ring); border-color: var(--color-border-active); }
