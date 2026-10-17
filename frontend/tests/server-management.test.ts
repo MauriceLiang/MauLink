@@ -29,7 +29,7 @@ afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); docu
 const profile = shellServers[0]!;
 const makeStore = (transport: IpcTransport = createServerMock()) => createServerStore(createServerApi(createIpcClient(transport)));
 function mountEditor(store = makeStore(), serverId: string | null = null, connectionStore?: ConnectionStore) {
-  const client = createIpcClient(createMockIpc({ server_get: () => profile, server_appearance_get: ({ serverId }) => ({ serverId, labelColor: null, environment: null, terminalOverrideEnabled: false, terminalAppearance: { themeMode: "followApp", customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" }, backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 } }, revision: 0, updatedAtMs: 0 }) }));
+  const client = createIpcClient(createMockIpc({ server_get: () => profile, server_appearance_get: ({ serverId }) => ({ serverId, labelColor: null, environment: null, terminalOverrideEnabled: false, terminalAppearance: { themeMode: "followApp", customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" }, selectionOpacity: 18, backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 } }, revision: 0, updatedAtMs: 0 }) }));
   const appearanceStore = createServerAppearanceStore(createServerAppearanceApi(client));
   const backgroundImages = createBackgroundImagesApi(client, path => path);
   const wrapper = mount(ServerDialog, { attachTo: document.body, props: { open: true, serverId, store, appearanceStore, backgroundImages, connectionStore } });
@@ -64,6 +64,7 @@ describe("server management contracts", () => {
       terminalAppearance: {
         themeMode: "followApp" as const,
         customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        selectionOpacity: 18,
         backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
       }, revision: 0, updatedAtMs: 0,
     };
@@ -102,6 +103,7 @@ describe("server management contracts", () => {
       terminalAppearance: {
         themeMode: "followApp" as const,
         customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        selectionOpacity: 18,
         backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
       }, revision: 0, updatedAtMs: 0,
     };
@@ -138,6 +140,7 @@ describe("server management contracts", () => {
       terminalAppearance: {
         themeMode: "followApp" as const,
         customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        selectionOpacity: 18,
         backgroundImage: { imageId: null, fit: "cover" as const, position: "center" as const, imageOpacity: 100, overlayKind: "dark" as const, overlayOpacity: 45, blurPx: 0 },
       }, revision: 0, updatedAtMs: 0,
     };

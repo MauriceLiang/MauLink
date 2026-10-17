@@ -10,6 +10,7 @@ export const errorMessages: Record<string, { "zh-CN": string; en: string }> = {
   "errors.runtimeActivityInvalid": { "zh-CN": "连接活动数据无效。", en: "Connection activity data is invalid." },
   "errors.customAccentColorInvalid": { "zh-CN": "自定义主题色无效，请选择 6 位十六进制颜色。", en: "The custom accent color is invalid. Choose a six-digit hexadecimal color." },
   "errors.terminalCustomColorInvalid": { "zh-CN": "终端自定义颜色无效，请选择 6 位十六进制颜色。", en: "A custom terminal color is invalid. Choose a six-digit hexadecimal color." },
+  "errors.terminalSelectionOpacityOutOfRange": { "zh-CN": "终端选区不透明度需在 0 到 100 之间。", en: "Terminal selection opacity must be between 0 and 100." },
   "errors.terminalLineHeightOutOfRange": { "zh-CN": "终端行高需在 1 到 2 之间。", en: "Terminal line height must be between 1 and 2." },
   "errors.terminalFontFamilyInvalid": { "zh-CN": "字体名称需为 1 到 128 个字符，且不含控制字符。", en: "Font family must contain 1 to 128 characters with no control characters." },
   "errors.terminalFontSizeOutOfRange": { "zh-CN": "字号需在 8 到 72 之间。", en: "Font size must be between 8 and 72." },

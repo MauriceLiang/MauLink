@@ -70,7 +70,7 @@ const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessage
 };
 const title = computed(() => t(sectionCopy[props.section].title));
 const description = computed(() => t(sectionCopy[props.section].description));
-const terminalSettingKeys = new Set<keyof AppSettings>(['terminalFontFamily', 'terminalFontSize', 'terminalCursorStyle', 'terminalScrollbackLines', 'terminalLineHeight', 'terminalCursorBlink', 'terminalThemeMode', 'terminalCustomColors', 'terminalBackgroundImage']);
+const terminalSettingKeys = new Set<keyof AppSettings>(['terminalFontFamily', 'terminalFontSize', 'terminalCursorStyle', 'terminalScrollbackLines', 'terminalLineHeight', 'terminalCursorBlink', 'terminalThemeMode', 'terminalCustomColors', 'terminalSelectionOpacity', 'terminalBackgroundImage']);
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let autoSaveQueued = false;
 let activeSave: Promise<boolean> | null = null;
@@ -146,7 +146,7 @@ watch(() => props.preferences.busy.value || !!terminalSection.value?.busy, value
 });
 onBeforeUnmount(clearAutoSaveTimer);
 
-function updateTerminalSettings(value: Pick<AppSettings, 'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' | 'terminalLineHeight' | 'terminalCursorBlink' | 'terminalThemeMode' | 'terminalCustomColors' | 'terminalBackgroundImage'>) {
+function updateTerminalSettings(value: Pick<AppSettings, 'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' | 'terminalLineHeight' | 'terminalCursorBlink' | 'terminalThemeMode' | 'terminalCustomColors' | 'terminalSelectionOpacity' | 'terminalBackgroundImage'>) {
   Object.assign(draft, value);
 }
 async function discardSettings() {

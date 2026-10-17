@@ -31,7 +31,7 @@ export function resolveTerminalTheme(
     const selection = safeHex(colors.selection, accent);
     return {
       mode,
-      theme: { background: "#00000000", foreground, cursor, selectionBackground: withAlpha(selection, 0.18) },
+      theme: { background: "#00000000", foreground, cursor, selectionBackground: withAlpha(selection, settings.terminalSelectionOpacity / 100) },
       transparent: true,
     };
   }
@@ -44,7 +44,7 @@ export function resolveTerminalTheme(
     const selection = safeHex(colors.selection, accent);
     return {
       mode,
-      theme: { background, foreground, cursor, selectionBackground: withAlpha(selection, 0.18) },
+      theme: { background, foreground, cursor, selectionBackground: withAlpha(selection, settings.terminalSelectionOpacity / 100) },
       transparent: false,
     };
   }
@@ -54,7 +54,7 @@ export function resolveTerminalTheme(
   const foreground = light ? "#344054" : "#A7AFBC";
   return {
     mode,
-    theme: { background, foreground, cursor: accent, selectionBackground: withAlpha(accent, 0.18) },
+    theme: { background, foreground, cursor: accent, selectionBackground: withAlpha(accent, settings.terminalSelectionOpacity / 100) },
     transparent: false,
   };
 }

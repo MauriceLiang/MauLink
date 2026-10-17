@@ -20,6 +20,7 @@ const t = messages(terminalMessages);
 export interface TerminalTab { id: string; connectionId: string; serverId: string; title: string; terminalId: string | null; state: TerminalState; columns: number; rows: number; error: string; inputPaused: boolean; workingDirectory: string | null; }
 interface Runtime {
   terminal: Terminal; fit: FitAddon; mount: HTMLElement; channel: Channel<TerminalChunk>;
+  selectionHost: HTMLElement | null;
   opened: TerminalOpenResult | null; early: TerminalChunk[]; earlyBytes: number;
   output: (chunk: TerminalChunk) => Promise<void>; lastOutput: Promise<void>;
   input: Promise<void>; inputSeq: string; inputBytes: number; inputStopped: boolean; outputStopped: boolean;
@@ -156,6 +157,64 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     runtime.fit.fit(); resize(id);
     if (focus) runtime.terminal.focus();
   }
+  function clearFullSelectionBackground(host: HTMLElement | null) {
+    host?.removeAttribute('data-terminal-full-selection');
+    host?.style.removeProperty('--terminal-full-selection-background');
+    host?.style.removeProperty('--terminal-full-selection-gap-background');
+    host?.style.removeProperty('--terminal-full-selection-right-gap');
+    host?.style.removeProperty('--terminal-full-selection-bottom-gap');
+  }
+  function syncFullSelectionBackground(runtime: Runtime) {
+    const host = runtime.selectionHost;
+    if (!host) return;
+    const selection = runtime.terminal.getSelectionPosition();
+    const buffer = runtime.terminal.buffer.active;
+    const isFullSelection = selection?.start.x === 0
+      && selection.start.y === 0
+      && selection.end.x === runtime.terminal.cols
+      && selection.end.y === buffer.baseY + runtime.terminal.rows - 1;
+    if (!isFullSelection) {
+      clearFullSelectionBackground(host);
+      return;
+    }
+    const theme = runtime.terminal.options.theme;
+    const selectionBackground = theme?.selectionBackground ?? 'rgba(59, 130, 246, 0.28)';
+    host.style.setProperty('--terminal-full-selection-background', selectionBackground);
+    host.style.setProperty('--terminal-full-selection-gap-background', compositeSelectionBackground(selectionBackground, theme?.background ?? '#000000'));
+    const viewport = runtime.mount.querySelector<HTMLElement>('.xterm-viewport');
+    const screen = runtime.mount.querySelector<HTMLElement>('.xterm-screen');
+    if (viewport && screen) {
+      const viewportBounds = viewport.getBoundingClientRect();
+      const screenBounds = screen.getBoundingClientRect();
+      host.style.setProperty('--terminal-full-selection-right-gap', `${Math.max(0, viewportBounds.right - screenBounds.right)}px`);
+      host.style.setProperty('--terminal-full-selection-bottom-gap', `${Math.max(0, viewportBounds.bottom - screenBounds.bottom)}px`);
+    }
+    host.setAttribute('data-terminal-full-selection', 'true');
+  }
+  function compositeSelectionBackground(selection: string, background: string) {
+    const selected = parseCssColor(selection);
+    const base = parseCssColor(background);
+    if (!selected || !base) return selection;
+    const alpha = selected.a + base.a * (1 - selected.a);
+    if (alpha === 0) return 'rgba(0, 0, 0, 0)';
+    const channel = (front: number, behind: number) => Math.round((front * selected.a + behind * base.a * (1 - selected.a)) / alpha);
+    return `rgba(${channel(selected.r, base.r)}, ${channel(selected.g, base.g)}, ${channel(selected.b, base.b)}, ${alpha})`;
+  }
+  function parseCssColor(value: string) {
+    const hex = /^#([\da-f]{6})([\da-f]{2})?$/i.exec(value);
+    if (hex) {
+      const color = hex[1]!;
+      return {
+        r: Number.parseInt(color.slice(0, 2), 16),
+        g: Number.parseInt(color.slice(2, 4), 16),
+        b: Number.parseInt(color.slice(4, 6), 16),
+        a: hex[2] ? Number.parseInt(hex[2], 16) / 255 : 1,
+      };
+    }
+    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i.exec(value);
+    if (!rgb) return null;
+    return { r: Number(rgb[1]), g: Number(rgb[2]), b: Number(rgb[3]), a: rgb[4] === undefined ? 1 : Number(rgb[4]) };
+  }
   function applyTerminalTheme() {
     const globalTheme = resolveTerminalTheme(settings, settings.theme, systemIsDark).theme;
     const root = document.documentElement.style;
@@ -170,6 +229,7 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
       const appearance = resolveTerminalTheme(effective, effective.theme, systemIsDark);
       const theme = appearance.theme;
       runtime.terminal.options.theme = theme;
+      syncFullSelectionBackground(runtime);
     });
   }
   const onSystemThemeChange = (event: MediaQueryListEvent) => {
@@ -180,6 +240,8 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   function release(id: string) {
     const runtime = runtimes.get(id); if (!runtime) return;
     runtime.disposed = true;
+    clearFullSelectionBackground(runtime.selectionHost);
+    runtime.selectionHost = null;
     directoryTracking.delete(id);
     clearTimeout(runtime.timer); clearTimeout(runtime.resizeTimer); clearTimeout(runtime.copyTimer);
     runtime.channel.onmessage = () => undefined;
@@ -187,7 +249,14 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
   }
   async function attach(id: string, host: HTMLElement) {
     let runtime = runtimes.get(id);
-    if (runtime) { host.append(runtime.mount); fit(id); return; }
+    if (runtime) {
+      if (runtime.selectionHost !== host) clearFullSelectionBackground(runtime.selectionHost);
+      host.append(runtime.mount);
+      runtime.selectionHost = host;
+      fit(id);
+      syncFullSelectionBackground(runtime);
+      return;
+    }
     const metadata = tab(id); if (!metadata || disposed) return;
     const mount = document.createElement('div'); mount.className = 'terminal-mount'; host.append(mount);
     const effective = resolveTerminalAppearance(metadata.serverId, settings, serverAppearances.get(metadata.serverId));
@@ -195,15 +264,16 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     const terminal = new Terminal({ allowProposedApi: false, allowTransparency: appearance.transparent, cursorBlink: settings.terminalCursorBlink, screenReaderMode: true, fontFamily: settings.terminalFontFamily, fontSize: settings.terminalFontSize, cursorStyle: settings.terminalCursorStyle, scrollback: settings.terminalScrollbackLines, lineHeight: settings.terminalLineHeight, theme: appearance.theme });
     const addon = new FitAddon(); terminal.loadAddon(addon); terminal.open(mount);
     const channel = channelFactory();
-    runtime = { terminal, fit: addon, mount, channel, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false, directoryGeneration: 0, directoryRequests: 0 };
+    runtime = { terminal, fit: addon, mount, channel, selectionHost: host, opened: null, early: [], earlyBytes: 0, output: () => Promise.resolve(), lastOutput: Promise.resolve(), input: Promise.resolve(), inputSeq: '1', inputBytes: 0, inputStopped: false, outputStopped: false, closing: false, disposed: false, resize: Promise.resolve(), lastSize: '', polling: false, ended: false, directoryGeneration: 0, directoryRequests: 0 };
     const entry = runtime;
     runtimes.set(id, entry);
     entry.output = createOutputConsumer((bytes, done) => terminal.write(bytes, done), chunk => api.ack({ terminalId: chunk.terminalId, streamId: chunk.streamId, seq: chunk.seq }));
     channel.onmessage = chunk => receive(id, chunk);
     terminal.onData(text => send(id, new TextEncoder().encode(text)));
     terminal.onBinary(text => send(id, Uint8Array.from(text, character => character.charCodeAt(0))));
-    terminal.onResize(({ cols, rows }) => { update(id, { columns: cols, rows }); resize(id); });
+    terminal.onResize(({ cols, rows }) => { update(id, { columns: cols, rows }); syncFullSelectionBackground(entry); resize(id); });
     terminal.onSelectionChange(() => {
+      syncFullSelectionBackground(entry);
       clearTimeout(entry.copyTimer);
       if (!copyOnSelect()) return;
       entry.copyTimer = setTimeout(() => {
@@ -228,7 +298,13 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
       fit(id, true); entry.timer = setTimeout(() => { void poll(id); }, 1200);
     } catch (reason) { if (!entry.disposed) { update(id, { state: 'failed', error: presentError(mapError(reason)).message }); terminal.options.disableStdin = true; } }
   }
-  function detach(id: string) { runtimes.get(id)?.mount.remove(); }
+  function detach(id: string) {
+    const runtime = runtimes.get(id);
+    if (!runtime) return;
+    clearFullSelectionBackground(runtime.selectionHost);
+    runtime.selectionHost = null;
+    runtime.mount.remove();
+  }
   async function close(id: string) {
     const entry = runtimes.get(id); const metadata = tab(id);
     if (!entry || !metadata || entry.closing || metadata.state === 'opening') return false;

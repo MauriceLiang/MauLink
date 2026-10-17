@@ -116,6 +116,7 @@ const appearanceDraft = reactive({
   terminalAppearance: {
     themeMode: "followApp" as TerminalThemeMode,
     customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+    selectionOpacity: defaultSettings.terminalSelectionOpacity,
     backgroundImage: { imageId: null as string | null, fit: "cover" as TerminalBackgroundFit, position: "center" as TerminalBackgroundPosition, imageOpacity: 100, overlayKind: "dark" as TerminalBackgroundOverlayKind, overlayOpacity: 45, blurPx: 0 },
   } satisfies TerminalAppearanceSettings,
 });
@@ -159,6 +160,7 @@ function appearanceBusinessValue(value = appearanceDraft) {
     terminalAppearance: {
       themeMode: value.terminalAppearance.themeMode,
       customColors: { ...value.terminalAppearance.customColors },
+      selectionOpacity: value.terminalAppearance.selectionOpacity,
       backgroundImage: { ...value.terminalAppearance.backgroundImage },
     },
   };
@@ -219,6 +221,7 @@ async function initialize() {
   appearanceDraft.terminalAppearance = {
     themeMode: defaultSettings.terminalThemeMode,
     customColors: structuredClone(defaultSettings.terminalCustomColors),
+    selectionOpacity: defaultSettings.terminalSelectionOpacity,
     backgroundImage: structuredClone(defaultSettings.terminalBackgroundImage),
   };
   if (!props.serverId) { phase.value = "editing"; return; }
@@ -340,6 +343,7 @@ function updateAppearancePanel(value: { labelColor: string | null; terminalOverr
   appearanceDraft.terminalAppearance = {
     themeMode: value.terminalAppearance.themeMode,
     customColors: { ...value.terminalAppearance.customColors },
+    selectionOpacity: value.terminalAppearance.selectionOpacity,
     backgroundImage: { ...value.terminalAppearance.backgroundImage },
   };
 }

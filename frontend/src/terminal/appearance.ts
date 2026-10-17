@@ -13,6 +13,7 @@ export function resolveTerminalAppearance(
     ...globalSettings,
     terminalThemeMode: serverAppearance.terminalAppearance.themeMode,
     terminalCustomColors: serverAppearance.terminalAppearance.customColors,
+    terminalSelectionOpacity: serverAppearance.terminalAppearance.selectionOpacity,
     terminalBackgroundImage: serverAppearance.terminalAppearance.backgroundImage,
   };
 }

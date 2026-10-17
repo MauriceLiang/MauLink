@@ -39,6 +39,8 @@ export const terminalMessages = {
   underline: ["下划线", "Underline"],
   copyOnSelect: ["选中即复制", "Copy on select"],
   copyNote: ["默认关闭。开启后选择终端文本会写入系统剪贴板。", "Off by default. Selecting terminal text writes to the system clipboard when enabled."],
+  selectionOpacity: ["选区不透明度", "Selection opacity"],
+  selectionOpacityNote: ["调整全选和文本选区背景的透明度。", "Adjust the transparency of selected text and full-terminal selections."],
   fontFamily: ["字体", "Font family"],
   scrollbackLines: ["滚动缓冲行数", "Scrollback lines"],
   themeMode: ["终端主题", "Terminal theme"],

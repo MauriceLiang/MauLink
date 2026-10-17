@@ -43,6 +43,7 @@ export function createServerMock(options: { state?: "empty" | "servers"; savedCr
       terminalAppearance: {
         themeMode: "followApp",
         customColors: { background: "#111318", foreground: "#EAECF0", cursor: "#3B82F6", selection: "#3B82F6" },
+        selectionOpacity: 18,
         backgroundImage: { imageId: null, fit: "cover", position: "center", imageOpacity: 100, overlayKind: "dark", overlayOpacity: 45, blurPx: 0 },
       },
       revision: 0,

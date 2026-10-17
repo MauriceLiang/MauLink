@@ -25,7 +25,7 @@ describe('terminal theme resolver', () => {
     }, 'light', false);
     expect(appearance).toEqual({
       mode: 'customColor',
-      theme: { background: '#102030', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.28)' },
+      theme: { background: '#102030', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.18)' },
       transparent: false,
     });
   });
@@ -37,7 +37,7 @@ describe('terminal theme resolver', () => {
       terminalCustomColors: { background: '#102030', foreground: '#E0E0E0', cursor: '#33AAFF', selection: '#7755CC' },
     }, 'light', false);
     expect(appearance.mode).toBe('image');
-    expect(appearance.theme).toEqual({ background: '#00000000', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.28)' });
+    expect(appearance.theme).toEqual({ background: '#00000000', foreground: '#E0E0E0', cursor: '#33AAFF', selectionBackground: 'rgba(119, 85, 204, 0.18)' });
     expect(appearance.transparent).toBe(true);
   });
 });
@@ -49,6 +49,7 @@ describe('per-server terminal appearance resolver', () => {
     terminalAppearance: {
       themeMode: 'dark',
       customColors: { background: '#120000', foreground: '#FEE4E2', cursor: '#D92D20', selection: '#F97066' },
+      selectionOpacity: 28,
       backgroundImage: { imageId: null, fit: 'cover', position: 'center', imageOpacity: 100, overlayKind: 'dark', overlayOpacity: 45, blurPx: 0 },
     },
     revision: 1, updatedAtMs: 1,

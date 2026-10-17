@@ -42,6 +42,13 @@
 .terminal-background-overlay { z-index: 1; }
 .xterm-host, .terminal-empty { position: absolute; z-index: 2; }
 .xterm-host { inset: 0; padding: 12px 14px; }
+.xterm-host[data-terminal-full-selection="true"] { background-color: var(--terminal-full-selection-background, transparent); }
+.xterm-host[data-terminal-full-selection="true"] .xterm-viewport {
+  background-image: linear-gradient(var(--terminal-full-selection-gap-background, var(--terminal-full-selection-background)), var(--terminal-full-selection-gap-background, var(--terminal-full-selection-background))), linear-gradient(var(--terminal-full-selection-gap-background, var(--terminal-full-selection-background)), var(--terminal-full-selection-gap-background, var(--terminal-full-selection-background)));
+  background-repeat: no-repeat;
+  background-position: right top, left bottom;
+  background-size: var(--terminal-full-selection-right-gap, 0px) 100%, calc(100% - var(--terminal-full-selection-right-gap, 0px)) var(--terminal-full-selection-bottom-gap, 0px);
+}
 .terminal-empty { inset: 0; width: fit-content; height: fit-content; }
 .terminal-mount { width: 100%; height: 100%; }
 .terminal-mount .xterm { height: 100%; }
