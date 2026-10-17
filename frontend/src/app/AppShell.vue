@@ -623,9 +623,12 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
             <span class="shell-connection-spinner" aria-hidden="true"></span>
             <p>{{ activeWorkspaceStatus }}</p>
           </section>
-          <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" :title="activeWorkspaceStatus" :description="activeWorkspaceError || undefined">
-            <BaseButton v-if="workspaceUi.activeTab.value.phase === 'failed'" @click="retryActiveWorkspace">{{ t('retry') }}</BaseButton>
-            <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspace', { name: servers.find(item => item.id === workspaceUi.activeTab.value?.serverId)?.name ?? '' }) }}</BaseButton>
+          <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" class="shell-connection-failure" :title="activeWorkspaceStatus">
+            <div class="shell-connection-failure-actions">
+              <BaseButton variant="neutralPrimary" @click="retryActiveWorkspace"><BaseIcon name="refresh" />{{ t('reconnect') }}</BaseButton>
+              <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspaceAction') }}</BaseButton>
+            </div>
+            <p v-if="activeWorkspaceError" class="shell-connection-failure-detail">{{ activeWorkspaceError }}</p>
           </BaseEmptyState>
           <IdleWorkspace v-else-if="!workspaceUi.activeTab.value" :has-servers="servers.length > 0" @add="requestSettingsLeave(() => openEditor())" />
         </template>
