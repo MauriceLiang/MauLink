@@ -31,7 +31,7 @@ const explorerLabel = computed(() => t(props.explorerVisible ? "hideServerResour
       <button type="button" class="palette-trigger" :aria-label="t('commandPalette')" @click="$emit('palette')"><kbd>{{ shortcut }}</kbd></button>
     </div>
     <div class="shell-topbar-actions">
-      <BaseIconButton :label="t('settings')" :disabled="!settingsEnabled" @click="$emit('settings')"><ShellIcon name="settings" /></BaseIconButton>
+      <BaseIconButton :label="t('settings')" :disabled="!settingsEnabled" @click="$emit('settings')"><ShellIcon name="gear" /></BaseIconButton>
       <BaseIconButton :label="t('aboutMauLink')" @click="$emit('about')"><ShellIcon name="info" /></BaseIconButton>
     </div>
   </header>
