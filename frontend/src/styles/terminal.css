@@ -42,8 +42,9 @@
 .terminal-background-overlay { z-index: 1; }
 .xterm-host, .terminal-empty { position: absolute; z-index: 2; }
 .xterm-host { inset: 0; padding: 12px 14px; }
-.xterm-host[data-terminal-full-selection="true"] { background-color: var(--terminal-full-selection-background, transparent); }
-.xterm-host[data-terminal-full-selection="true"] .xterm-viewport { background-color: var(--terminal-full-selection-gap-background, var(--terminal-full-selection-background)) !important; }
+.xterm-host[data-terminal-full-selection="true"]::before { position: absolute; z-index: 0; top: var(--terminal-selection-fill-top); left: var(--terminal-selection-fill-left); width: var(--terminal-selection-fill-width); height: var(--terminal-selection-fill-height); background: var(--terminal-full-selection-gap-background); content: ""; pointer-events: none; }
+.xterm-host[data-terminal-full-selection="true"] > .terminal-mount { position: relative; z-index: 1; }
+.xterm-host[data-terminal-full-selection="true"] .xterm-selection .terminal-selection-fill { position: absolute; z-index: 0; pointer-events: none; }
 .terminal-empty { inset: 0; width: fit-content; height: fit-content; }
 .terminal-mount { width: 100%; height: 100%; }
 .terminal-mount .xterm { height: 100%; }

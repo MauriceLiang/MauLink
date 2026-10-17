@@ -3,4 +3,4 @@ import type { TerminalBackgroundImageSettings } from "./TerminalBackgroundImageS
 import type { TerminalCustomColors } from "./TerminalCustomColors";
 import type { TerminalThemeMode } from "./TerminalThemeMode";
 
-export type TerminalAppearanceSettings = { themeMode: TerminalThemeMode, customColors: TerminalCustomColors, selectionOpacity: number, backgroundImage: TerminalBackgroundImageSettings, };
+export type TerminalAppearanceSettings = { themeMode: TerminalThemeMode, customColors: TerminalCustomColors, selectionOpacity: number, selectionExtent: number, backgroundImage: TerminalBackgroundImageSettings, };

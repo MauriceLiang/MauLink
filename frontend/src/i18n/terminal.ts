@@ -41,6 +41,8 @@ export const terminalMessages = {
   copyNote: ["默认关闭。开启后选择终端文本会写入系统剪贴板。", "Off by default. Selecting terminal text writes to the system clipboard when enabled."],
   selectionOpacity: ["选区不透明度", "Selection opacity"],
   selectionOpacityNote: ["调整全选和文本选区背景的透明度。", "Adjust the transparency of selected text and full-terminal selections."],
+  selectionExtent: ["选区范围", "Selection extent"],
+  selectionExtentNote: ["以终端当前内容占用范围为起点；100% 时铺满终端区域。", "Scales out from the current visible content; 100% fills the terminal pane."],
   fontFamily: ["字体", "Font family"],
   scrollbackLines: ["滚动缓冲行数", "Scrollback lines"],
   themeMode: ["终端主题", "Terminal theme"],

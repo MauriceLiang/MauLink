@@ -47,6 +47,7 @@ function update(patch: Partial<ServerAppearanceDraft>) {
       themeMode: terminalAppearance.themeMode,
       customColors: { ...terminalAppearance.customColors },
       selectionOpacity: terminalAppearance.selectionOpacity,
+      selectionExtent: terminalAppearance.selectionExtent,
       backgroundImage: { ...terminalAppearance.backgroundImage },
     },
   });

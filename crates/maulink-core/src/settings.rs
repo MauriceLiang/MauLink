@@ -19,6 +19,10 @@ pub(crate) fn default_terminal_selection_opacity() -> u8 {
     18
 }
 
+pub(crate) fn default_terminal_selection_extent() -> u8 {
+    100
+}
+
 fn default_image_opacity() -> u8 {
     100
 }
@@ -248,6 +252,8 @@ pub struct AppSettings {
     pub terminal_custom_colors: TerminalCustomColors,
     #[serde(default = "default_terminal_selection_opacity")]
     pub terminal_selection_opacity: u8,
+    #[serde(default = "default_terminal_selection_extent")]
+    pub terminal_selection_extent: u8,
     #[serde(default)]
     pub terminal_background_image: TerminalBackgroundImageSettings,
     #[serde(default = "default_terminal_line_height")]
@@ -284,6 +290,7 @@ impl Default for AppSettings {
             terminal_theme_mode: TerminalThemeMode::FollowApp,
             terminal_custom_colors: TerminalCustomColors::default(),
             terminal_selection_opacity: default_terminal_selection_opacity(),
+            terminal_selection_extent: default_terminal_selection_extent(),
             terminal_background_image: TerminalBackgroundImageSettings::default(),
             terminal_line_height: default_terminal_line_height(),
             terminal_cursor_blink: true,
@@ -432,6 +439,7 @@ pub(crate) fn validate_terminal_appearance(
     mode: TerminalThemeMode,
     colors: &TerminalCustomColors,
     selection_opacity: u8,
+    selection_extent: u8,
     background: &TerminalBackgroundImageSettings,
 ) -> Result<(), AppError> {
     if [
@@ -460,6 +468,12 @@ pub(crate) fn validate_terminal_appearance(
         return Err(validation(
             "terminalSelectionOpacity",
             "errors.terminalSelectionOpacityOutOfRange",
+        ));
+    }
+    if selection_extent > 100 {
+        return Err(validation(
+            "terminalSelectionExtent",
+            "errors.terminalSelectionExtentOutOfRange",
         ));
     }
     if background.image_opacity > 100
@@ -497,6 +511,7 @@ fn validate_settings(settings: &AppSettings) -> Result<(), AppError> {
         settings.terminal_theme_mode,
         &settings.terminal_custom_colors,
         settings.terminal_selection_opacity,
+        settings.terminal_selection_extent,
         &settings.terminal_background_image,
     )?;
     let font_length = settings.terminal_font_family.trim().chars().count();

@@ -14,6 +14,7 @@ export function resolveTerminalAppearance(
     terminalThemeMode: serverAppearance.terminalAppearance.themeMode,
     terminalCustomColors: serverAppearance.terminalAppearance.customColors,
     terminalSelectionOpacity: serverAppearance.terminalAppearance.selectionOpacity,
+    terminalSelectionExtent: serverAppearance.terminalAppearance.selectionExtent,
     terminalBackgroundImage: serverAppearance.terminalAppearance.backgroundImage,
   };
 }

@@ -50,6 +50,7 @@ describe('per-server terminal appearance resolver', () => {
       themeMode: 'dark',
       customColors: { background: '#120000', foreground: '#FEE4E2', cursor: '#D92D20', selection: '#F97066' },
       selectionOpacity: 28,
+      selectionExtent: 100,
       backgroundImage: { imageId: null, fit: 'cover', position: 'center', imageOpacity: 100, overlayKind: 'dark', overlayOpacity: 45, blurPx: 0 },
     },
     revision: 1, updatedAtMs: 1,
