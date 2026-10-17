@@ -64,8 +64,10 @@
 .shell-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: var(--color-bg-app); }
 .shell-main-content { display: grid; min-width: 0; min-height: 0; flex: 1; overflow: auto; background: var(--color-bg-app); }
 .shell-main-content.has-terminal-workspace { display: block; overflow: hidden; }
+.shell-main-content.has-connection-failure { display: flex; }
+.shell-main-content.has-connection-failure > .shell-connection-failure { flex: 1; }
 .shell-main-content > .base-empty-state { align-self: center; margin: var(--space-6); }
-.shell-main-content > .shell-connection-failure { align-self: center; margin: var(--space-6); }
+.shell-main-content > .shell-connection-failure { display: flex; min-height: 0; align-self: stretch; flex-direction: column; align-items: center; justify-content: center; margin: 0; }
 .shell-connection-failure h2 { margin-bottom: 20px; }
 .shell-connection-failure-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .shell-connection-failure-actions .base-icon { width: 16px; height: 16px; }
