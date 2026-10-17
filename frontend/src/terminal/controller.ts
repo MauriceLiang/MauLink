@@ -161,8 +161,6 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     host?.removeAttribute('data-terminal-full-selection');
     host?.style.removeProperty('--terminal-full-selection-background');
     host?.style.removeProperty('--terminal-full-selection-gap-background');
-    host?.style.removeProperty('--terminal-full-selection-right-gap');
-    host?.style.removeProperty('--terminal-full-selection-bottom-gap');
   }
   function syncFullSelectionBackground(runtime: Runtime) {
     const host = runtime.selectionHost;
@@ -181,14 +179,6 @@ export function createTerminalController(api: ReturnType<typeof createTerminalAp
     const selectionBackground = theme?.selectionBackground ?? 'rgba(59, 130, 246, 0.28)';
     host.style.setProperty('--terminal-full-selection-background', selectionBackground);
     host.style.setProperty('--terminal-full-selection-gap-background', compositeSelectionBackground(selectionBackground, theme?.background ?? '#000000'));
-    const viewport = runtime.mount.querySelector<HTMLElement>('.xterm-viewport');
-    const screen = runtime.mount.querySelector<HTMLElement>('.xterm-screen');
-    if (viewport && screen) {
-      const viewportBounds = viewport.getBoundingClientRect();
-      const screenBounds = screen.getBoundingClientRect();
-      host.style.setProperty('--terminal-full-selection-right-gap', `${Math.max(0, viewportBounds.right - screenBounds.right)}px`);
-      host.style.setProperty('--terminal-full-selection-bottom-gap', `${Math.max(0, viewportBounds.bottom - screenBounds.bottom)}px`);
-    }
     host.setAttribute('data-terminal-full-selection', 'true');
   }
   function compositeSelectionBackground(selection: string, background: string) {
