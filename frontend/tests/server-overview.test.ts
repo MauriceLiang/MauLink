@@ -35,7 +35,7 @@ function connectionStore() {
 function hostKeyApi(get: (payload: { host: string; port: number }) => HostKeyRecord | null | Promise<HostKeyRecord | null>) {
   return createHostKeysApi(createIpcClient(createMockIpc({ host_key_get: get })));
 }
-function networkApi(inspect: (payload: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => NetworkInspection | Promise<NetworkInspection>) {
+function networkApi(inspect: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>) {
   return createNetworkApi(createIpcClient(createMockIpc({ network_inspect: inspect })));
 }
 function preflightResult(error: ConnectionPreflightResult["error"] = null, durationMs: number | null = 7): ConnectionPreflightResult {
@@ -62,13 +62,12 @@ function networkResult(host: string, detailed: boolean): NetworkInspection {
     primaryAddress: detailed ? (isAddress ? host : "8.8.8.8") : isAddress ? host : null,
     ipVersion: isAddress || detailed ? "ipv4" : null, scope: isAddress ? "private" : detailed ? "public" : null,
     reverseDns: detailed ? "dns.google" : null,
-    geo: { countryCode: null, countryName: null, region: null, city: null }, asn: null, organization: null,
-    source: detailed ? "systemResolver" : "localAnalysis", databaseUpdatedAtMs: null, databaseSource: null,
+    source: detailed ? "systemResolver" : "localAnalysis",
   };
 }
 function overview(server = profile(), options: {
   getHostKey?: (payload: { host: string; port: number }) => HostKeyRecord | null | Promise<HostKeyRecord | null>;
-  inspect?: (payload: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => NetworkInspection | Promise<NetworkInspection>;
+  inspect?: (payload: { host: string; detailed: boolean }) => NetworkInspection | Promise<NetworkInspection>;
   getStats?: (payload: { serverId: string }) => ServerRuntimeStats | Promise<ServerRuntimeStats>;
 } = {}) {
   return mount(ServerOverview, { props: {
@@ -85,25 +84,6 @@ afterEach(() => {
 });
 
 describe("server overview", () => {
-  it("shows GeoIP place names in the selected application language", async () => {
-    const inspect = vi.fn(({ host, detailed, language }: { host: string; detailed: boolean; language: "zh-CN" | "en" }) => ({
-      ...networkResult(host, detailed),
-      scope: "public" as const,
-      geo: language === "en"
-        ? { countryCode: "HK", countryName: "Hong Kong", region: "Kowloon", city: "Hong Kong" }
-        : { countryCode: "HK", countryName: "中国香港", region: "九龙", city: "香港" },
-    }));
-    const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
-    wrappers.push(wrapper);
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("中国香港 · 九龙 · 香港");
-    locale.value = "en";
-    await flushPromises();
-    expect(inspect).toHaveBeenLastCalledWith({ host: base.host, detailed: true, language: "en" });
-    expect(wrapper.text()).toContain("Hong Kong · Kowloon · Hong Kong");
-  });
-
   it("uses a lightweight back button and avoids a repeated endpoint subtitle", async () => {
     const wrapper = overview(profile({ name: "root@192.168.1.20" }));
     wrappers.push(wrapper);
@@ -356,7 +336,7 @@ describe("server overview", () => {
     const wrapper = mount(NetworkInfoCard, { props: { server: profile(), api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: true, language: "zh-CN" });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "192.168.1.20", detailed: true });
     expect(wrapper.text()).toContain("192.168.1.20");
     expect(wrapper.text()).toContain("IPv4 · Private");
     expect(inspect).toHaveBeenCalledTimes(1);
@@ -365,7 +345,6 @@ describe("server overview", () => {
     await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("dns.google");
-    expect(wrapper.text()).toContain("私有网络地址不提供公网 GeoIP 信息");
   });
 
   it("automatically resolves a hostname when the overview opens", async () => {
@@ -374,13 +353,12 @@ describe("server overview", () => {
     const wrapper = mount(NetworkInfoCard, { props: { server: hostname, api: networkApi(inspect) } });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true, language: "zh-CN" });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: "server.example.com", detailed: true });
     expect(wrapper.get("details").element).toHaveProperty("open", false);
     await wrapper.get("details summary").trigger("click");
     expect(wrapper.get("details").element).toHaveProperty("open", true);
     expect(wrapper.text()).toContain("8.8.8.8");
     expect(wrapper.text()).toContain("反向 DNS");
-    expect(wrapper.text()).toContain("当前来源未返回位置或 ASN 数据");
   });
 
   it("keeps DNS failures in the network card and lets the user retry", async () => {
@@ -393,7 +371,7 @@ describe("server overview", () => {
     await wrapper.get("button").trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("8.8.8.8");
-    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true, language: "zh-CN" });
+    expect(inspect).toHaveBeenLastCalledWith({ host: "server.example.com", detailed: true });
     expect(inspect).toHaveBeenCalledTimes(2);
   });
 
@@ -425,7 +403,7 @@ describe("server overview", () => {
     await buttons[2]!.trigger("click");
     await buttons[3]!.trigger("click");
     await buttons[4]!.trigger("click");
-    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true, language: "zh-CN" });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith({ host: base.host, detailed: true });
     expect(getHostKey).toHaveBeenCalledExactlyOnceWith({ host: base.host, port: base.port });
   });
 
@@ -460,7 +438,7 @@ describe("server overview", () => {
     await flushPromises();
 
     expect(wrapper.get('.server-overview-tab[data-section="network"]').attributes("aria-current")).toBe("true");
-    expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true, language: "zh-CN" });
+    expect(inspect).toHaveBeenNthCalledWith(2, { host: "db.example.test", detailed: true });
     expect(getHostKey).toHaveBeenNthCalledWith(2, { host: "db.example.test", port: 2222 });
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("SHA256:fixture-fingerprint");
   });
@@ -473,7 +451,6 @@ describe("server overview", () => {
     const secondNetwork: NetworkInspection = {
       ...networkResult("b.example.test", true),
       primaryAddress: "203.0.113.10",
-      geo: { countryCode: "ZZ", countryName: "Region B", region: null, city: null },
     };
     const secondTrust = { ...savedHostKey, normalizedHost: "b.example.test", fingerprintSha256: "SHA256:server-b" };
     const inspect = vi.fn(({ host }: { host: string; detailed: boolean }) => host === "a.example.test" ? firstNetwork : Promise.resolve(secondNetwork));
@@ -486,14 +463,13 @@ describe("server overview", () => {
     await wrapper.setProps({ server: profile({ id: "server-b", host: "b.example.test" }) });
     await flushPromises();
     expect(wrapper.findAll(".server-overview-tab").map(button => button.attributes("aria-current"))).toEqual(["true", undefined, undefined, undefined, undefined]);
-    expect(wrapper.text()).toContain("Region B");
+    expect(wrapper.get('[data-summary="network"]').text()).toContain("IPv4 · Public");
     expect(wrapper.text()).toContain("SHA256:server-b");
 
-    resolveFirstNetwork({ ...networkResult("a.example.test", true), geo: { countryCode: "AA", countryName: "Stale A", region: null, city: null } });
+    resolveFirstNetwork(networkResult("a.example.test", true));
     resolveFirstTrust({ ...savedHostKey, fingerprintSha256: "SHA256:stale-a" });
     await flushPromises();
-    expect(wrapper.text()).toContain("Region B");
-    expect(wrapper.text()).not.toContain("Stale A");
+    expect(wrapper.get('[data-summary="network"]').text()).toContain("IPv4 · Public");
     expect(wrapper.text()).toContain("SHA256:server-b");
     expect(wrapper.text()).not.toContain("SHA256:stale-a");
   });
@@ -514,7 +490,7 @@ describe("server overview", () => {
     expect(wrapper.get('[aria-label="安全与身份"]').text()).toContain("尚无已保存的主机身份记录");
   });
 
-  it("summarizes a failed network and trust lookup without inventing GeoIP data", async () => {
+  it("summarizes failed network and trust lookups", async () => {
     const wrapper = overview(profile(), {
       inspect: () => Promise.reject(new Error("network failure")),
       getHostKey: () => Promise.reject(new Error("local storage failure")),
@@ -566,7 +542,7 @@ describe("server overview", () => {
     expect(failed.get('[data-summary="preflight"] dd').text()).toBe("记录不可用");
   });
 
-  it("keeps the existing offline GeoIP settings and address-copy actions available", async () => {
+  it("keeps general network diagnostics and address-copy actions available", async () => {
     const server = profile({ host: "public.example.test" });
     const wrapper = mount(ServerOverview, { props: {
       server, store: connectionStore(), hostKeyApi: hostKeyApi(() => null),
@@ -575,8 +551,8 @@ describe("server overview", () => {
     wrappers.push(wrapper);
     await flushPromises();
     await wrapper.get('.server-overview-tab[data-section="network"]').trigger("click");
-    await wrapper.get(".server-overview-network-configure button").trigger("click");
-    expect(wrapper.emitted("openSettings")).toHaveLength(1);
+    expect(wrapper.text()).not.toContain("国家/地区");
+    expect(wrapper.text()).not.toContain("ASN");
 
     await wrapper.get('[aria-label^="更多服务器操作"]').trigger("click");
     const actions = new DOMWrapper(document.body);

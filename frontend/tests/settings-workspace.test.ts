@@ -31,7 +31,7 @@ function settingsFixture(options: { conflict?: () => boolean; changed?: (record:
   return { current: () => structuredClone(record), update, apply, preferences };
 }
 
-function mountWorkspace(section: 'general' | 'security' | 'appearance' | 'files' | 'network' | 'terminal' | 'language' = 'appearance', options: { conflict?: () => boolean; backgroundImages?: BackgroundImagesApi } = {}) {
+function mountWorkspace(section: 'general' | 'security' | 'appearance' | 'files' | 'terminal' | 'language' = 'appearance', options: { conflict?: () => boolean; backgroundImages?: BackgroundImagesApi } = {}) {
   const fixture = settingsFixture(options);
   const backgroundImages = options.backgroundImages ?? {
     select: vi.fn(async () => null), get: vi.fn(), resolve: vi.fn(), delete: vi.fn(async () => {}),

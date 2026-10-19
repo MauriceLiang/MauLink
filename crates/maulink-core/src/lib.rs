@@ -6,7 +6,6 @@ pub mod contracts;
 pub mod credential_reveal;
 pub mod credentials;
 pub mod error;
-pub mod geoip;
 pub mod host_keys;
 pub mod local_files;
 pub mod monitor;
@@ -37,7 +36,7 @@ pub use contracts::{
     MonitorHistoryPage, MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot,
     MonitorMetricQuality, MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus,
     MonitorRefreshPayload, MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot,
-    NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection, NetworkInspectionSource,
+    NetworkHostKind, NetworkInspectPayload, NetworkInspection, NetworkInspectionSource,
     NetworkIpVersion, NetworkScope, RemoteFileEntry, RemoteFileType, ResourceIdPayload,
     RevisionPayload, ServerAppearancePayload, ServerCreatePayload, ServerDeletePayload,
     ServerProfileDraft, ServerUpdatePayload, SftpCursorPayload, SftpDeletePayload,
@@ -60,10 +59,6 @@ pub use credentials::{
     RetainedCredential, Secret, SecureStore, SecureStoreError, ServerMutationResult,
 };
 pub use error::{AppError, ErrorAction, ErrorCode};
-pub use geoip::{
-    GeoIpDatabase, GeoIpDatabaseConfigure, GeoIpDatabaseImport, GeoIpDatabaseInfo,
-    GeoIpDatabaseSource, GeoIpDatabaseStatus,
-};
 pub use host_keys::{HostKeyCandidate, HostKeyCheck, HostKeyRecord, HostKeyStore, HostKeyVerifier};
 pub use local_files::{
     LocalFilePurpose, LocalFileRegistry, SelectedLocalFile, TerminalBackgroundImageInfo,
@@ -83,10 +78,10 @@ pub use server_runtime_stats::{
     ServerRuntimeStats, ServerRuntimeStatsPayload, ServerRuntimeStatsStore,
 };
 pub use settings::{
-    AccentColor, AppIconStyle, AppSettings, CursorStyle, GeoIpLookupMode, Language, SettingsRecord,
-    SettingsService, SettingsUpdate, SidebarWidth, TerminalBackgroundFit,
-    TerminalBackgroundImageSettings, TerminalBackgroundOverlayKind, TerminalBackgroundPosition,
-    TerminalCustomColors, TerminalThemeMode, Theme, ToastPosition, UiDensity, UpdateChannel,
+    AccentColor, AppIconStyle, AppSettings, CursorStyle, Language, SettingsRecord, SettingsService,
+    SettingsUpdate, SidebarWidth, TerminalBackgroundFit, TerminalBackgroundImageSettings,
+    TerminalBackgroundOverlayKind, TerminalBackgroundPosition, TerminalCustomColors,
+    TerminalThemeMode, Theme, ToastPosition, UiDensity, UpdateChannel,
 };
 pub use sftp::{SftpManager, SftpTransferManager};
 pub use ssh::{SshConnectionManager, SshConnector, SshSession};

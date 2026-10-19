@@ -551,15 +551,6 @@ pub enum NetworkInspectionSource {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct NetworkGeo {
-    pub country_code: Option<String>,
-    pub country_name: Option<String>,
-    pub region: Option<String>,
-    pub city: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
 pub struct NetworkInspection {
     pub input_host: String,
     pub host_kind: NetworkHostKind,
@@ -568,14 +559,7 @@ pub struct NetworkInspection {
     pub ip_version: Option<NetworkIpVersion>,
     pub scope: Option<NetworkScope>,
     pub reverse_dns: Option<String>,
-    pub geo: NetworkGeo,
-    pub asn: Option<String>,
-    pub organization: Option<String>,
     pub source: NetworkInspectionSource,
-    #[ts(type = "number | null")]
-    pub database_updated_at_ms: Option<i64>,
-    #[serde(default)]
-    pub database_source: Option<crate::GeoIpDatabaseSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -583,8 +567,6 @@ pub struct NetworkInspection {
 pub struct NetworkInspectPayload {
     pub host: String,
     pub detailed: bool,
-    #[serde(default)]
-    pub language: crate::Language,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

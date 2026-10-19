@@ -27,7 +27,6 @@ import { createTerminalPreferences, defaultSettings } from "../terminal/preferen
 import TerminalWorkspace from "../components/terminal/TerminalWorkspace.vue";
 import { createConnectionApi } from "../ipc/connection";
 import { createHostKeysApi } from "../ipc/host-keys";
-import { createGeoIpApi } from '../ipc/geoip';
 import { createNetworkApi } from "../ipc/network";
 import { createPreflightApi } from "../ipc/preflight";
 import { applyAccentColor } from "../theme/accent";
@@ -88,8 +87,6 @@ const sidebarVisible = ref(true);
 const transferDrawerOpen = ref(false);
 const hostKeys = createHostKeysApi(props.client);
 const network = createNetworkApi(props.client);
-const geoip = createGeoIpApi(props.client);
-const databaseRevision = ref(0);
 const settingsInitialSection = ref<SettingsSection>('general');
 function openSettings(section: SettingsSection = 'general') { settingsInitialSection.value = section; settingsOpen.value = true; }
 const credentialReveal = createCredentialRevealApi(props.client);
@@ -607,18 +604,18 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
   <div class="application-shell" :class="{ 'terminal-focused': focused, 'is-explorer-hidden': !sidebarVisible }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
     <TopBar v-model:query="query" :shortcut="shortcut" :settings-enabled="!readOnly" :explorer-visible="sidebarVisible" @about="requestSettingsLeave(() => { about = true; })" @settings="openSettings()" @palette="paletteOpen = true" @toggle-explorer="toggleSidebar" />
     <div class="shell-content" :class="{ 'is-explorer-hidden': !sidebarVisible }">
-      <SettingsSidebar v-if="settingsOpen" :section="settingsInitialSection" :has-geo-ip="!!geoip" :busy="settingsSidebarBusy" @update:section="settingsInitialSection = $event" @back="requestSettingsLeave()" />
+      <SettingsSidebar v-if="settingsOpen" :section="settingsInitialSection" :busy="settingsSidebarBusy" @update:section="settingsInitialSection = $event" @back="requestSettingsLeave()" />
       <Sidebar v-else v-show="sidebarVisible" v-model:query="query" :servers="servers" :groups="groups" :snapshots="connections.snapshots.value" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
       <main class="shell-main" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId }" :aria-busy="pending">
         <DesktopWorkspaceTabs v-if="!settingsOpen" :tabs="workspaceTabItems" :active-key="workspaceUi.activeServerId.value" @select="workspaceUi.select($event); diagnosticServerId = null" @close="closeWorkspace" />
         <div class="shell-main-content" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId, 'has-connection-failure': workspaceUi.activeTab.value?.phase === 'failed' && activeSnapshot?.state !== 'ready' }">
-        <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" :updater="updaterController" :current-version="info?.version ?? '—'" :update-install-busy="updateInstallBusy" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @database-changed="databaseRevision++" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" @update-install-request="requestUpdateInstall" @update-install-deferred="deferUpdateInstall" />
+        <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :credential-reveal="credentialReveal" :updater="updaterController" :current-version="info?.version ?? '—'" :update-install-busy="updateInstallBusy" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" @update-install-request="requestUpdateInstall" @update-install-deferred="deferUpdateInstall" />
         <template v-else>
           <BaseEmptyState v-if="pending" :title="t('loadingLocalData')" />
           <BaseEmptyState v-else-if="error" :title="t('localServiceUnavailable')" :description="error.message">
             <BaseButton @click="load">{{ t('retry') }}</BaseButton>
           </BaseEmptyState>
-          <ServerOverview v-else-if="diagnosticServerId && selected" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
+          <ServerOverview v-else-if="diagnosticServerId && selected" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
           <section v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready' && workspaceUi.activeTab.value.phase !== 'failed'" class="shell-connection-progress" role="status" aria-live="polite" aria-busy="true">
             <span class="shell-connection-spinner" aria-hidden="true"></span>
             <p>{{ activeWorkspaceStatus }}</p>

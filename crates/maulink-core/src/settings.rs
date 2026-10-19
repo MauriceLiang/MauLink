@@ -206,14 +206,6 @@ pub enum CursorStyle {
     Bar,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum GeoIpLookupMode {
-    #[default]
-    LocalDatabase,
-    Online,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateChannel {
@@ -227,8 +219,6 @@ pub struct AppSettings {
     pub theme: Theme,
     #[serde(default)]
     pub update_channel: Option<UpdateChannel>,
-    #[serde(default)]
-    pub geo_ip_lookup_mode: GeoIpLookupMode,
     #[serde(default)]
     pub app_icon_style: AppIconStyle,
     #[serde(default)]
@@ -275,7 +265,6 @@ impl Default for AppSettings {
         Self {
             theme: Theme::System,
             update_channel: None,
-            geo_ip_lookup_mode: GeoIpLookupMode::LocalDatabase,
             app_icon_style: AppIconStyle::Light,
             accent_color: AccentColor::Blue,
             custom_accent_color: None,
@@ -741,12 +730,11 @@ mod tests {
         object.remove("terminalThemeMode");
         object.remove("terminalCustomColors");
         object.remove("terminalBackgroundImage");
-        object.remove("geoIpLookupMode");
         object.remove("terminalLineHeight");
         object.remove("terminalCursorBlink");
+        object.insert("geoIpLookupMode".to_owned(), serde_json::json!("online"));
         let old: AppSettings = serde_json::from_value(value.clone()).expect("old settings");
         assert_eq!(old.app_icon_style, AppIconStyle::Light);
-        assert_eq!(old.geo_ip_lookup_mode, GeoIpLookupMode::LocalDatabase);
         assert_eq!(old.accent_color, AccentColor::Blue);
         assert_eq!(old.custom_accent_color, None);
         assert_eq!(old.ui_density, UiDensity::Standard);

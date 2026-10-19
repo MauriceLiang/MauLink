@@ -146,7 +146,7 @@ async function prepare(tab, item, locale) {
     'settings-general':['断开连接前确认','Confirm before disconnecting'],
     'settings-security':['禁止查看明文','Disable plaintext viewing'],
     'settings-appearance':['应用图标样式','App icon style'], 'settings-terminal':['滚动缓冲行数','Scrollback lines'],
-    'settings-files':['显示大小列','Show size column'], 'settings-network':['IP 信息查询方式','IP information lookup method'],
+    'settings-files':['显示大小列','Show size column'],
     'settings-language':['中文','English'], palette:['combobox','combobox'],
     'terminal-light':['Shell 就绪','Shell ready'], 'terminal-dark':['Shell 就绪','Shell ready'],
     'terminal-custom':['Shell 就绪','Shell ready'], 'terminal-image':['Shell 就绪','Shell ready'],

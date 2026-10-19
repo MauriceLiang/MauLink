@@ -7,10 +7,10 @@ import BaseIcon from '../../components/base/BaseIcon.vue';
 import type { SettingsSection } from './settings-navigation';
 import { settingsNavigation } from './settings-navigation';
 
-const props = defineProps<{ section: SettingsSection; hasGeoIp: boolean; busy?: boolean }>();
+const props = defineProps<{ section: SettingsSection; busy?: boolean }>();
 const emit = defineEmits<{ 'update:section': [section: SettingsSection]; back: [] }>();
 const t = messages(settingsMessages);
-const items = computed(() => settingsNavigation(props.hasGeoIp));
+const items = computed(() => settingsNavigation());
 </script>
 
 <template>
