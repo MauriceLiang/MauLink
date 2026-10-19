@@ -1,8 +1,8 @@
-export type SettingsSection = 'general' | 'security' | 'appearance' | 'files' | 'network' | 'terminal' | 'language';
+export type SettingsSection = 'general' | 'security' | 'appearance' | 'files' | 'terminal' | 'language';
 
 export type SettingsNavigationItem = {
   id: SettingsSection;
-  label: 'general' | 'securityPrivacy' | 'appearance' | 'files' | 'network' | 'terminal' | 'language';
+  label: 'general' | 'securityPrivacy' | 'appearance' | 'files' | 'terminal' | 'language';
 };
 
 const items: SettingsNavigationItem[] = [
@@ -10,11 +10,10 @@ const items: SettingsNavigationItem[] = [
   { id: 'security', label: 'securityPrivacy' },
   { id: 'appearance', label: 'appearance' },
   { id: 'files', label: 'files' },
-  { id: 'network', label: 'network' },
   { id: 'terminal', label: 'terminal' },
   { id: 'language', label: 'language' },
 ];
 
-export function settingsNavigation(hasGeoIp: boolean) {
-  return items.filter(item => item.id !== 'network' || hasGeoIp);
+export function settingsNavigation() {
+  return items;
 }

@@ -9,14 +9,14 @@ use maulink_core::{
     ConnectionStartPayload, ConnectionStartSource, ConnectionState, CredentialDeleteResult,
     CredentialKind, CredentialReplaceResult, CredentialRevealPolicy, CredentialRevealResult,
     CredentialRevealTarget, CredentialUpdate, CursorStyle, DecimalU64, EmptyPayload,
-    EnableDirectPayload, EnableProtectedPayload, GeoIpLookupMode, Group, GroupCreate, GroupUpdate,
+    EnableDirectPayload, EnableProtectedPayload, Group, GroupCreate, GroupUpdate,
     GroupUpdatePayload, HostKeyChallenge, HostKeyDecision, HostKeyGetPayload, HostKeyRecord,
     HostKeyRespondPayload, Language, LocalFilePurpose, LocalFileSelectPayload, MonitorCpuSnapshot,
     MonitorDiskSnapshot, MonitorGetHistoryPayload, MonitorGetSnapshotPayload, MonitorHistoryMetric,
     MonitorHistoryPage, MonitorHistorySample, MonitorLoadSnapshot, MonitorMemorySnapshot,
     MonitorMetricQuality, MonitorNetworkInterface, MonitorNetworkSnapshot, MonitorQualityStatus,
     MonitorRefreshPayload, MonitorSnapshot, MonitorSystemSnapshot, MonitorUptimeSnapshot,
-    NegotiatedAlgorithms, NetworkGeo, NetworkHostKind, NetworkInspectPayload, NetworkInspection,
+    NegotiatedAlgorithms, NetworkHostKind, NetworkInspectPayload, NetworkInspection,
     NetworkInspectionSource, NetworkIpVersion, NetworkScope, ProxyType, RecoverRevealPolicyPayload,
     RemoteFileEntry, RemoteFileType, ResourceIdPayload, RetainedCredential, RevealMode,
     RevisionPayload, SelectedLocalFile, ServerAppearance, ServerAppearancePayload,
@@ -43,9 +43,6 @@ fn main() -> Result<(), ts_rs::ExportError> {
     let config = Config::new().with_out_dir(output);
 
     AppInfo::export_all(&config)?;
-    maulink_core::GeoIpDatabaseStatus::export_all(&config)?;
-    maulink_core::GeoIpDatabaseConfigure::export_all(&config)?;
-    maulink_core::GeoIpDatabaseImport::export_all(&config)?;
     AppError::export_all(&config)?;
     DecimalU64::export_all(&config)?;
     Group::export_all(&config)?;
@@ -59,7 +56,6 @@ fn main() -> Result<(), ts_rs::ExportError> {
     UiDensity::export_all(&config)?;
     SidebarWidth::export_all(&config)?;
     ToastPosition::export_all(&config)?;
-    GeoIpLookupMode::export_all(&config)?;
     UpdateChannel::export_all(&config)?;
     AccentColor::export_all(&config)?;
     SettingsRecord::export_all(&config)?;
@@ -97,7 +93,6 @@ fn main() -> Result<(), ts_rs::ExportError> {
     NetworkIpVersion::export_all(&config)?;
     NetworkScope::export_all(&config)?;
     NetworkInspectionSource::export_all(&config)?;
-    NetworkGeo::export_all(&config)?;
     NetworkInspection::export_all(&config)?;
     NetworkInspectPayload::export_all(&config)?;
     ConnectionPreflightError::export_all(&config)?;

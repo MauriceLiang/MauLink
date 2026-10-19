@@ -52,20 +52,6 @@
 
 .palette-results button:hover:not(:disabled) { background: var(--color-bg-hover); }
 .palette-results button[aria-selected="true"]:hover:not(:disabled) { background: var(--color-primary-soft-hover); }
-.geoip-settings { display: grid; gap: 14px; }
-.geoip-settings h3, .geoip-settings p { margin: 0; }
-.geoip-intro { font-size: 13px; }
-.geoip-status { border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
-.geoip-database-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 14px; }
-.geoip-database-row + .geoip-database-row { border-top: 1px solid var(--color-border); }
-.geoip-database-row > div { display: grid; min-width: 0; gap: 5px; }
-.geoip-database-row strong { font-size: 12.5px; font-weight: 600; }
-.geoip-database-row span { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
-.geoip-database-date { flex: none; }
-.geoip-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.geoip-note, .geoip-attribution { font-size: 11.5px; }
-.geoip-attribution a { color: var(--color-text-secondary); }
-.geoip-settings .geoip-completed { color: var(--color-success); font-size: 12px; }
 .settings-security { display: grid; gap: 14px; }
 .settings-security h3, .settings-security h4, .settings-security p { margin: 0; }
 .settings-security h4 { color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
@@ -149,7 +135,7 @@
 @media (prefers-reduced-motion: reduce) { .update-settings__progress-fill.is-indeterminate { animation: none; transform: translateX(8%); } }
 @media (max-width: 640px) { .update-settings__channel-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
 .settings-workspace [role="alert"] { margin-top: 14px; }
-.settings-workspace .settings-security > h3, .settings-workspace .geoip-settings > h3 { display: none; }
+.settings-workspace .settings-security > h3 { display: none; }
 .settings-workspace > .base-dialog { max-width: min(460px, calc(100vw - 32px)); }
 @media (max-width: 760px) {
   .settings-workspace__header { padding-inline: 20px; }

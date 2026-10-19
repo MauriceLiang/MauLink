@@ -9,7 +9,6 @@ import { messages } from '../../i18n/locale';
 import { settingsMessages } from '../../i18n/settings';
 import { defaultSettings, type TerminalPreferences } from '../../terminal/preferences';
 import type { BackgroundImagesApi } from '../../ipc/background-images';
-import type { GeoIpApi } from '../../ipc/geoip';
 import type { CredentialRevealApi } from '../../ipc/credential-reveal';
 import { accentPresetColors } from '../../theme/accent';
 import BaseAlert from '../../components/base/BaseAlert.vue';
@@ -18,7 +17,6 @@ import BaseIcon from '../../components/base/BaseIcon.vue';
 import BaseSelect from '../../components/base/BaseSelect.vue';
 import BaseSwitch from '../../components/base/BaseSwitch.vue';
 import BaseDialog from '../../components/base/BaseDialog.vue';
-import GeoIpSettingsSection from '../../components/server-overview/GeoIpSettingsSection.vue';
 import SecuritySettingsSection from '../../components/security/SecuritySettingsSection.vue';
 import UpdateSettingsSection from '../../components/update/UpdateSettingsSection.vue';
 import TerminalSettingsSection from './TerminalSettingsSection.vue';
@@ -35,25 +33,23 @@ const props = defineProps<{
   updater?: UpdaterController;
   currentVersion?: string;
   updateInstallBusy?: boolean;
-  geoip?: GeoIpApi;
   credentialReveal?: CredentialRevealApi;
 }>();
-const emit = defineEmits<{ 'update:section': [section: SettingsSection]; leave: []; leaveCancelled: []; saved: []; databaseChanged: []; busyChange: [busy: boolean]; updateInstallRequest: []; updateInstallDeferred: [] }>();
+const emit = defineEmits<{ 'update:section': [section: SettingsSection]; leave: []; leaveCancelled: []; saved: []; busyChange: [busy: boolean]; updateInstallRequest: []; updateInstallDeferred: [] }>();
 const t = messages(settingsMessages);
 const savedSettings = ref<AppSettings>(cloneSettings(defaultSettings));
 const draft = reactive<AppSettings>(cloneSettings(defaultSettings));
 const savedCopyOnSelect = ref(false);
 const copyOnSelect = ref(false);
 const resetKey = ref(0);
-const databaseBusy = ref(false);
 const reloadDialogOpen = ref(false);
 const terminalSection = ref<InstanceType<typeof TerminalSettingsSection> | null>(null);
 const autoSaveReady = ref(false);
 const dirty = computed(() => JSON.stringify(draft) !== JSON.stringify(savedSettings.value) || copyOnSelect.value !== savedCopyOnSelect.value);
 const resolvedUpdateChannel = computed(() => resolveUpdateChannel(draft.updateChannel, props.currentVersion ?? '—'));
 const updateChannelSaved = computed(() => draft.updateChannel === savedSettings.value.updateChannel);
-const regularSection = computed(() => props.section !== 'security' && props.section !== 'network');
-const busy = computed(() => props.preferences.busy.value || databaseBusy.value || !!terminalSection.value?.busy);
+const regularSection = computed(() => props.section !== 'security');
+const busy = computed(() => props.preferences.busy.value || !!terminalSection.value?.busy);
 const accentColorKeys: Record<AccentColor, keyof typeof settingsMessages> = { blue: 'accentBlue', indigo: 'accentIndigo', purple: 'accentPurple', green: 'accentGreen', orange: 'accentOrange', red: 'accentRed', custom: 'accentCustom' };
 const toastPositions: ToastPosition[] = ['topLeft', 'topCenter', 'topRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
 const toastPositionKeys: Record<ToastPosition, keyof typeof settingsMessages> = { topLeft: 'toastTopLeft', topCenter: 'toastTopCenter', topRight: 'toastTopRight', bottomLeft: 'toastBottomLeft', bottomCenter: 'toastBottomCenter', bottomRight: 'toastBottomRight' };
@@ -64,7 +60,6 @@ const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessage
   security: { title: 'securityPrivacy', description: 'securityDescription' },
   appearance: { title: 'appearance', description: 'appearanceDescription' },
   files: { title: 'files', description: 'filesDescription' },
-  network: { title: 'network', description: 'networkDescription' },
   terminal: { title: 'terminal', description: 'terminalDescription' },
   language: { title: 'language', description: 'languageDescription' },
 };
@@ -190,7 +185,7 @@ function saveSettings() {
   return task;
 }
 async function commitPendingSettings() {
-  if (!autoSaveReady.value || databaseBusy.value || terminalSection.value?.busy || (props.preferences.busy.value && !activeSave)) {
+  if (!autoSaveReady.value || terminalSection.value?.busy || (props.preferences.busy.value && !activeSave)) {
     return false;
   }
   clearAutoSaveTimer();
@@ -219,7 +214,7 @@ async function confirmReload() {
   await nextTick();
   autoSaveReady.value = true;
 }
-defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.value; }, get databaseBusy() { return databaseBusy.value; } });
+defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.value; } });
 </script>
 
 <template>
@@ -245,7 +240,6 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
           <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :channel="resolvedUpdateChannel" :channel-saved="updateChannelSaved" :install-busy="updateInstallBusy || preferences.busy.value || !preferences.record.value" @update:channel="draft.updateChannel = $event" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />
           <section v-show="section === 'terminal'" class="settings-workspace-section"><TerminalSettingsSection ref="terminalSection" :settings="draft" :saved-settings="savedSettings" :copy-on-select="copyOnSelect" :reset-key="resetKey" :busy="preferences.busy.value || !preferences.record.value" :background-images="backgroundImages" @update:settings="updateTerminalSettings" @update:copy-on-select="copyOnSelect = $event" /></section>
           <SecuritySettingsSection v-if="section === 'security' && credentialReveal" :active="active" :api="credentialReveal" />
-          <GeoIpSettingsSection v-if="section === 'network' && geoip" v-model:lookup-mode="draft.geoIpLookupMode" :api="geoip" :disabled="preferences.busy.value || !preferences.record.value" @changed="emit('databaseChanged')" @busy="databaseBusy = $event" />
         </form>
         <BaseAlert v-if="preferences.error.value && regularSection" role="alert">{{ preferences.error.value }}</BaseAlert>
         <BaseButton v-if="preferences.error.value && regularSection" variant="secondary" :disabled="busy" @click="reloadDialogOpen = true">{{ t('reload') }}</BaseButton>

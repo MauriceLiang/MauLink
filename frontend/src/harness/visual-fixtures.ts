@@ -1,4 +1,3 @@
-import type { GeoIpDatabaseStatus } from '../../../contracts/v1/GeoIpDatabaseStatus';
 import type { Channel } from '@tauri-apps/api/core';
 import type { ConnectionSnapshot } from '../../../contracts/v1/ConnectionSnapshot';
 import type { Group } from '../../../contracts/v1/Group';
@@ -139,8 +138,6 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
       : [];
   const fileCursors = new Map<string, { path: string; entries: RemoteFileEntry[]; offset: number }>();
   const monitorStatus = config.page === 'monitor-unavailable' ? 'unsupported' : config.page === 'monitor-stale' ? 'stale' : config.page === 'monitor-error' ? 'error' : 'ok';
-  let geoip: GeoIpDatabaseStatus = { location: null, asn: null, automaticUpdates: false, updateIntervalDays: 30, lastCheckedAtMs: null, lastError: null };
-  const databaseInfo = (kind: string, source: 'dbIp' | 'local') => ({ fileName: `${source}-${kind}.mmdb`, databaseType: `${source}-${kind}`, buildAtMs: visualEpoch, source, available: true });
   const transport = createMockIpc({
     app_get_info: () => appInfo,
     group_list: () => visualGroupsFor(config.page),
@@ -168,30 +165,7 @@ export function createVisualMock(config: VisualConfig, appVersion = shellAppInfo
       return { asset: structuredClone(visualBackgroundImage), localPath: visualBackgroundImageUrl };
     },
     host_key_get: ({ host, port }) => config.page === 'server-overview' ? ({ normalizedHost: host.toLowerCase(), port, algorithm: 'ssh-ed25519', fingerprintSha256: 'SHA256:visual-saved-host-fingerprint', revision: 1, trustedAtMs: visualEpoch - 7 * 24 * 60 * 60 * 1000 }) : null,
-    geoip_database_get: () => structuredClone(geoip),
-    geoip_database_configure: ({ updateIntervalDays }) => { geoip.updateIntervalDays = updateIntervalDays; return structuredClone(geoip); },
-    geoip_database_update: () => { geoip = { ...geoip, location: databaseInfo('City', 'dbIp'), asn: databaseInfo('ASN', 'dbIp'), automaticUpdates: true, lastCheckedAtMs: visualEpoch }; return structuredClone(geoip); },
-    geoip_database_import: () => { geoip = { ...geoip, location: databaseInfo('City', 'local'), automaticUpdates: false }; return structuredClone(geoip); },
-    geoip_database_delete: () => { geoip = { ...geoip, location: null, asn: null, automaticUpdates: false, lastCheckedAtMs: null, lastError: null }; return structuredClone(geoip); },
-    local_file_select: ({ purpose }) => purpose === 'geoIpDatabase' ? { token: 'visual-mmdb', displayName: 'local-City.mmdb', purpose, expiresAtMs: 4102444800000 } : null,
-    network_inspect: ({ host, detailed, language }) => {
-      const result = networkFixture(host, detailed);
-      if (detailed && result.scope === 'public' && settings.value.geoIpLookupMode === 'online') {
-        result.geo = language === 'en'
-          ? { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' }
-          : { countryCode: 'US', countryName: '美国', region: '加利福尼亚州', city: '山景城' };
-        result.asn = 'AS15169'; result.organization = 'Google LLC';
-        return result;
-      }
-      if (detailed && result.scope === 'public' && geoip.location) {
-        result.geo = language === 'en'
-          ? { countryCode: 'US', countryName: 'United States', region: 'California', city: 'Mountain View' }
-          : { countryCode: 'US', countryName: '美国', region: '加利福尼亚州', city: '山景城' };
-        result.asn = geoip.asn ? 'AS15169' : null; result.organization = geoip.asn ? 'Google LLC' : null;
-        result.databaseUpdatedAtMs = visualEpoch; result.databaseSource = geoip.asn?.source === 'dbIp' ? 'dbIp' : geoip.location.source;
-      }
-      return result;
-    },
+    network_inspect: ({ host, detailed }) => networkFixture(host, detailed),
     connection_preflight: ({ host }) => preflightFixture(host),
     settings_get: () => structuredClone(settings),
     settings_update: ({ expectedRevision, value }) => { if (expectedRevision !== settings.revision) throw fixtureError('REVISION_CONFLICT', 'errors.revisionConflict'); settings = { value: structuredClone(value), revision: settings.revision + 1, updatedAtMs: visualEpoch }; return structuredClone(settings); },

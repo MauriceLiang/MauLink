@@ -1,102 +1,59 @@
 # MauLink 构建与发布
 
-本文说明 MauLink 的 PR 检查、跨平台安装包构建和自动 GitHub Release 流程。首期目标是 macOS Apple Silicon、macOS Intel 与 Windows x64。Packaging Smoke 在 PR 或手动触发时构建并检查三个平台的安装包，上传保留 7 天的测试产物；版本递增的 PR 合并到 `main` 后，发布工作流会自动构建并公开 Release。Linux、Windows ARM64、可信代码签名和公证不在本期支持范围。应用内更新界面与本地交互已接入，但没有真实更新地址和受信公钥，在线更新尚未启用；详见 [UPDATING.md](UPDATING.md)。
+本次改造移除了仓库中的全部 GitHub Actions 工作流。该改造合并后，推送分支、创建 PR 或推送 Tag 都不会自动运行检查、构建、上传产物、创建 Release 或部署应用内更新索引。维护者负责在对应平台手动编译，并在 GitHub Releases 手动上传安装包。
 
-应用内更新功能 PR 不递增产品版本、不创建 Tag 或 Release。待真实更新地址、签名密钥托管和平台验收准备好后，由负责人另行安排版本递增发布；不要把本地构建或 Packaging Smoke 产物当作已公开的在线更新包。
+应用内更新界面与本地交互已接入，但真实更新地址和受信公钥尚未配置，在线更新仍未启用。手动上传 GitHub Release 不会自动发布 Stable/Preview 索引，也不会使应用内更新生效；详见 [UPDATING.md](UPDATING.md)。不要伪造 `.sig`、`stable.json` 或 `preview.json`。
 
-## 首次启用
+## 版本准备
 
-1. 在 GitHub 仓库确认 `Settings → Actions → General` 允许本仓库工作流运行，并查看 Actions 使用量、缓存和 14 天构建产物保留所产生的费用或配额影响。
-2. 将 `CI` 工作流的以下状态检查设置为 `main` 的 required checks：
-   - `Frontend / typecheck / unit / build`
-   - `Rust Core / fmt / clippy / test`
-   - `Desktop check / macos-15`
-   - `Desktop check / windows-2025`
-3. 首次 PR 成功运行后再设置 required checks；状态检查名称以 GitHub 展示的实际 job 名称为准。
-4. PR 工作流只需要 `contents: read`。仅发布 job 获得 `contents: write`；它只在版本递增合入 `main` 后运行。不要使用 `pull_request_target` 执行 PR 代码，不要把发布 Token、证书或更新私钥传给 PR job。
-
-工作流使用 GitHub-hosted `ubuntu-24.04`、`macos-15`、`macos-15-intel` 和 `windows-2025`。Action 使用 `actions/checkout@v7`、`actions/setup-node@v7`、`actions/upload-artifact@v7` 和 `actions/download-artifact@v8`；升级这些版本时先核对官方兼容说明及 Runner 要求。
-
-## PR 与版本准备
-
-功能和修复通过 PR 合入 `main`。PR 及 `main` 推送会运行前端类型检查、单元测试、Vite 构建、视觉 manifest 校验、版本检查器测试、Rust 格式检查、Core Clippy 与测试，并在 macOS/Windows 检查桌面 crate。视觉 manifest 检查读取现有截图和清单，不会在 CI 中重新截图，也不代表所有平台都做过视觉验收。
-
-每个要发布的 PR 都应同步递增版本号。版本号以根 `Cargo.toml` 的 `[workspace.package].version` 为基准，并同步到 `src-tauri/tauri.conf.json`、`frontend/package.json` 和 `frontend/package-lock.json`。例如准备 `0.1.1-rc.1`：
+以根 `Cargo.toml` 的 `[workspace.package].version` 为版本基准，并同步更新 `src-tauri/tauri.conf.json`。运行以下命令更新前端 package 和 lockfile：
 
 ```bash
-# 在版本 PR 中将根 Cargo.toml 的 workspace.package.version 改为 0.1.1-rc.1
-npm --prefix frontend version 0.1.1-rc.1 --no-git-tag-version
-# 同步 src-tauri/tauri.conf.json 的 version 为 0.1.1-rc.1
+npm --prefix frontend version 0.1.1-rc.34 --no-git-tag-version
 cargo check --workspace
 cargo check --workspace --locked
-node tools/check-release-version.mjs v0.1.1-rc.1
+node tools/check-release-version.mjs v0.1.1-rc.34
 ```
 
-检查并提交 `Cargo.lock` 中 MauLink 自身 package 的版本变化；确认没有无关依赖升级。`check-release-version.mjs` 也检查严格的 `vX.Y.Z` / `vX.Y.Z-rc.N` SemVer 标签、npm lock 根版本以及正式应用标识 `io.maulink.desktop`。不要为测试构建更改正式标识、应用数据目录或凭据行为。
+先把根 Cargo 和 Tauri 配置版本改为同一新版本，再运行检查。确认 `Cargo.lock` 只包含 MauLink 自身版本变化，没有无关依赖升级。版本检查器会核对 SemVer、npm lock 根版本和应用标识 `io.maulink.desktop`。不要为测试构建更改正式应用标识、应用数据目录或凭据行为。
 
-版本递增 PR 合并到 `main` 后，`release.yml` 会校验版本、运行发布检查、构建三个平台的安装包，并在所有附件上传成功后自动公开 Release。它会在合并提交上创建与版本匹配的 `vX.Y.Z` 或 `vX.Y.Z-rc.N` 标签；无需手动打 Tag 或点击发布。未改变应用版本号的普通合并会跳过发布。重复使用已存在的版本标签会让工作流失败，必须先递增版本。
+## 手动构建安装包
 
-## 自动构建与发布
-
-`release.yml` 先校验 Tag、版本、前端、视觉清单、Rust 格式和 Core 测试，再分别在原生 Runner 构建：
-
-| 平台 | Rust target | Release 附件 |
-| --- | --- | --- |
-| macOS Apple Silicon | `aarch64-apple-darwin` | `.dmg` 安装包、`.app.tar.gz` 更新包及其 `.sig` |
-| macOS Intel | `x86_64-apple-darwin` | `.dmg` 安装包、`.app.tar.gz` 更新包及其 `.sig` |
-| Windows x64 | `x86_64-pc-windows-msvc` | `.msi` 安装包及其 `.sig` |
-
-签名版本发布还要求先启用 GitHub Pages（`Settings → Pages → Source = GitHub Actions`）和 `maulink-updater-release` Environment。该 Environment 必须限制到 `main` 并由负责人配置 required reviewers；其中放置 `TAURI_SIGNING_PRIVATE_KEY` 及可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。仓库 Actions Variables 提供 `MAULINK_UPDATER_PUBLIC_KEY`。PR 与 Packaging Smoke 不读取签名私钥。
-
-发布前置检查会验证 Pages 已启用，然后三个原生构建 job 才可读取 Environment 私钥。每个平台必须同时生成对应安装包和 updater 签名；Release job 核对 8 个平台文件并生成 `SHA256SUMS`，创建 Draft 并在上传完成后自动公开。随后独立 job 使用公钥复验三平台签名、检查 GitHub Release 下载地址，按 SemVer 仅更新 Stable 或 Preview 对应的 Pages JSON 索引。索引部署成功前，应用内更新不能取得新版本。版本包含预发布标识（例如 `-rc.8`）时，Release 会标记为 prerelease。Release 和 Tag 创建失败会让工作流失败，不会覆盖已有版本。
-
-Updater `.sig` 用于 Tauri 包完整性和发布者验证，不是 Apple Developer ID / 公证或 Windows Authenticode 签名。Mac 应用仍为 ad-hoc 签名且未公证，Windows MSI 仍未做 Authenticode 可信签名。
-
-macOS 构建使用 `APPLE_SIGNING_IDENTITY='-'` 进行 ad-hoc 签名且**未公证**。Windows MSI 当前**未做 Authenticode 可信签名**。这些产物是供验收的测试包，不应描述成已获得普通用户可信分发能力。PR Smoke 不使用任何签名 Secret；正式 Release 使用 Tauri Updater 密钥，但不需要 Apple 或 Windows 代码签名证书。
-
-## 下载与验收
-
-工作流成功后，从 GitHub Releases 下载附件，并先在下载目录校验哈希。更新设置索引默认部署于 `https://mauriceliang.github.io/MauLink/updates/stable.json` 与 `preview.json`。macOS：
+在对应平台的原生环境中安装前端依赖和 Rust target，再运行对应命令。Tauri 的 `beforeBuildCommand` 会构建前端：
 
 ```bash
-shasum -a 256 -c SHA256SUMS
+npm --prefix frontend ci
+
+# macOS Apple Silicon
+CI=true cargo tauri build --target aarch64-apple-darwin --bundles dmg --ci -- --locked
+
+# macOS Intel（需安装 x86_64-apple-darwin target）
+CI=true cargo tauri build --target x86_64-apple-darwin --bundles dmg --ci -- --locked
+
+# Windows x64（在 Windows x64 原生环境执行）
+node tools/write-msi-config.mjs
+cargo tauri build --config src-tauri/tauri.release-windows.conf.json --target x86_64-pc-windows-msvc --bundles msi --ci -- --locked
 ```
 
-Windows PowerShell：
+安装包输出在 `target/<Rust target>/release/bundle/{dmg,msi}/`。Windows 临时 MSI 配置用于把 RC 版本映射为 Windows Installer 支持的 `ProductVersion`；它由脚本生成，不要提交生成文件。构建后核对应用版本、CPU 架构和安装包格式。macOS 包使用 ad-hoc 签名且未公证；Windows MSI 未做 Authenticode 可信签名。
 
-```powershell
-Get-Content .\SHA256SUMS | ForEach-Object {
-  $expected, $name = $_ -split '\s+', 2
-  $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $name).Hash.ToLowerInvariant()
-  if ($actual -ne $expected) { throw "SHA-256 mismatch: $name" }
-}
-```
+## 手动上传与验收
 
-在测试账户安装前，先备份 MauLink 应用数据。使用对应 CPU 架构的安装包，记录操作系统版本、安装和启动结果、警告、关键功能及覆盖安装后的资料留存情况。测试至少覆盖 SSH、SFTP、Terminal、Monitor、原生文件选择和系统凭据读取。macOS 可能因 ad-hoc 签名/隔离属性阻止启动；Windows 可能显示 SmartScreen 警告。**不要要求用户关闭系统安全功能，也不要把未签名或未公证的状态说成已通过。**
+在 GitHub Releases 页面手动创建与应用版本一致的 Tag 和 Release，RC 版本勾选 prerelease，上传对应平台安装包及 `SHA256SUMS`。macOS 可用 `shasum -a 256 <安装包...> > SHA256SUMS` 生成校验清单；下载后使用 `shasum -a 256 -c SHA256SUMS` 校验。记录版本、操作系统、CPU 架构、构建结果、签名状态和已完成的安装验收；不要把未经验证的平台标为已通过。
 
-macOS 可检查应用主程序架构：
+在测试账户安装前备份 MauLink 应用数据。用对应 CPU 架构的设备检查安装、首次启动、SSH、SFTP、Terminal、Monitor、原生文件选择、系统凭据读取及覆盖安装后的数据留存。macOS 可能因 ad-hoc 签名或隔离属性显示安全提示；Windows 可能显示 SmartScreen 警告。**不要要求用户关闭系统安全功能，也不要把未签名或未公证的状态描述成已通过。**
 
-```bash
-file /Applications/MauLink.app/Contents/MacOS/maulink
-```
-
-在 M1 Pro 或其他 Apple Silicon 设备检查 ARM64 包；Intel 支持结论需在真实 Intel Mac 或可信远程 Intel 环境验收。Windows MSI 必须在真实 x64 Windows 检查安装、卸载、WebView2、凭据和覆盖安装。
-
-## 发布结果与回退
-
-Release 会在自动检查、三平台构建和附件上传成功后公开。macOS 包仍为 ad-hoc 签名且未公证，Windows MSI 未做 Authenticode 可信签名；公开页面的发布说明会明确这些状态。已公开版本出现问题时，递增版本并发布修复版，不要移动或重写已发布 Tag。
-
-自动检查或构建失败时，发布 job 不会运行；附件上传失败时，Release 保持 Draft，不会公开。若 Release 已公开后发现问题，保留既有 Tag 与旧版本附件，通过修复 PR 递增版本并自动发布修复版，不要覆写旧 Tag。回退前备份应用数据，并确认数据库迁移是否允许旧应用读取；不要因降级而删除或重建本地数据库和凭据。真实更新源配置完成前，回退由用户手动安装先前可信版本完成。
+若已公开版本存在问题，保留原 Tag 和附件，通过新版本发布修复版，不要移动或重写已发布 Tag。回退前备份应用数据并确认数据库兼容性；真实更新源配置前，回退由用户手动安装先前版本完成。
 
 ## 后续阶段
 
-- **签名与公证**：需要用户办理 Apple Developer ID、公证权限及 Windows Authenticode 签名方案，并将材料仅配置在受保护的 GitHub Secrets / Environment。取得实际设备验证结果后再修改发布流程。不得将证书或私钥放入仓库、日志或聊天。
-- **Tauri Updater**：Stable/Preview 偏好、严格 SemVer、Rust 端渠道选择与候选检查、Mock 流程和安装安全门禁已实现。正式发布工作流现可生成三平台签名更新包、复验 `.sig` 并将双渠道索引部署到 GitHub Pages；索引只在公开 Release 资产可下载且签名复验成功后更新。仓库当前 Pages 仍未启用，且尚无 Updater 公钥变量和 Environment 私钥 Secrets，因此真实在线更新仍禁用。降级在下载前一律拦截，直到数据库兼容策略、备份和 Windows MSI/macOS 实机测试完成；MSI overlay 虽显式设置 `allowDowngrades=true`，不能据此宣称降级安装已验证。负责人仍需启用 Pages、配置受保护发布 Environment 并安全保管签名私钥，之后完成首个带配置客户端的手动安装与真机验收。不得生成伪造 `.sig` / `stable.json` / `preview.json`。详见 [UPDATING.md](UPDATING.md)。
-- Linux、Windows ARM64、Portable ZIP 和 Universal macOS 包均需另行确认范围和真实设备验收。
+- **签名与公证**：如需普通用户可信分发，需配置 Apple Developer ID、公证权限和 Windows Authenticode 签名，并在真实设备上验收。不得将证书或私钥放入仓库、日志或聊天。
+- **Tauri Updater**：Stable/Preview 偏好、严格 SemVer、Rust 端渠道选择与安装安全门禁已实现，但在线更新仍未启用。启用前需配置受信签名密钥、更新索引托管和人工发布流程，并完成真机验收；普通 GitHub Release 附件不能被视为已验证的应用内更新。
+- Linux、Windows ARM64、Portable ZIP 和 Universal macOS 包需另行确认范围并在真实设备验收。
 
 ## 历史 CI/CD 验收报告（2026-10-12）
 
-以下记录描述旧版 Tag 触发 Draft Release 工作流的验收结果；当前发布规则已改为版本递增合入 `main` 后自动公开 Release。
+以下记录是 GitHub Actions 尚在启用时的历史验收报告，不代表当前仍有自动化工作流。
 
 - 审查日期：2026-10-12
 - 审查基线 commit：`bb0ccf8dcdc79a5e57d0f5b2034503ba48af65fc`（`main`）

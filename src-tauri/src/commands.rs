@@ -539,15 +539,7 @@ pub async fn network_inspect(
     let (request_id, payload) = request.validate()?;
     attach_request_id(
         request_id,
-        state
-            .network
-            .inspect(
-                &payload.host,
-                payload.detailed,
-                payload.language,
-                state.settings.current().value.geo_ip_lookup_mode,
-            )
-            .await,
+        state.network.inspect(&payload.host, payload.detailed).await,
     )
 }
 
@@ -925,11 +917,6 @@ pub async fn local_file_select(
             .dialog()
             .file()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_file(),
-        LocalFilePurpose::GeoIpDatabase => app
-            .dialog()
-            .file()
-            .add_filter("GeoIP database", &["mmdb"])
             .blocking_pick_file(),
     };
     let Some(selected) = selected else {
