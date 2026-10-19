@@ -10,7 +10,7 @@
   <p><strong>连接服务器，专注工作。</strong></p>
   <p>将 SSH 终端、远程文件与主机监控，收进一个本地桌面工作台。</p>
   <p>
-    <img src="https://img.shields.io/badge/version-0.1.1--rc.33-3b82f6?style=flat-square" alt="版本 0.1.1-rc.33">
+    <img src="https://img.shields.io/badge/version-0.1.1--rc.36-3b82f6?style=flat-square" alt="版本 0.1.1-rc.36">
     <img src="https://img.shields.io/badge/status-development-64748b?style=flat-square" alt="开发与内部试用">
     <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square" alt="Tauri 2">
     <img src="https://img.shields.io/badge/Rust-2024-dc7844?style=flat-square" alt="Rust 2024 edition">
@@ -36,7 +36,7 @@ MauLink 面向需要经常登录远程主机的开发者。服务器按组组织
 
 ## 下载与安装
 
-当前仓库提供 `0.1.1-rc.33` macOS Apple silicon 测试包：[DMG / ZIP 下载与 SHA-256 校验信息](./package/README.md)。该测试包使用 ad-hoc 签名，未经 Apple 公证，首次打开时 macOS 可能显示安全提示；当前 `package/` 尚未提供 macOS Intel 或 Windows 安装包。
+当前仓库提供 `0.1.1-rc.36` macOS Apple silicon 测试包：[DMG / ZIP 下载与 SHA-256 校验信息](./package/README.md)。该测试包使用 ad-hoc 签名，未经 Apple 公证，首次打开时 macOS 可能显示安全提示；当前 `package/` 尚未提供 macOS Intel 或 Windows 安装包。
 
 GitHub Actions 工作流已移除，不会自动构建或发布安装包。后续安装包由维护者手动编译并上传至 [GitHub Releases](https://github.com/MauriceLiang/MauLink/releases)。普通 Release 附件不会启用应用内更新；在线更新仍未启用。构建、上传与验收步骤见[构建与发布说明](./RELEASING.md)。
 
@@ -346,7 +346,7 @@ RustRover 的 Cargo Run Configuration：Working directory 为仓库根目录，C
 | M5：SFTP | 浏览、目录操作、文件传输及不超过 2 MiB 的普通文本查看 / 编辑已实现；2026-09-28 的隔离 OpenSSH 和大文件往返验证覆盖文件传输 | 补充文本查看 / 编辑与 Markdown 预览验收；Windows 文件发布与目标服务器故障矩阵验收 |
 | M6：Monitor | 采集、解析、有限历史和工作区页面实现；当前可用环境检查通过 | Linux 主机实测指标比对、Windows 窗口最小化/恢复行为验收 |
 | 桌面 UI | Vue 正式入口与 Reka UI 组件；Browser 双语、双主题与固定视觉回归；macOS release 应用经用户确认 | Phase 6 既有验收缺口、系统主题/减少动态效果专项实测、原生最小化/恢复；Windows 构建环境及桌面验收 |
-| 发布 | `package/` 提供 `0.1.1-rc.33` macOS arm64 测试包；后续安装包由维护者手动编译并上传至 GitHub Releases | macOS Intel / Windows x64 安装包与真机验收、Developer ID / Windows 签名、macOS 公证 |
+| 发布 | `package/` 提供 `0.1.1-rc.36` macOS arm64 测试包；后续安装包由维护者手动编译并上传至 GitHub Releases | macOS Intel / Windows x64 安装包与真机验收、Developer ID / Windows 签名、macOS 公证 |
 
 当前界面提供简体中文与 English catalog；用户名称、远端路径和终端输出保持原内容。MVP 当前不包含 Docker 管理、数据库客户端、进程列表和 Disk I/O 监控。M4 IPC 数值测试按用户选择跳过，README 不提供未经实测的吞吐或延迟数据。
 

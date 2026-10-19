@@ -5,7 +5,8 @@
 .shell-icon { display: block; width: 16px; height: 16px; flex: none; }
 .shell-icon.base-icon--gear { width: 18px; height: 18px; }
 .shell-topbar { display: grid; grid-template-columns: var(--app-sidebar-width) minmax(180px, 1fr) var(--app-sidebar-width); align-items: center; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
-.shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); padding-left: var(--app-traffic-light-space); }
+.shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); }
+.application-shell[data-platform="macos"] .shell-brand-group { padding-left: var(--app-traffic-light-space); }
 .shell-brand { display: flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; color: var(--color-text-primary); background: transparent; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .shell-brand-mark { display: block; width: 32px; height: 32px; flex: none; border-radius: 6px; object-fit: contain; }
 .shell-explorer-toggle { flex: none; }
@@ -39,7 +40,7 @@
 .shell-sidebar-tools { padding: 10px 10px 6px; }
 .shell-sidebar-search { width: 100%; height: 30px; padding: 0 9px; }
 .shell-sidebar-search .base-input { font-size: 12.5px; }
-.shell-server-navigation { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 10px; }
+.shell-server-navigation { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 10px; -webkit-user-select: none; user-select: none; }
 .shell-nav-empty { margin: 0; padding: 22px 6px; color: var(--color-text-secondary); text-align: center; font-size: 11px; }
 .shell-group-heading { display: flex; align-items: center; justify-content: space-between; margin: 11px 5px 4px; color: var(--color-text-secondary); font-size: 11px; }
 .shell-small-icon { width: 24px; min-height: 24px; padding: 0; border: 0; background: transparent; }
