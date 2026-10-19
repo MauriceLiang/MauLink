@@ -20,7 +20,6 @@ import BaseDialog from '../../components/base/BaseDialog.vue';
 import SecuritySettingsSection from '../../components/security/SecuritySettingsSection.vue';
 import UpdateSettingsSection from '../../components/update/UpdateSettingsSection.vue';
 import TerminalSettingsSection from './TerminalSettingsSection.vue';
-import AppearanceSettingsPreview from './AppearanceSettingsPreview.vue';
 import type { SettingsSection } from './settings-navigation';
 import type { UpdaterController } from '../../updater/updater-types';
 import logoLight from '../../assets/app-icon-light.png';
@@ -55,10 +54,6 @@ const accentColorKeys: Record<AccentColor, keyof typeof settingsMessages> = { bl
 const toastPositions: ToastPosition[] = ['topLeft', 'topCenter', 'topRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
 const toastPositionKeys: Record<ToastPosition, keyof typeof settingsMessages> = { topLeft: 'toastTopLeft', topCenter: 'toastTopCenter', topRight: 'toastTopRight', bottomLeft: 'toastBottomLeft', bottomCenter: 'toastBottomCenter', bottomRight: 'toastBottomRight' };
 const accentOptions: Exclude<AccentColor, 'custom'>[] = ['blue', 'indigo', 'purple', 'green', 'orange', 'red'];
-const appearanceThemeOptions = [{ value: 'light', label: 'light' }, { value: 'dark', label: 'dark' }, { value: 'system', label: 'system' }] as const;
-const appearanceDensityOptions = [{ value: 'compact', label: 'densityCompact' }, { value: 'standard', label: 'densityStandard' }] as const;
-const appearanceSidebarOptions = [{ value: 'narrow', label: 'sidebarNarrow' }, { value: 'standard', label: 'sidebarStandard' }, { value: 'wide', label: 'sidebarWide' }] as const;
-const appearanceIconOptions = [{ value: 'light', label: 'light' }, { value: 'dark', label: 'dark' }] as const;
 const customAccentColor = computed({ get: () => draft.customAccentColor ?? '#3B82F6', set: (value: string) => { draft.customAccentColor = value; } });
 const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessages; description: keyof typeof settingsMessages }> = {
   general: { title: 'general', description: 'generalDescription' },
@@ -120,21 +115,6 @@ function resetDraft() {
   savedCopyOnSelect.value = props.preferences.copyOnSelect.value;
   copyOnSelect.value = savedCopyOnSelect.value;
   resetKey.value++;
-}
-function restoreAppearanceDefaults() {
-  if (!props.preferences.record.value || props.preferences.busy.value) return;
-  Object.assign(draft, {
-    theme: defaultSettings.theme,
-    uiDensity: defaultSettings.uiDensity,
-    sidebarWidth: defaultSettings.sidebarWidth,
-    appIconStyle: defaultSettings.appIconStyle,
-    accentColor: defaultSettings.accentColor,
-    customAccentColor: defaultSettings.customAccentColor,
-    toastPosition: defaultSettings.toastPosition,
-    showSizeColumn: defaultSettings.showSizeColumn,
-    showFileSizes: defaultSettings.showFileSizes,
-    showFolderSizes: defaultSettings.showFolderSizes,
-  });
 }
 async function activate() {
   autoSaveReady.value = false;
@@ -236,10 +216,10 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
 </script>
 
 <template>
-  <section class="settings-workspace" :class="{ 'settings-workspace--appearance': section === 'appearance' }" :aria-label="t('settings')" :aria-busy="busy">
-    <header v-if="section !== 'appearance'" class="settings-workspace__header"><div><h1>{{ title }}</h1><p>{{ description }}</p></div></header>
+  <section class="settings-workspace" :aria-label="t('settings')" :aria-busy="busy">
+    <header class="settings-workspace__header"><div><h1>{{ title }}</h1><p>{{ description }}</p></div></header>
     <div class="settings-workspace__scroll">
-      <div class="settings-workspace__body" :class="{ 'settings-workspace__body--appearance': section === 'appearance' }">
+      <div class="settings-workspace__body">
         <form class="terminal-settings-form" @submit.prevent>
           <fieldset v-if="regularSection && section !== 'terminal'" :disabled="preferences.busy.value || !preferences.record.value">
             <section v-if="section === 'general'" class="settings-workspace-section settings-general-section">
@@ -254,86 +234,31 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
                 <p>{{ t('languageNote') }}</p>
               </div>
             </section>
-            <section v-else-if="section === 'appearance'" class="settings-appearance-page">
-              <header class="settings-appearance-page__header">
+            <section v-else-if="section === 'appearance'" class="settings-workspace-section">
+              <div class="settings-appearance-control-grid">
+                <div class="settings-appearance-control">
+                  <BaseSelect v-model="draft.theme" :label="t('theme')" :options="[{value:'system',label:t('system')},{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
+                  <p>{{ t('themeNote') }}</p>
+                </div>
+                <BaseSelect v-model="draft.uiDensity" :label="t('uiDensity')" :options="[{value:'standard',label:t('densityStandard')},{value:'compact',label:t('densityCompact')}]" />
+                <BaseSelect v-model="draft.sidebarWidth" :label="t('sidebarWidth')" :options="[{value:'narrow',label:t('sidebarNarrow')},{value:'standard',label:t('sidebarStandard')},{value:'wide',label:t('sidebarWide')}]" />
+                <section class="settings-file-display-section" :aria-label="t('fileListDisplay')">
+                  <h2>{{ t('fileListDisplay') }}</h2>
+                  <div class="settings-file-size-master"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /></div>
+                  <div v-if="draft.showSizeColumn" class="settings-file-size-options">
+                    <BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" />
+                    <div><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div>
+                  </div>
+                </section>
+              </div>
+              <fieldset class="settings-toast-position-fieldset"><legend>{{ t('toastPosition') }}</legend><div class="settings-toast-position-options"><label v-for="position in toastPositions" :key="position" class="settings-toast-position-option"><input v-model="draft.toastPosition" type="radio" name="toastPosition" :value="position" /><span>{{ t(toastPositionKeys[position]) }}</span></label></div><div class="settings-toast-preview" :data-position="draft.toastPosition" role="img" :aria-label="t('toastPositionPreview')"><div class="settings-toast-preview-card"><BaseIcon name="success" /><span><strong>{{ t('toastPreviewTitle') }}</strong><small>{{ t('toastPreviewDescription') }}</small></span></div></div><p class="settings-toast-position-note">{{ t('toastPositionNote') }}</p></fieldset>
+              <fieldset class="settings-accent-field"><legend>{{ t('accentColor') }}</legend><div class="settings-accent-options" role="radiogroup" :aria-label="t('accentColor')"><label v-for="color in accentOptions" :key="color" class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" :value="color" /><span class="settings-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }" aria-hidden="true"></span><span>{{ t(accentColorKeys[color]) }}</span></label><label class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" value="custom" /><span class="settings-accent-swatch settings-accent-custom-swatch" :style="{ '--accent-option-color': customAccentColor }" aria-hidden="true"></span><span>{{ t('accentCustom') }}</span></label></div><label v-if="draft.accentColor === 'custom'" class="settings-custom-accent"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label><p>{{ t('accentColorNote') }}</p></fieldset>
+              <div class="settings-app-icon-settings">
                 <div>
-                  <p class="settings-appearance-page__breadcrumb"><span>{{ t('appearancePreferences') }}</span><span aria-hidden="true">/</span><span>{{ title }}</span></p>
-                  <h1>{{ title }}</h1>
-                  <p class="settings-appearance-page__description">{{ t('appearancePageSubtitle') }}</p>
+                  <BaseSelect v-model="draft.appIconStyle" :label="t('appIconStyle')" :options="[{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
+                  <p>{{ t('appIconNote') }}</p>
                 </div>
-                <div class="settings-appearance-page__actions">
-                  <span class="settings-appearance-page__live"><i aria-hidden="true"></i>{{ t('changesApplyImmediately') }}</span>
-                  <BaseButton variant="secondary" :disabled="preferences.busy.value || !preferences.record.value" @click="restoreAppearanceDefaults"><BaseIcon name="refresh" />{{ t('restoreDefaults') }}</BaseButton>
-                </div>
-              </header>
-
-              <div class="settings-appearance-page__grid">
-                <div class="settings-appearance-page__controls">
-                  <section class="settings-appearance-group">
-                    <header class="settings-appearance-group__heading"><h2>{{ t('appearanceStyle') }}</h2><span>{{ t('appearanceStyleHint') }}</span></header>
-                    <div class="settings-appearance-card">
-                      <div class="settings-appearance-row">
-                        <div class="settings-appearance-copy"><strong>{{ t('theme') }}</strong><small>{{ t('themeNote') }}</small></div>
-                        <div class="settings-appearance-segmented" role="radiogroup" :aria-label="t('theme')">
-                          <label v-for="option in appearanceThemeOptions" :key="option.value"><input v-model="draft.theme" type="radio" name="appearanceTheme" :value="option.value" /><span>{{ t(option.label) }}</span></label>
-                        </div>
-                      </div>
-                      <div class="settings-appearance-row settings-appearance-row--accent">
-                        <div class="settings-appearance-copy"><strong>{{ t('accentColor') }}</strong><small>{{ t('accentColorNote') }}</small></div>
-                        <div class="settings-appearance-accent-options" role="radiogroup" :aria-label="t('accentColor')">
-                          <label v-for="color in accentOptions" :key="color" class="settings-appearance-accent-option" :title="t(accentColorKeys[color])"><input v-model="draft.accentColor" type="radio" name="appearanceAccent" :value="color" /><span class="settings-appearance-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }"></span><span class="settings-sr-only">{{ t(accentColorKeys[color]) }}</span></label>
-                          <label class="settings-appearance-accent-custom"><input v-model="draft.accentColor" type="radio" name="appearanceAccent" value="custom" /><BaseIcon name="plus" /><span>{{ t('accentCustom') }}</span></label>
-                          <label v-if="draft.accentColor === 'custom'" class="settings-appearance-custom-color"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label>
-                        </div>
-                      </div>
-                      <div class="settings-appearance-row">
-                        <div class="settings-appearance-copy"><strong>{{ t('appIconStyle') }}</strong><small>{{ t('appIconNote') }}</small></div>
-                        <div class="settings-appearance-icon-control">
-                          <div class="settings-appearance-segmented" role="radiogroup" :aria-label="t('appIconStyle')">
-                            <label v-for="option in appearanceIconOptions" :key="option.value"><input v-model="draft.appIconStyle" type="radio" name="appearanceIcon" :value="option.value" /><span>{{ t(option.label) }}</span></label>
-                          </div>
-                          <img :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="36" height="36" />
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section class="settings-appearance-group">
-                    <header class="settings-appearance-group__heading"><h2>{{ t('appearanceLayout') }}</h2><span>{{ t('appearanceLayoutHint') }}</span></header>
-                    <div class="settings-appearance-card">
-                      <div class="settings-appearance-row">
-                        <div class="settings-appearance-copy"><strong>{{ t('uiDensity') }}</strong></div>
-                        <div class="settings-appearance-segmented" role="radiogroup" :aria-label="t('uiDensity')">
-                          <label v-for="option in appearanceDensityOptions" :key="option.value"><input v-model="draft.uiDensity" type="radio" name="appearanceDensity" :value="option.value" /><span>{{ t(option.label) }}</span></label>
-                        </div>
-                      </div>
-                      <div class="settings-appearance-row">
-                        <div class="settings-appearance-copy"><strong>{{ t('sidebarWidth') }}</strong></div>
-                        <div class="settings-appearance-segmented" role="radiogroup" :aria-label="t('sidebarWidth')">
-                          <label v-for="option in appearanceSidebarOptions" :key="option.value"><input v-model="draft.sidebarWidth" type="radio" name="appearanceSidebar" :value="option.value" /><span>{{ t(option.label) }}</span></label>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section class="settings-appearance-group">
-                    <header class="settings-appearance-group__heading"><h2>{{ t('fileListDisplay') }}</h2><span>{{ t('appearanceFilesHint') }}</span></header>
-                    <div class="settings-appearance-card settings-appearance-file-card">
-                      <div class="settings-appearance-file-row"><div class="settings-appearance-file-copy"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /><small>{{ t('appearanceSizeColumnHint') }}</small></div></div>
-                      <div v-if="draft.showSizeColumn" class="settings-appearance-file-row"><div class="settings-appearance-file-copy"><BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><small>{{ t('appearanceFileSizeHint') }}</small></div></div>
-                      <div v-if="draft.showSizeColumn" class="settings-appearance-file-row"><div class="settings-appearance-file-copy"><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><small>{{ t('folderSizeNote') }}</small></div></div>
-                    </div>
-                  </section>
-
-                  <section class="settings-appearance-group">
-                    <header class="settings-appearance-group__heading"><h2>{{ t('appearanceNotifications') }}</h2><span>{{ t('toastPositionNote') }}</span></header>
-                    <fieldset class="settings-appearance-card settings-appearance-toast-card" :aria-label="t('toastPosition')">
-                      <legend class="settings-sr-only">{{ t('toastPosition') }}</legend>
-                      <div class="settings-toast-position-options"><label v-for="position in toastPositions" :key="position" class="settings-toast-position-option"><input v-model="draft.toastPosition" type="radio" name="toastPosition" :value="position" /><span>{{ t(toastPositionKeys[position]) }}</span></label></div>
-                    </fieldset>
-                  </section>
-                </div>
-                <AppearanceSettingsPreview :settings="draft" />
+                <img class="settings-app-icon-preview" :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="64" height="64" />
               </div>
             </section>
           </fieldset>
