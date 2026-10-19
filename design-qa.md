@@ -134,3 +134,12 @@ macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify`
 - 更新卡片将版本与安装渠道整理为紧凑元信息；更新渠道、说明及当前主要操作在宽屏下同一行呈现，窄屏断点下改为纵向布局。
 - 本地 Settings harness 仅提供 Mock 设置与更新状态；本次仅验证静态页面结构和当前空闲状态的视觉布局，不代表真实更新服务行为验证。未运行测试套件。
 - `npm --prefix frontend run type-check`、`npm --prefix frontend run build`、`git diff --check` 均通过。Vite 仍提示主 JS chunk 超过 500 kB。
+
+## 通用设置布局与更新区焦点样式（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在 1368 × 906 Settings harness 中复核通用设置页：连接行为与界面语言并排显示，软件更新独立占据下方整行；两个上方区块高度对齐。
+- 更新卡片保持中性边框；默认/鼠标焦点状态不显示主题色外圈，键盘焦点仍保留可见提示。更新逻辑未改动。
+- 本地 harness 仅验证界面布局和焦点样式，不代表真实更新服务行为验证。未运行测试套件。
+- `npm --prefix frontend run type-check`、`git diff --check` 通过。
