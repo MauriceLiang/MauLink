@@ -239,6 +239,14 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
               </div>
             </section>
             <section v-else-if="section === 'appearance'" class="settings-workspace-section">
+              <div class="settings-app-icon-settings">
+                <div>
+                  <BaseSelect v-model="draft.appIconStyle" :label="t('appIconStyle')" :options="[{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
+                  <p>{{ t('appIconNote') }}</p>
+                </div>
+                <img class="settings-app-icon-preview" :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="64" height="64" />
+              </div>
+              <fieldset class="settings-accent-field"><legend>{{ t('accentColor') }}</legend><div class="settings-accent-options" role="radiogroup" :aria-label="t('accentColor')"><label v-for="color in accentOptions" :key="color" class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" :value="color" /><span class="settings-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }" aria-hidden="true"></span><span>{{ t(accentColorKeys[color]) }}</span></label><label class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" value="custom" /><span class="settings-accent-swatch settings-accent-custom-swatch" :style="{ '--accent-option-color': customAccentColor }" aria-hidden="true"></span><span>{{ t('accentCustom') }}</span></label></div><label v-if="draft.accentColor === 'custom'" class="settings-custom-accent"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label><p>{{ t('accentColorNote') }}</p></fieldset>
               <div class="settings-appearance-control-grid">
                 <div class="settings-appearance-control">
                   <BaseSelect v-model="draft.theme" :label="t('theme')" :options="[{value:'system',label:t('system')},{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
@@ -258,14 +266,6 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
                 </section>
               </div>
               <fieldset class="settings-toast-position-fieldset"><legend>{{ t('toastPosition') }}</legend><div class="settings-toast-position-options"><label v-for="position in toastPositions" :key="position" class="settings-toast-position-option"><input v-model="draft.toastPosition" type="radio" name="toastPosition" :value="position" /><span>{{ t(toastPositionKeys[position]) }}</span></label></div><div class="settings-toast-preview" :data-position="draft.toastPosition" role="img" :aria-label="t('toastPositionPreview')"><div class="settings-toast-preview-card"><BaseIcon name="success" /><span><strong>{{ t('toastPreviewTitle') }}</strong><small>{{ t('toastPreviewDescription') }}</small></span></div></div><p class="settings-toast-position-note">{{ t('toastPositionNote') }}</p></fieldset>
-              <fieldset class="settings-accent-field"><legend>{{ t('accentColor') }}</legend><div class="settings-accent-options" role="radiogroup" :aria-label="t('accentColor')"><label v-for="color in accentOptions" :key="color" class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" :value="color" /><span class="settings-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }" aria-hidden="true"></span><span>{{ t(accentColorKeys[color]) }}</span></label><label class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" value="custom" /><span class="settings-accent-swatch settings-accent-custom-swatch" :style="{ '--accent-option-color': customAccentColor }" aria-hidden="true"></span><span>{{ t('accentCustom') }}</span></label></div><label v-if="draft.accentColor === 'custom'" class="settings-custom-accent"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label><p>{{ t('accentColorNote') }}</p></fieldset>
-              <div class="settings-app-icon-settings">
-                <div>
-                  <BaseSelect v-model="draft.appIconStyle" :label="t('appIconStyle')" :options="[{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
-                  <p>{{ t('appIconNote') }}</p>
-                </div>
-                <img class="settings-app-icon-preview" :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="64" height="64" />
-              </div>
             </section>
           </fieldset>
           <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :channel="resolvedUpdateChannel" :channel-saved="updateChannelSaved" :install-busy="updateInstallBusy || preferences.busy.value || !preferences.record.value" @update:channel="draft.updateChannel = $event" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />

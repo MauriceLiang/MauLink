@@ -117,3 +117,11 @@ macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify`
 - 交互复核：将“显示大小列”切换为“隐藏”后，依赖的文件及文件夹大小选项收起；恢复为“显示”后两个选项恢复，初始值也恢复。
 - Legacy SettingsDialog 中相同设置同步使用下拉控件。只验证本地内存 Mock，不代表真实 Core 重启持久化验证；未运行测试套件。
 - `npm run type-check`、`npm run build` 和 `git diff --check` 均通过。Vite 仍提示主 JS chunk 超过 500 kB。
+
+## 外观页应用图标与主题色顺序调整（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器打开本地 Settings harness，确认应用图标样式位于外观页顶部，主题色选项紧随其下，其余控件顺序保持不变。
+- 应用图标设置上方的分隔线已移除；只验证本地 Mock 页面结构与视觉排版，未运行测试套件。
+- `npm run type-check`、`npm run build` 和 `git diff --check` 通过。Vite 仍提示主 JS chunk 超过 500 kB。

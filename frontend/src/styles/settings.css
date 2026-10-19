@@ -113,7 +113,7 @@
 .settings-file-display-section { min-width: 0; align-self: start; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .settings-file-display-section h2 { margin-bottom: 12px; }
 .settings-file-display-section .settings-file-size-options { gap: 12px; margin-left: 0; }
-.settings-app-icon-settings { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 18px; padding-top: 16px; border-top: 1px solid var(--color-divider); }
+.settings-app-icon-settings { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 18px; }
 .update-settings { display: grid; gap: 12px; margin-top: 24px; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .update-settings:focus { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
 .update-settings__heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
