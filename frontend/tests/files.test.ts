@@ -40,6 +40,12 @@ async function filePanel() {
   wrappers.push(wrapper); await flushPromises(); return wrapper;
 }
 const button = (wrapper: VueWrapper, text: string) => wrapper.findAll('button').find(value => value.text() === text)!;
+const displayedPath = (wrapper: VueWrapper) => wrapper.get('.files-path-display').text();
+async function setPath(wrapper: VueWrapper, value: string) {
+  await wrapper.get('.files-path-display').trigger('click'); await flushPromises();
+  await wrapper.get('[aria-label="远程路径"]').setValue(value);
+  await wrapper.get('.files-location').trigger('submit'); await flushPromises();
+}
 describe('remote paths and directory lifecycle', () => {
   it('preserves POSIX basenames, quotes, Unicode and backslashes without shell escaping', () => {
     const name = '中文 "引号" \\ $file.txt'; expect(validBasename(name)).toBe(true); expect(joinRemotePath('/home/', name)).toBe(`/home/${name}`);
@@ -159,9 +165,9 @@ describe('file UI acceptance', () => {
   it('opens the requested terminal directory and resynchronizes after manual navigation', async () => {
     const wrapper = await filePanel(); const panel = wrapper;
     await panel.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 1 } }); await flushPromises();
-    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/nested');
+    expect(displayedPath(wrapper)).toBe('/fixture/nested');
     expect(wrapper.findAll('tbody tr')).toHaveLength(1);
-    await wrapper.get('[aria-label="远程路径"]').setValue('/fixture/empty'); await wrapper.get('.files-location').trigger('submit'); await flushPromises();
+    await setPath(wrapper, '/fixture/empty');
     expect(wrapper.text()).toContain('目录为空');
     await panel.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 2 } }); await flushPromises();
     await wrapper.get('.file-name').trigger('dblclick'); await flushPromises();
@@ -172,14 +178,30 @@ describe('file UI acceptance', () => {
     const wrapper = await filePanel();
     const api = wrapper.props('api'); const listStart = vi.spyOn(api, 'listStart');
     await wrapper.find('.file-name').trigger('keydown', { key: 'Enter' }); await flushPromises();
-    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
+    expect(displayedPath(wrapper)).toBe('/fixture/empty');
     await wrapper.find('.files-parent-action').trigger('click'); await flushPromises();
     const openButton = wrapper.find('.file-open');
     await openButton.trigger('click'); await flushPromises();
     const callsAfterOpen = listStart.mock.calls.length;
     await openButton.trigger('dblclick'); await flushPromises();
     expect(listStart).toHaveBeenCalledTimes(callsAfterOpen);
-    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/empty');
+    expect(displayedPath(wrapper)).toBe('/fixture/empty');
+  });
+  it('edits the current path on demand, cancels with Escape, and navigates to a breadcrumb ancestor', async () => {
+    const wrapper = await filePanel();
+    await wrapper.setProps({ requestedDirectory: { path: '/fixture/nested', revision: 1 } }); await flushPromises();
+    await wrapper.get('.files-path-display').trigger('click'); await flushPromises();
+    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/nested');
+    await wrapper.get('[aria-label="远程路径"]').setValue('/invalid');
+    await wrapper.get('[aria-label="远程路径"]').trigger('keydown', { key: 'Escape' }); await flushPromises();
+    expect(displayedPath(wrapper)).toBe('/fixture/nested');
+    await wrapper.get('[aria-label="目录导航"]').trigger('click'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
+    const parent = [...document.querySelectorAll('[role="menuitem"]')].map(value => new DOMWrapper(value)).find(value => value.text() === 'fixture')!;
+    await parent.trigger('click'); await flushPromises();
+    expect(displayedPath(wrapper)).toBe('/fixture');
+    await setPath(wrapper, '/fixture/denied');
+    expect(displayedPath(wrapper)).toBe('/fixture');
+    expect(wrapper.get('[role="alert"]').text()).toContain('检查权限');
   });
   it('defers terminal directory synchronization until a file mutation completes', async () => {
     const wrapper = await filePanel(); const panel = wrapper;
@@ -195,13 +217,17 @@ describe('file UI acceptance', () => {
     finish({ name: 'new-folder', path: '/fixture/new-folder', fileType: 'directory', isSymlink: false, sizeBytes: null, modifiedAtMs: null, permissions: null });
     await flushPromises();
     expect(start).toHaveBeenCalledWith({ connectionId: 'files-fixture', path: '/fixture/nested' });
-    expect((wrapper.get('[aria-label="远程路径"]').element as HTMLInputElement).value).toBe('/fixture/nested');
+    expect(displayedPath(wrapper)).toBe('/fixture/nested');
   });
   it('renders bounded pages, empty/denied locations, and keeps preview/edit disabled', async () => {
-    const wrapper = await harness(); expect(wrapper.findAll('tbody tr')).toHaveLength(200); expect(wrapper.get('[aria-label="查看 / 编辑"]').attributes('disabled')).toBeDefined();
+    const wrapper = await harness(); expect(wrapper.findAll('tbody tr')).toHaveLength(200);
+    await wrapper.get('[aria-label="更多文件操作"]').trigger('click'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
+    const viewEdit = [...document.querySelectorAll('[role="menuitem"]')].map(value => new DOMWrapper(value)).find(value => value.text() === '查看 / 编辑')!;
+    expect(viewEdit.attributes('data-disabled')).toBeDefined(); await new DOMWrapper(document.querySelector('[role="menu"]')!).trigger('keydown', { key: 'Escape' }); await flushPromises();
     await button(wrapper, '下一页').trigger('click'); await flushPromises(); expect(wrapper.findAll('tbody tr')).toHaveLength(200); expect(wrapper.text()).toContain('第 2 页');
-    await wrapper.get('[aria-label="远程路径"]').setValue('/fixture/empty'); await wrapper.get('.files-location').trigger('submit'); await flushPromises(); expect(wrapper.text()).toContain('目录为空');
-    await wrapper.get('[aria-label="远程路径"]').setValue('/fixture/denied'); await wrapper.get('.files-location').trigger('submit'); await flushPromises(); expect(wrapper.get('[role="alert"]').text()).toContain('检查权限'); expect(wrapper.get('[aria-label="上传文件"]').attributes('disabled')).toBeDefined();
+    await button(wrapper, '下一页').trigger('click'); await flushPromises(); expect(wrapper.findAll('tbody tr')).toHaveLength(50); expect(wrapper.find('.files-pagination').exists()).toBe(true); expect(wrapper.findAll('button').some(value => value.text() === '下一页')).toBe(false);
+    await setPath(wrapper, '/fixture/empty'); expect(wrapper.text()).toContain('目录为空'); expect(wrapper.find('.files-pagination').exists()).toBe(false);
+    await setPath(wrapper, '/fixture/denied'); expect(wrapper.get('[role="alert"]').text()).toContain('检查权限'); expect(wrapper.get('[aria-label="上传文件"]').attributes('disabled')).toBeDefined();
   });
   it('requires a second delete confirmation after opening row actions by right click', async () => {
     const wrapper = await harness(); const row = wrapper.findAll('tbody tr').find(value => value.text().includes('file-001.txt'))!;
@@ -211,7 +237,7 @@ describe('file UI acceptance', () => {
     await new DOMWrapper(document.body).findAll('button').find(value => value.text() === '取消')!.trigger('click'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
     await row.trigger('contextmenu'); await flushPromises(); await new Promise(resolve => setTimeout(resolve, 0));
     await [...document.querySelectorAll('[role="menuitem"]')].map(element => new DOMWrapper(element)).find(value => value.text() === '删除')!.trigger('click'); await new Promise(resolve => setTimeout(resolve, 0)); await flushPromises(); await new DOMWrapper(document.body).findAll('button').find(value => value.text() === '确认删除')!.trigger('click'); await flushPromises();
-    expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(false); expect(document.activeElement).toBe(wrapper.get('[aria-label="远程路径"]').element);
+    expect(wrapper.findAll('.file-name').some(value => value.text().includes('file-001.txt'))).toBe(false); expect(document.activeElement).toBe(wrapper.get('.files-path-display').element);
   }, 10_000);
   it('opens row actions from the standard keyboard context-menu shortcut', async () => {
     const wrapper = await harness(); const fileName = wrapper.get('.file-name');

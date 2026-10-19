@@ -6,6 +6,7 @@ use crate::{
     AppError, Database, ErrorCode,
     settings::{
         TerminalBackgroundImageSettings, TerminalCustomColors, TerminalThemeMode,
+        default_terminal_selection_extent, default_terminal_selection_opacity,
         is_valid_accent_hex,
     },
     storage,
@@ -46,6 +47,10 @@ impl ServerEnvironment {
 pub struct TerminalAppearanceSettings {
     pub theme_mode: TerminalThemeMode,
     pub custom_colors: TerminalCustomColors,
+    #[serde(default = "default_terminal_selection_opacity")]
+    pub selection_opacity: u8,
+    #[serde(default = "default_terminal_selection_extent")]
+    pub selection_extent: u8,
     pub background_image: TerminalBackgroundImageSettings,
 }
 
@@ -54,6 +59,8 @@ impl Default for TerminalAppearanceSettings {
         Self {
             theme_mode: TerminalThemeMode::FollowApp,
             custom_colors: TerminalCustomColors::default(),
+            selection_opacity: default_terminal_selection_opacity(),
+            selection_extent: default_terminal_selection_extent(),
             background_image: TerminalBackgroundImageSettings::default(),
         }
     }
@@ -167,6 +174,8 @@ impl ServerAppearanceStore {
         crate::settings::validate_terminal_appearance(
             update.terminal_appearance.theme_mode,
             &update.terminal_appearance.custom_colors,
+            update.terminal_appearance.selection_opacity,
+            update.terminal_appearance.selection_extent,
             &update.terminal_appearance.background_image,
         )?;
         let appearance_json =

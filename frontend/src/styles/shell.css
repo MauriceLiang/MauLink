@@ -3,6 +3,7 @@
 .application-shell[data-sidebar-width="standard"] { --app-sidebar-width: 236px; }
 .application-shell[data-sidebar-width="wide"] { --app-sidebar-width: 286px; }
 .shell-icon { display: block; width: 16px; height: 16px; flex: none; }
+.shell-icon.base-icon--gear { width: 18px; height: 18px; }
 .shell-topbar { display: grid; grid-template-columns: var(--app-sidebar-width) minmax(180px, 1fr) var(--app-sidebar-width); align-items: center; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .shell-brand-group { display: flex; min-width: 0; height: 100%; align-items: center; gap: var(--space-2); padding-left: var(--app-traffic-light-space); }
 .shell-brand { display: flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; color: var(--color-text-primary); background: transparent; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
@@ -64,7 +65,19 @@
 .shell-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: var(--color-bg-app); }
 .shell-main-content { display: grid; min-width: 0; min-height: 0; flex: 1; overflow: auto; background: var(--color-bg-app); }
 .shell-main-content.has-terminal-workspace { display: block; overflow: hidden; }
+.shell-main-content.has-connection-failure { display: flex; }
+.shell-main-content.has-connection-failure > .shell-connection-failure { flex: 1; }
 .shell-main-content > .base-empty-state { align-self: center; margin: var(--space-6); }
+.shell-main-content > .shell-connection-failure { display: flex; min-height: 0; align-self: stretch; flex-direction: column; align-items: center; justify-content: center; margin: 0; }
+.shell-connection-failure h2 { margin-bottom: 20px; }
+.shell-connection-failure-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.shell-connection-failure-actions .base-icon { width: 16px; height: 16px; }
+.shell-connection-failure-detail { max-width: 560px; margin: 20px auto 0 !important; color: var(--color-text-tertiary) !important; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.shell-connection-progress { display: grid; min-width: 0; min-height: 100%; align-content: center; justify-items: center; gap: 14px; padding: 32px 20px; color: var(--color-text-secondary); text-align: center; }
+.shell-connection-spinner { width: 40px; height: 40px; border: 3px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: shell-connection-spin 850ms linear infinite; }
+.shell-connection-progress p { margin: 0; font-size: 14px; font-weight: 500; }
+@keyframes shell-connection-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .shell-connection-spinner { animation: none; } }
 .shell-workspace-tabs { display: flex; min-width: 0; min-height: 38px; align-items: stretch; gap: 3px; overflow-x: auto; padding: 4px 7px 0; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .shell-workspace-tab { display: flex; min-width: 72px; max-width: 190px; align-items: stretch; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--color-text-secondary); }
 .shell-workspace-tab.is-active { color: var(--color-text-primary); background: var(--color-bg-app); box-shadow: 0 -1px 0 var(--color-border), 1px 0 0 var(--color-border), -1px 0 0 var(--color-border); }
@@ -99,9 +112,31 @@
 .shell-transfer-status:focus-visible { border-radius: var(--radius-sm); outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
 .shell-transfer-status .shell-icon { width: 12px; height: 12px; }
 .shell-statusbar-separator { width: 1px; height: 13px; background: var(--color-border); }
-.shell-about-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-5); }
-.shell-about-details dt { color: var(--color-text-secondary); }
-.shell-about-details dd { margin: 0; }
+.shell-about-dialog { width: min(460px, calc(100vw - 32px)); border-radius: var(--radius-lg); }
+.shell-about-dialog .base-dialog-heading { position: relative; justify-content: flex-end; padding: 12px 16px 0; border: 0; }
+.shell-about-dialog .base-dialog-heading h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.shell-about-dialog .base-dialog-close { width: 32px; min-width: 32px; min-height: 32px; }
+.shell-about-dialog .base-dialog-content { padding: 4px 24px 22px; }
+.shell-about { display: flex; min-width: 0; flex-direction: column; align-items: center; text-align: center; }
+.shell-about-logo { display: block; width: 68px; height: 68px; object-fit: contain; }
+.shell-about-logo-dark { display: none; }
+:root[data-theme="dark"] .shell-about-logo-light { display: none; }
+:root[data-theme="dark"] .shell-about-logo-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .shell-about-logo-light { display: none; }
+  :root[data-theme="system"] .shell-about-logo-dark { display: block; }
+}
+.shell-about h3 { margin: 8px 0 0; color: var(--color-text-primary); font-size: 22px; font-weight: 600; line-height: 1.25; }
+.shell-about-lead { max-width: 100%; margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 400; line-height: 1.5; }
+.shell-about-version-row { display: flex; max-width: 100%; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
+.shell-about-version { min-width: 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.shell-about-update-button .base-icon { width: 17px; height: 17px; }
+.shell-about-update-button .base-icon.is-checking { animation: shell-about-spin 1.2s linear infinite; }
+.shell-about-environment { max-width: 100%; margin: 4px 0 0; color: var(--color-text-tertiary); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.shell-about-live-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes shell-about-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .shell-about-update-button .base-icon.is-checking { animation: none; } }
+@media (max-width: 400px) { .shell-about-dialog .base-dialog-content { padding-inline: 18px; } }
 @media (max-width: 1080px) {
   .application-shell { --app-sidebar-width: var(--app-sidebar-medium-width); }
 }

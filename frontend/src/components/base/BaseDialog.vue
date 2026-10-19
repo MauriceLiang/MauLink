@@ -8,6 +8,13 @@ import { dialogEscapeKey } from './dialog-context';
 import type { DialogSize, DialogVariant } from './dialog.types';
 const props = withDefaults(defineProps<{ open: boolean; title: string; busy?: boolean; closeLabel?: string; panelClass?: string; initialFocus?: string; alert?: boolean; size?: DialogSize; variant?: DialogVariant }>(), { busy:false, closeLabel:'', panelClass:'', initialFocus: undefined, alert:false, size:'standard', variant: undefined });
 const emit = defineEmits<{ close: []; closed: [] }>();
+const dialogInputFocusSelector = [
+  'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"])',
+  'textarea',
+  'select',
+  '[role="combobox"]',
+  '[contenteditable="true"]',
+].join(', ');
 // Both modal types share the same surface and external API; Reka owns their behavior.
 const parts = computed(() => props.alert
   ? {Root:AlertDialogRoot,Portal:AlertDialogPortal,Overlay:AlertDialogOverlay,Content:AlertDialogContent,Title:AlertDialogTitle}
@@ -17,9 +24,16 @@ watch(() => props.open, open => { if (open) returnFocus = document.activeElement
 provide(dialogEscapeKey, () => update(false));
 function update(open: boolean) { if (!open && !props.busy) emit('close'); }
 function openAutoFocus(event: Event) {
-  const selector = props.initialFocus ?? (props.alert ? '[data-dialog-cancel]' : undefined);
-  const target = selector && event.target instanceof HTMLElement ? event.target.querySelector<HTMLElement>(selector) : null;
-  if (target && !target.matches(':disabled')) { event.preventDefault(); target.focus({preventScroll:true}); }
+  if (!(event.target instanceof HTMLElement)) return;
+  const root = event.target;
+  const selector = props.initialFocus ?? (props.alert
+    ? '[data-dialog-cancel]'
+    : dialogInputFocusSelector);
+  const target = [...root.querySelectorAll<HTMLElement>(selector)].find(element =>
+    !element.matches(':disabled, [aria-disabled="true"]') && element.getClientRects().length > 0,
+  );
+  event.preventDefault();
+  (target ?? root).focus({preventScroll:true});
 }
 function closeAutoFocus(event: Event) {
   event.preventDefault();

@@ -23,14 +23,18 @@ const emit = defineEmits<{ close: [] }>();
 const font = ref('monospace'); const size = ref(14); const cursor = ref(defaultSettings.terminalCursorStyle); const scrollback = ref(10000); const copy = ref(false);
 const themeMode = ref<TerminalThemeMode>('followApp');
 const customColors = ref<TerminalCustomColors>({ ...defaultSettings.terminalCustomColors });
+const selectionOpacity = ref(defaultSettings.terminalSelectionOpacity);
+const selectionExtent = ref(defaultSettings.terminalSelectionExtent);
 const backgroundSettings = ref<TerminalBackgroundImageSettings>({ ...defaultSettings.terminalBackgroundImage });
 const backgroundUrl = ref(''); const backgroundName = ref(''); const imageBusy = ref(false); const imageError = ref('');
 const originalImageId = ref<string | null>(null); const importedImageIds = ref<string[]>([]);
 const appearanceDraft = computed<TerminalAppearanceSettings>({
-  get: () => ({ themeMode: themeMode.value, customColors: { ...customColors.value }, backgroundImage: { ...backgroundSettings.value } }),
+  get: () => ({ themeMode: themeMode.value, customColors: { ...customColors.value }, selectionOpacity: selectionOpacity.value, selectionExtent: selectionExtent.value, backgroundImage: { ...backgroundSettings.value } }),
   set: value => {
     themeMode.value = value.themeMode;
     customColors.value = { ...value.customColors };
+    selectionOpacity.value = value.selectionOpacity;
+    selectionExtent.value = value.selectionExtent;
     backgroundSettings.value = { ...value.backgroundImage };
   },
 });
@@ -44,6 +48,8 @@ async function reset() {
   font.value = value.terminalFontFamily; size.value = value.terminalFontSize; cursor.value = value.terminalCursorStyle;
   scrollback.value = value.terminalScrollbackLines; copy.value = props.preferences.copyOnSelect.value;
   themeMode.value = value.terminalThemeMode; customColors.value = { ...value.terminalCustomColors };
+  selectionOpacity.value = value.terminalSelectionOpacity;
+  selectionExtent.value = value.terminalSelectionExtent;
   backgroundSettings.value = { ...value.terminalBackgroundImage }; originalImageId.value = backgroundSettings.value.imageId;
   importedImageIds.value = []; backgroundUrl.value = ''; backgroundName.value = ''; imageError.value = '';
   if (backgroundSettings.value.imageId) {
@@ -80,7 +86,7 @@ async function chooseImage() {
 function clearImage() { backgroundSettings.value.imageId = null; backgroundUrl.value = ''; backgroundName.value = ''; if (themeMode.value === 'image') themeMode.value = 'followApp'; }
 async function save() {
   if (themeMode.value === 'image' && !backgroundSettings.value.imageId) { imageError.value = t('imageRequired'); return; }
-  if (!(await props.preferences.save({ terminalFontFamily: font.value, terminalFontSize: size.value, terminalCursorStyle: cursor.value, terminalScrollbackLines: scrollback.value, terminalThemeMode: themeMode.value, terminalCustomColors: { ...customColors.value }, terminalBackgroundImage: { ...backgroundSettings.value } }, copy.value))) return;
+  if (!(await props.preferences.save({ terminalFontFamily: font.value, terminalFontSize: size.value, terminalCursorStyle: cursor.value, terminalScrollbackLines: scrollback.value, terminalThemeMode: themeMode.value, terminalCustomColors: { ...customColors.value }, terminalSelectionOpacity: selectionOpacity.value, terminalSelectionExtent: selectionExtent.value, terminalBackgroundImage: { ...backgroundSettings.value } }, copy.value))) return;
   const staleIds = [...importedImageIds.value, ...(originalImageId.value && originalImageId.value !== backgroundSettings.value.imageId ? [originalImageId.value] : [])];
   if (!(await cleanup(staleIds, backgroundSettings.value.imageId))) return;
   importedImageIds.value = []; originalImageId.value = backgroundSettings.value.imageId;

@@ -11,6 +11,7 @@ export const updaterMessages = {
   stableDescription: ['仅接收正式版更新。', 'Receive stable releases only.'],
   previewWarning: ['测试版可能不稳定；切换渠道只修改订阅偏好，不会立即安装或改变当前版本。', 'Preview builds may be unstable. Switching channels changes your preference only; it does not install an update or change the installed version.'],
   check: ['检查更新', 'Check for updates'],
+  aboutViewUpdate: ['发现新版本 {version}，查看更新详情', 'Version {version} is available. View update details'],
   checking: ['正在检查更新…', 'Checking for updates…'],
   channelEmpty: ['该渠道目前没有可用版本。', 'There is no release available on this channel yet.'],
   upToDate: ['已是最新版本。', 'You are up to date.'],

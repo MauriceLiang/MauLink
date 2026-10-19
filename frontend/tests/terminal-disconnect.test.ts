@@ -80,7 +80,7 @@ describe("SSH disconnect confirmation", () => {
     await flushPromises();
     expect(confirm?.disabled).toBe(false);
     document.querySelector<HTMLButtonElement>('[role="dialog"] button.base-button--danger')?.click();
-    expect(wrapper.emitted("disconnect")).toEqual([[true, false]]);
+    expect(wrapper.emitted("disconnect")).toEqual([[true, "return-home"]]);
   });
 
   it("disconnects directly when confirmation is disabled and there are no active transfers", async () => {
@@ -88,10 +88,10 @@ describe("SSH disconnect confirmation", () => {
     await flushPromises();
     await wrapper.get('[aria-label="断开连接"]').trigger("click");
     expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(wrapper.emitted("disconnect")).toEqual([[false, false]]);
+    expect(wrapper.emitted("disconnect")).toEqual([[false, "return-home"]]);
   });
 
-  it("marks a confirmed disconnect as a workspace close", async () => {
+  it("keeps explicit workspace close separate from returning home after disconnect", async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
     (wrapper.vm as unknown as { requestWorkspaceClose: () => void }).requestWorkspaceClose();
@@ -99,6 +99,6 @@ describe("SSH disconnect confirmation", () => {
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     document.querySelector<HTMLButtonElement>('[role="dialog"] button.base-button--neutralPrimary')?.click();
-    expect(wrapper.emitted("disconnect")).toEqual([[false, true]]);
+    expect(wrapper.emitted("disconnect")).toEqual([[false, "close-workspace"]]);
   });
 });

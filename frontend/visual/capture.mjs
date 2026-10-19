@@ -64,6 +64,18 @@ async function prepare(tab, item, locale) {
     } else if (step === 'open-second') {
       if ((await tab.playwright.locator('.shell-server-item').count()) < 2) throw new Error(`${item.page}: second server row not present in current DOM`);
       control = tab.playwright.locator('.shell-server-item').nth(1);
+    } else if (step === 'expand-inline-files') {
+      control = tab.playwright.locator('.terminal-files-toggle');
+      if ((await control.getAttribute('aria-pressed')) === 'true') {
+        dom = await tab.playwright.domSnapshot();
+        continue;
+      }
+    } else if (step === 'collapse-inline-files') {
+      control = tab.playwright.locator('.terminal-files-toggle');
+      if ((await control.getAttribute('aria-pressed')) !== 'true') {
+        dom = await tab.playwright.domSnapshot();
+        continue;
+      }
     } else if (step === 'select') {
       if (!(await tab.playwright.locator('.shell-server-item').count())) throw new Error(`${item.page}: server tree row not present in current DOM`);
       control = tab.playwright.locator('.shell-server-item').first();
@@ -95,6 +107,11 @@ async function prepare(tab, item, locale) {
     if (step === 'open-source-directory') {
       await tab.playwright.getByRole('button', { name: 'App.vue', exact: true }).waitFor({state:'visible'});
       dom = await tab.playwright.domSnapshot();
+    }
+    if (step === 'expand-inline-files') {
+      await tab.playwright.locator('.terminal-inline-files .files-table-scroll[aria-busy="false"]').waitFor({state:'visible'});
+      dom = await tab.playwright.domSnapshot();
+      if (!dom.includes('row "src')) throw new Error(`${item.page}: inline files did not finish loading`);
     }
     if (step === 'save-settings') {
       await tab.playwright.getByText(index ? 'Settings saved.' : '设置已保存。', {exact:true}).waitFor({state:'visible'});

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// Paths from the existing Lucide icon set; see ../../../LICENSE-lucide.
-defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'eraser' | 'arrow-left' | 'arrow-right' | 'arrow-up' | 'refresh' | 'power' | 'folder' | 'file-text' | 'upload' | 'folder-plus' | 'download' | 'monitor' | 'shield' | 'network' | 'terminal' | 'globe' | 'house' | 'search' | 'server' | 'panel-left' }>();
+// Most paths are from Lucide; the gear uses Tabler's settings outline. See the icon license files.
+defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' | 'info' | 'warning' | 'error' | 'success' | 'spinner' | 'plus' | 'maximize' | 'minimize' | 'settings' | 'gear' | 'eraser' | 'arrow-left' | 'arrow-right' | 'arrow-up' | 'refresh' | 'power' | 'folder' | 'file-text' | 'upload' | 'folder-plus' | 'download' | 'monitor' | 'shield' | 'network' | 'terminal' | 'globe' | 'house' | 'search' | 'server' | 'panel-left' }>();
 </script>
 <template>
-  <svg class="base-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg class="base-icon" :class="{ 'base-icon--gear': name === 'gear' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path v-if="name === 'chevron-down'" d="m6 9 6 6 6-6" />
     <path v-else-if="name === 'check'" d="m5 12 4 4L19 6" />
     <template v-else-if="name === 'more'"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></template>
@@ -31,6 +31,7 @@ defineProps<{ name: 'chevron-down' | 'check' | 'more' | 'x' | 'eye' | 'eye-off' 
     <template v-else-if="name === 'maximize'"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></template>
     <template v-else-if="name === 'minimize'"><path d="M8 3v5H3" /><path d="M21 8h-5V3" /><path d="M3 16h5v5" /><path d="M16 21v-5h5" /></template>
     <template v-else-if="name === 'settings'"><path d="M14 17H5M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></template>
+    <template v-else-if="name === 'gear'"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.098 2.573-1.065Z" /><circle cx="12" cy="12" r="3" /></template>
     <template v-else-if="name === 'eraser'"><path d="m7 21 4.545-4.545" /><path d="m4.11 13.33 5.39 5.39a2 2 0 0 0 2.83 0l7.78-7.78a2 2 0 0 0 0-2.83L14.72 2.7a2 2 0 0 0-2.83 0l-7.78 7.78a2 2 0 0 0 0 2.85Z" /><path d="m9 8 6 6M21 21H7" /></template>
     <template v-else-if="name === 'eye' || name === 'eye-off'"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12" /><circle cx="12" cy="12" r="3" /><path v-if="name === 'eye-off'" d="m3 3 18 18" /></template>
     <path v-else-if="name === 'spinner'" d="M20 12a8 8 0 1 1-8-8" />

@@ -39,6 +39,8 @@ const previewSettings = computed<AppSettings>(() => ({
   ...props.settings,
   terminalThemeMode: props.modelValue.themeMode,
   terminalCustomColors: { ...props.modelValue.customColors },
+  terminalSelectionOpacity: props.modelValue.selectionOpacity,
+  terminalSelectionExtent: props.modelValue.selectionExtent,
   terminalBackgroundImage: { ...props.modelValue.backgroundImage },
 }));
 
@@ -47,6 +49,8 @@ function change(mutator: (draft: TerminalAppearanceSettings) => void) {
   const next: TerminalAppearanceSettings = {
     themeMode: props.modelValue.themeMode,
     customColors: { ...props.modelValue.customColors },
+    selectionOpacity: props.modelValue.selectionOpacity,
+    selectionExtent: props.modelValue.selectionExtent,
     backgroundImage: { ...props.modelValue.backgroundImage },
   };
   mutator(next);
@@ -54,6 +58,8 @@ function change(mutator: (draft: TerminalAppearanceSettings) => void) {
 }
 function updateTheme(value: TerminalThemeMode) { change(next => { next.themeMode = value; }); }
 function updateColor(key: keyof TerminalCustomColors, value: string) { change(next => { next.customColors[key] = value; }); }
+function updateSelectionOpacity(value: number) { change(next => { next.selectionOpacity = value; }); }
+function updateSelectionExtent(value: number) { change(next => { next.selectionExtent = value; }); }
 function updateImage<K extends keyof TerminalAppearanceSettings['backgroundImage']>(key: K, value: TerminalAppearanceSettings['backgroundImage'][K]) {
   change(next => { next.backgroundImage[key] = value; });
 }
@@ -71,6 +77,16 @@ function updateOverlay(value: TerminalBackgroundOverlayKind) { updateImage('over
       :loading="backgroundBusy"
       :empty-image="modelValue.themeMode === 'image' && !backgroundUrl"
     />
+
+    <div class="terminal-appearance-sliders terminal-selection-opacity">
+      <BaseSlider :model-value="modelValue.selectionOpacity" :label="t('selectionOpacity')" :min="0" :max="100" unit="%" :disabled="disabled" @update:model-value="updateSelectionOpacity" />
+      <p class="connection-muted">{{ t('selectionOpacityNote') }}</p>
+    </div>
+
+    <div class="terminal-appearance-sliders terminal-selection-extent">
+      <BaseSlider :model-value="modelValue.selectionExtent" :label="t('selectionExtent')" :min="0" :max="100" unit="%" :disabled="disabled" @update:model-value="updateSelectionExtent" />
+      <p class="connection-muted">{{ t('selectionExtentNote') }}</p>
+    </div>
 
     <div v-if="modelValue.themeMode === 'customColor'" class="terminal-appearance-colors" :aria-label="t('customColor')">
       <BaseColorPicker

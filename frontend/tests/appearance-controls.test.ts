@@ -20,6 +20,8 @@ function imageAppearance(): TerminalAppearanceSettings {
   return {
     themeMode: 'image',
     customColors: { ...defaultSettings.terminalCustomColors },
+    selectionOpacity: defaultSettings.terminalSelectionOpacity,
+    selectionExtent: defaultSettings.terminalSelectionExtent,
     backgroundImage: { ...defaultSettings.terminalBackgroundImage },
   };
 }

@@ -39,6 +39,8 @@ import { createServerAppearanceStore } from "../stores/server-appearance";
 import { mapError } from "../errors/mapper";
 import { presentError } from "../errors/presenter";
 import BaseButton from "../components/base/BaseButton.vue";
+import BaseIcon from "../components/base/BaseIcon.vue";
+import BaseIconButton from "../components/base/BaseIconButton.vue";
 import BaseDialog from "../components/base/BaseDialog.vue";
 import BaseEmptyState from "../components/base/BaseEmptyState.vue";
 import BaseToastViewport from "../components/base/BaseToastViewport.vue";
@@ -62,10 +64,12 @@ import UpdateInstallConfirmDialog from "../components/update/UpdateInstallConfir
 import { createNativeUpdaterAdapter, createUnsupportedUpdaterAdapter } from "../updater/updater-adapter";
 import { inspectInstallActivity } from "../updater/install-safety";
 import { createUpdaterController } from "../updater/updater-controller";
-import type { UpdaterAdapter } from "../updater/updater-types";
+import type { UpdateErrorCode, UpdaterAdapter } from "../updater/updater-types";
 import type { ConnectionTestToastResult } from "./connection-test-toast";
 import type { ServerNavigationRequest } from "./server-navigation";
 import { createWorkspaceUiStore } from "../stores/workspace-ui";
+import logoLight from "../assets/maulink-logo-light.png";
+import logoDark from "../assets/maulink-logo-dark.png";
 const t = messages(shellMessages);
 
 const props = withDefaults(defineProps<{ client: IpcClient; readOnly?: boolean; terminalChannelFactory?: TerminalChannelFactory; transferChannelFactory?: TransferChannelFactory; backgroundImageAssetUrl?: (path: string) => string; updaterAdapter?: UpdaterAdapter }>(), { readOnly: false });
@@ -219,6 +223,41 @@ const manageGroups = ref(false);
 const deleteTarget = ref<ServerProfile | null>(null);
 const toast = useToast();
 const updaterText = messages(updaterMessages);
+const aboutUpdatePhase = computed(() => updaterController.state.value.phase);
+const aboutUpdateBusy = computed(() => ['checking', 'downloading', 'confirmingInstall', 'installing'].includes(aboutUpdatePhase.value));
+const aboutUpdateIcon = computed(() => aboutUpdateBusy.value ? 'spinner' : ['available', 'downloaded'].includes(aboutUpdatePhase.value) ? 'download' : 'refresh');
+const aboutUpdateLabel = computed(() => {
+  const state = updaterController.state.value;
+  switch (state.phase) {
+    case 'checking': return updaterText('checking');
+    case 'downloading': return updaterText('downloading');
+    case 'downloaded': return updaterText('downloaded');
+    case 'confirmingInstall': return updaterText('confirmingInstall');
+    case 'installing': return updaterText('installing');
+    case 'available': return updaterText('aboutViewUpdate', { version: state.latestVersion ?? '—' });
+    case 'blocked': return updaterText('blockedVersion', { current: state.currentVersion, target: state.latestVersion ?? '—' });
+    case 'unsupported': return updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop');
+    default: return updaterText('check');
+  }
+});
+const aboutUpdateLiveStatus = computed(() => aboutUpdateBusy.value ? aboutUpdateLabel.value : '');
+const aboutEnvironment = computed(() => {
+  const platform = info.value?.platform.trim();
+  if (!platform) return '—';
+  const normalizedPlatform = platform.toLowerCase();
+  const architecture = info.value?.architecture.trim().toLowerCase();
+  if (normalizedPlatform === 'macos') {
+    if (architecture === 'aarch64' || architecture === 'arm64') return 'macOS · Apple Silicon';
+    if (architecture === 'x86_64' || architecture === 'amd64') return 'macOS · Intel';
+    return 'macOS';
+  }
+  if (normalizedPlatform === 'windows') {
+    if (architecture === 'aarch64' || architecture === 'arm64') return 'Windows · ARM64';
+    if (architecture === 'x86_64' || architecture === 'amd64') return 'Windows · x64';
+    return 'Windows';
+  }
+  return platform;
+});
 const selected = computed(() => servers.value.find(server => server.id === selectedId.value));
 const backendState = computed(() => pending.value ? "pending" : error.value ? "error" : "ready");
 const shortcut = computed(() => info.value?.platform === "windows" ? "Ctrl K" : "⌘ K");
@@ -341,6 +380,47 @@ async function openUpdatesFromAbout() {
   document.querySelector<HTMLButtonElement>('#settings-updates button')?.focus();
 }
 
+function updateErrorMessageKey(code?: UpdateErrorCode): keyof typeof updaterMessages {
+  switch (code) {
+    case 'network': return 'errorNetwork';
+    case 'metadata': return 'errorMetadata';
+    case 'signature': return 'errorSignature';
+    case 'storage': return 'errorStorage';
+    case 'permission': return 'errorPermission';
+    case 'install': return 'errorInstall';
+    case 'unsupported': return updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop';
+    default: return 'errorUnknown';
+  }
+}
+
+async function checkUpdatesFromAbout() {
+  const phase = updaterController.state.value.phase;
+  if (aboutUpdateBusy.value) return;
+  if (phase === 'available' || phase === 'downloaded' || phase === 'blocked') {
+    await openUpdatesFromAbout();
+    return;
+  }
+  if (phase === 'unsupported') {
+    toast.error(updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop'));
+    return;
+  }
+
+  await updaterController.checkForUpdates();
+  const result = updaterController.state.value;
+  switch (result.phase) {
+    case 'upToDate': toast.success(updaterText('upToDate')); break;
+    case 'channelEmpty': toast.info(updaterText('channelEmpty')); break;
+    case 'available':
+    case 'blocked':
+      if (about.value) await openUpdatesFromAbout();
+      else if (result.phase === 'available') toast.info(updaterText('foundUpdate', { version: result.latestVersion ?? '—' }));
+      else toast.warning(updaterText('blockedVersion', { current: result.currentVersion, target: result.latestVersion ?? '—' }));
+      break;
+    case 'error': toast.error(updaterText(updateErrorMessageKey(result.errorCode))); break;
+    case 'unsupported': toast.error(updaterText(updaterController.adapterKind === 'native' ? 'notConfigured' : 'onlyDesktop')); break;
+  }
+}
+
 function openEditor(id: string | null = null) {
   if (!canManage.value) return;
   editingId.value = id;
@@ -414,7 +494,7 @@ function handleServerNavigation({ action, server }: ServerNavigationRequest) {
   }
 }
 
-function finishWorkspaceClose(serverId: string) {
+function finishWorkspaceClose(serverId: string, returnHome = false) {
   const snapshot = connections.snapshots.value[serverId];
   if (snapshot && !isFinished(snapshot)) return false;
   if (snapshot) {
@@ -422,6 +502,7 @@ function finishWorkspaceClose(serverId: string) {
     connections.dismiss(serverId);
   }
   workspaceUi.close(serverId);
+  if (returnHome) workspaceUi.returnHome();
   if (diagnosticServerId.value === serverId) diagnosticServerId.value = null;
   if (pendingServerNavigation.value?.serverId === serverId) pendingServerNavigation.value = null;
   return true;
@@ -434,7 +515,7 @@ async function closeWorkspace(serverId: string) {
   if (snapshot.state === 'ready') {
     const workspace = workspaceRefs.value.find(value => value.serverId === serverId);
     if (workspace) { workspace.requestWorkspaceClose(); return; }
-    await handleWorkspaceDisconnect(serverId, false, true);
+    await handleWorkspaceDisconnect(serverId, false, 'close-workspace');
     return;
   }
   workspaceUi.setPhase(serverId, 'closing');
@@ -442,10 +523,10 @@ async function closeWorkspace(serverId: string) {
   if (!finishWorkspaceClose(serverId)) workspaceUi.syncConnection(serverId, connections.snapshots.value[serverId] ?? null, !!connections.errors.value[serverId]);
 }
 
-async function handleWorkspaceDisconnect(serverId: string, stopActiveTransfers: boolean, closeAfterDisconnect = false) {
+async function handleWorkspaceDisconnect(serverId: string, stopActiveTransfers: boolean, disposition: 'stay' | 'close-workspace' | 'return-home' = 'stay') {
   await connections.disconnect(serverId, stopActiveTransfers);
   const snapshot = connections.snapshots.value[serverId];
-  if (closeAfterDisconnect && snapshot && isFinished(snapshot)) finishWorkspaceClose(serverId);
+  if (disposition !== 'stay' && snapshot && isFinished(snapshot)) finishWorkspaceClose(serverId, disposition === 'return-home');
 }
 
 function toggleSidebar() { sidebarVisible.value = !sidebarVisible.value; }
@@ -530,7 +611,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
       <Sidebar v-else v-show="sidebarVisible" v-model:query="query" :servers="servers" :groups="groups" :snapshots="connections.snapshots.value" :selected-id="selectedId" :pending="pending" :failed="!!error" :can-manage="canManage" @select="selectServer($event)" @add="openEditor()" @groups="manageGroups = true" @server-action="handleServerNavigation" />
       <main class="shell-main" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId }" :aria-busy="pending">
         <DesktopWorkspaceTabs v-if="!settingsOpen" :tabs="workspaceTabItems" :active-key="workspaceUi.activeServerId.value" @select="workspaceUi.select($event); diagnosticServerId = null" @close="closeWorkspace" />
-        <div class="shell-main-content" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId }">
+        <div class="shell-main-content" :class="{ 'has-terminal-workspace': !!workspaceUi.activeTab.value && !settingsOpen && !diagnosticServerId, 'has-connection-failure': workspaceUi.activeTab.value?.phase === 'failed' && activeSnapshot?.state !== 'ready' }">
         <SettingsWorkspace v-if="settingsOpen" ref="settingsWorkspaceRef" :active="settingsOpen" :section="settingsInitialSection" :preferences="terminalPreferences" :background-images="backgroundImages" :geoip="geoip" :credential-reveal="credentialReveal" :updater="updaterController" :current-version="info?.version ?? '—'" :update-install-busy="updateInstallBusy" @update:section="settingsInitialSection = $event" @leave="finishSettingsLeave" @leave-cancelled="cancelSettingsLeave" @database-changed="databaseRevision++" @saved="toast.success(settingsText('saved'))" @busy-change="settingsSidebarBusy = $event" @update-install-request="requestUpdateInstall" @update-install-deferred="deferUpdateInstall" />
         <template v-else>
           <BaseEmptyState v-if="pending" :title="t('loadingLocalData')" />
@@ -538,22 +619,42 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
             <BaseButton @click="load">{{ t('retry') }}</BaseButton>
           </BaseEmptyState>
           <ServerOverview v-else-if="diagnosticServerId && selected" :server="selected" :store="connections" :host-key-api="hostKeys" :network-api="network" :preflight-api="preflight" :runtime-stats-api="runtimeStats" :read-only="!canManage" :geo-ip-lookup-mode="terminalPreferences.record.value?.value.geoIpLookupMode ?? defaultSettings.geoIpLookupMode" @back="selectServer(null)" @edit="openEditor($event)" @remove="deleteTarget = { ...$event }" :database-revision="databaseRevision" @open-settings="openSettings('network')" @copy="copyOverviewValue" @test-result="onConnectionTestResult" />
-          <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" :title="activeWorkspaceStatus" :description="activeWorkspaceError || undefined">
-            <BaseButton v-if="workspaceUi.activeTab.value.phase === 'failed'" @click="retryActiveWorkspace">{{ t('retry') }}</BaseButton>
-            <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspace', { name: servers.find(item => item.id === workspaceUi.activeTab.value?.serverId)?.name ?? '' }) }}</BaseButton>
+          <section v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready' && workspaceUi.activeTab.value.phase !== 'failed'" class="shell-connection-progress" role="status" aria-live="polite" aria-busy="true">
+            <span class="shell-connection-spinner" aria-hidden="true"></span>
+            <p>{{ activeWorkspaceStatus }}</p>
+          </section>
+          <BaseEmptyState v-else-if="workspaceUi.activeTab.value && activeSnapshot?.state !== 'ready'" class="shell-connection-failure" :title="activeWorkspaceStatus">
+            <div class="shell-connection-failure-actions">
+              <BaseButton variant="neutralPrimary" @click="retryActiveWorkspace"><BaseIcon name="refresh" />{{ t('reconnect') }}</BaseButton>
+              <BaseButton variant="secondary" @click="closeWorkspace(workspaceUi.activeTab.value.serverId)">{{ t('closeWorkspaceAction') }}</BaseButton>
+            </div>
+            <p v-if="activeWorkspaceError" class="shell-connection-failure-detail">{{ activeWorkspaceError }}</p>
           </BaseEmptyState>
           <IdleWorkspace v-else-if="!workspaceUi.activeTab.value" :has-servers="servers.length > 0" @add="requestSettingsLeave(() => openEditor())" />
         </template>
-        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, closeAfterDisconnect) => handleWorkspaceDisconnect(id, stopTransfers, closeAfterDisconnect)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
+        <TerminalWorkspace v-for="[id, snapshot] in workspaces" ref="workspaceRefs" :key="snapshot.connectionId" v-show="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :server="servers.find(server => server.id === id)!" :server-appearance="serverAppearances.appearances.value[id]" :snapshot="snapshot" :controller="terminals" :sftp="sftp" :transfers="transfers" :monitor="monitor" :preferences="terminalPreferences" :background-images="backgroundImages" :visible="!pending && !error && !settingsOpen && !diagnosticServerId && workspaceUi.activeServerId.value === id" :busy="!!connections.busy.value[id]" :error="connections.errors.value[id]" @settings="openSettings('terminal')" @disconnect="(stopTransfers, disposition) => handleWorkspaceDisconnect(id, stopTransfers, disposition)" @focus-mode="focused = $event" @view="workspaceViews[snapshot.connectionId] = $event; workspaceUi.setPane(id, $event)" />
         </div>
       </main>
       <TransferPanel :store="transfers" :open="transferDrawerOpen" :server-names="transferServerNames" @close="transferDrawerOpen = false" />
       <LocalBackendStatus :state="backendState" :workspace-count="workspaceUi.tabs.value.length" :transfer-count="activeTransfers" :transfer-drawer-open="transferDrawerOpen" @toggle-transfers="transferDrawerOpen = !transferDrawerOpen" />
     </div>
-    <BaseDialog :open="about" size="compact" :title="t('aboutMauLink')" @close="about = false">
-      <p>{{ t('aboutLead') }}</p>
-      <dl class="shell-about-details"><dt>{{ t('version') }}</dt><dd>{{ info?.version ?? '—' }}</dd><dt>{{ t('platform') }}</dt><dd>{{ info?.platform ?? '—' }}</dd><dt>{{ t('architecture') }}</dt><dd>{{ info?.architecture ?? '—' }}</dd></dl>
-      <template #footer><BaseButton variant="secondary" @click="openUpdatesFromAbout">{{ updaterText('check') }}</BaseButton></template>
+    <BaseDialog :open="about" size="compact" panel-class="shell-about-dialog" :title="t('aboutMauLink')" @close="about = false">
+      <section class="shell-about" aria-labelledby="shell-about-brand">
+        <div class="shell-about-logos" aria-hidden="true">
+          <img class="shell-about-logo shell-about-logo-light" :src="logoLight" alt="" width="68" height="68" />
+          <img class="shell-about-logo shell-about-logo-dark" :src="logoDark" alt="" width="68" height="68" />
+        </div>
+        <h3 id="shell-about-brand">MauLink</h3>
+        <p class="shell-about-lead">{{ t('aboutLead') }}</p>
+        <div class="shell-about-version-row">
+          <span class="shell-about-version">v{{ info?.version ?? '—' }}</span>
+          <BaseIconButton class="shell-about-update-button" :label="aboutUpdateLabel" :aria-disabled="aboutUpdateBusy" :aria-busy="aboutUpdateBusy" :data-state="aboutUpdatePhase" @click="checkUpdatesFromAbout">
+            <BaseIcon :name="aboutUpdateIcon" :class="{ 'is-checking': aboutUpdateBusy }" />
+          </BaseIconButton>
+        </div>
+        <p class="shell-about-environment">{{ aboutEnvironment }}</p>
+        <span class="shell-about-live-status" role="status" aria-live="polite">{{ aboutUpdateLiveStatus }}</span>
+      </section>
     </BaseDialog>
     <UpdateInstallConfirmDialog :open="updateInstallDialogOpen" :busy="updateInstallBusy" :active-connections="updateActivity.activeConnections.length" :active-terminals="updateActivity.activeTerminals.length" @cancel="cancelUpdateInstall" @confirm="beginUpdateInstall(true)" />
     <ServerDialog :language="locale" :open="editor" :server-id="editingId" :store="store" :appearance-store="serverAppearances" :background-images="backgroundImages" :connection-store="connections" :global-settings="terminalPreferences.record.value?.value ?? defaultSettings" @close="editor = false" @reveal-credential="openCredentialReveal" @saved="toast.success($event)" @test-result="onConnectionTestResult" />

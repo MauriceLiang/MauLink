@@ -18,7 +18,7 @@ import TerminalAppearanceEditor from '../../components/terminal/TerminalAppearan
 
 type TerminalSettingsDraft = Pick<AppSettings,
   'terminalFontFamily' | 'terminalFontSize' | 'terminalCursorStyle' | 'terminalScrollbackLines' | 'terminalLineHeight' | 'terminalCursorBlink' |
-  'terminalThemeMode' | 'terminalCustomColors' | 'terminalBackgroundImage'>;
+  'terminalThemeMode' | 'terminalCustomColors' | 'terminalSelectionOpacity' | 'terminalSelectionExtent' | 'terminalBackgroundImage'>;
 
 const props = defineProps<{
   settings: AppSettings;
@@ -42,6 +42,8 @@ const cursorBlink = ref(defaultSettings.terminalCursorBlink);
 const copy = ref(false);
 const themeMode = ref<TerminalThemeMode>('followApp');
 const customColors = ref<TerminalCustomColors>({ ...defaultSettings.terminalCustomColors });
+const selectionOpacity = ref(defaultSettings.terminalSelectionOpacity);
+const selectionExtent = ref(defaultSettings.terminalSelectionExtent);
 const backgroundSettings = ref<TerminalBackgroundImageSettings>({ ...defaultSettings.terminalBackgroundImage });
 const backgroundUrl = ref('');
 const backgroundName = ref('');
@@ -55,10 +57,12 @@ let resetSequence = 0;
 let imageRequestSequence = 0;
 
 const appearanceDraft = computed<TerminalAppearanceSettings>({
-  get: () => ({ themeMode: themeMode.value, customColors: { ...customColors.value }, backgroundImage: { ...backgroundSettings.value } }),
+  get: () => ({ themeMode: themeMode.value, customColors: { ...customColors.value }, selectionOpacity: selectionOpacity.value, selectionExtent: selectionExtent.value, backgroundImage: { ...backgroundSettings.value } }),
   set: value => {
     themeMode.value = value.themeMode;
     customColors.value = { ...value.customColors };
+    selectionOpacity.value = value.selectionOpacity;
+    selectionExtent.value = value.selectionExtent;
     backgroundSettings.value = { ...value.backgroundImage };
   },
 });
@@ -74,10 +78,12 @@ function emitDraft() {
     terminalCursorBlink: cursorBlink.value,
     terminalThemeMode: themeMode.value,
     terminalCustomColors: { ...customColors.value },
+    terminalSelectionOpacity: selectionOpacity.value,
+    terminalSelectionExtent: selectionExtent.value,
     terminalBackgroundImage: { ...backgroundSettings.value },
   });
 }
-watch([font, size, cursor, scrollback, lineHeight, cursorBlink, themeMode, customColors, backgroundSettings], emitDraft, { deep: true });
+watch([font, size, cursor, scrollback, lineHeight, cursorBlink, themeMode, customColors, selectionOpacity, selectionExtent, backgroundSettings], emitDraft, { deep: true });
 watch(copy, value => { if (initialized.value) emit('update:copyOnSelect', value); });
 
 async function reset() {
@@ -94,6 +100,8 @@ async function reset() {
   copy.value = props.copyOnSelect;
   themeMode.value = value.terminalThemeMode;
   customColors.value = { ...value.terminalCustomColors };
+  selectionOpacity.value = value.terminalSelectionOpacity;
+  selectionExtent.value = value.terminalSelectionExtent;
   backgroundSettings.value = { ...value.terminalBackgroundImage };
   originalImageId.value = backgroundSettings.value.imageId;
   importedImageIds.value = [];
