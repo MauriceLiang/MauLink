@@ -2,7 +2,13 @@
   {
     "page": "servers",
     "file": "servers-light-zh-CN-1280x720.jpg",
-    "url": "http://127.0.0.1:1421/?harness=visual&page=servers&theme=light&locale=zh-CN",
+    "url": "http://127.0.0.1:1420/?harness=visual&page=servers&theme=light&locale=zh-CN&accentColor=blue&customAccentColor=%233B82F6&uiDensity=standard",
+    "themePreference": "light",
+    "manifestId": "servers",
+    "accentColor": "blue",
+    "customAccentColor": null,
+    "uiDensity": "standard",
+    "density": "standard",
     "dpr": 1,
     "fonts": "loaded",
     "height": 720,
@@ -10,8 +16,8 @@
     "overflow": false,
     "theme": "light",
     "width": 1280,
-    "sha256": "468c751e084c49765cf4bc3a85f03c5533a7638f84a0b53de357cf7bab07db13",
-    "repeatSha256": "468c751e084c49765cf4bc3a85f03c5533a7638f84a0b53de357cf7bab07db13",
+    "sha256": "6055d5f9b0f2d2b065c8fba0694af735be7f0ff2f09582c3170d03119c70cfe6",
+    "repeatSha256": "6055d5f9b0f2d2b065c8fba0694af735be7f0ff2f09582c3170d03119c70cfe6",
     "identical": true
   }
 ]
