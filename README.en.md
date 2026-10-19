@@ -10,7 +10,7 @@
   <p><strong>Connect to your servers. Stay focused.</strong></p>
   <p>Bring SSH terminals, remote files, and host monitoring into one local desktop workspace.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-0.1.1--rc.33-3b82f6?style=flat-square" alt="Version 0.1.1-rc.33">
+    <img src="https://img.shields.io/badge/version-0.1.1--rc.34-3b82f6?style=flat-square" alt="Version 0.1.1-rc.34">
     <img src="https://img.shields.io/badge/status-development-64748b?style=flat-square" alt="Development and internal testing">
     <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square" alt="Tauri 2">
     <img src="https://img.shields.io/badge/Rust-2024-dc7844?style=flat-square" alt="Rust 2024 edition">
@@ -36,7 +36,7 @@ MauLink is currently in development and internal testing, targeting macOS and Wi
 
 ## Download and install
 
-The repository currently includes a `0.1.1-rc.33` macOS Apple silicon test build: [DMG / ZIP downloads and SHA-256 checksums](./package/README.md). It uses an ad-hoc signature and is not notarized by Apple, so macOS may show a security warning on first launch. The current `package/` directory does not include macOS Intel or Windows installers.
+The repository currently includes a `0.1.1-rc.34` macOS Apple silicon test build: [DMG / ZIP downloads and SHA-256 checksums](./package/README.md). It uses an ad-hoc signature and is not notarized by Apple, so macOS may show a security warning on first launch. The current `package/` directory does not include macOS Intel or Windows installers.
 
 GitHub Actions workflows have been removed, so builds and releases are no longer automated. Maintainers will build installers manually and upload them to [GitHub Releases](https://github.com/MauriceLiang/MauLink/releases). Regular Release attachments do not enable in-app updates; the updater remains disabled. See the [build and release guide](./RELEASING.md) for the manual build, upload, and acceptance steps.
 
@@ -346,7 +346,7 @@ The acceptance status below is summarized from historical records: backend throu
 | M5: SFTP | Browsing, directory operations, file transfer, and plain-text viewing / editing up to 2 MiB are implemented; isolated OpenSSH and large-file round-trip checks on 2026-09-28 covered file transfer | Acceptance checks for text viewing / editing and Markdown preview; Windows file publishing and target-server failure matrix |
 | M6: Monitor | Collection, parsing, bounded history, and workspace page are implemented; checks in the available environment pass | Compare metrics against Linux hosts; verify minimize / restore behavior on Windows |
 | Desktop UI | Production Vue entry point and Reka UI components; Browser visual regression covers both languages and themes; macOS release app confirmed by the user | Existing Phase 6 acceptance gaps, system theme / reduced-motion checks, native minimize / restore, and Windows build environment and desktop acceptance |
-| Release | `package/` contains the `0.1.1-rc.33` macOS arm64 test build; maintainers will manually build and upload future installers to GitHub Releases | macOS Intel / Windows x64 installers and device acceptance, Developer ID / Windows signing, macOS notarization |
+| Release | `package/` contains the `0.1.1-rc.34` macOS arm64 test build; maintainers will manually build and upload future installers to GitHub Releases | macOS Intel / Windows x64 installers and device acceptance, Developer ID / Windows signing, macOS notarization |
 
 The current UI provides Simplified Chinese and English catalogs; user names, remote paths, and terminal output remain unchanged. Docker management, database clients, process lists, and Disk I/O monitoring are outside the current MVP. M4 IPC numeric tests were skipped at the user's request. This README does not publish throughput or latency figures that have not been measured.
 

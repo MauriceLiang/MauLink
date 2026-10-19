@@ -9,10 +9,10 @@
 以根 `Cargo.toml` 的 `[workspace.package].version` 为版本基准，并同步更新 `src-tauri/tauri.conf.json`。运行以下命令更新前端 package 和 lockfile：
 
 ```bash
-npm --prefix frontend version 0.1.1-rc.34 --no-git-tag-version
+npm --prefix frontend version 0.1.1-rc.35 --no-git-tag-version
 cargo check --workspace
 cargo check --workspace --locked
-node tools/check-release-version.mjs v0.1.1-rc.34
+node tools/check-release-version.mjs v0.1.1-rc.35
 ```
 
 先把根 Cargo 和 Tauri 配置版本改为同一新版本，再运行检查。确认 `Cargo.lock` 只包含 MauLink 自身版本变化，没有无关依赖升级。版本检查器会核对 SemVer、npm lock 根版本和应用标识 `io.maulink.desktop`。不要为测试构建更改正式应用标识、应用数据目录或凭据行为。
