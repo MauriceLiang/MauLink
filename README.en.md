@@ -48,16 +48,16 @@ GitHub Actions workflows have been removed, so builds and releases are no longer
     <th>Simplified Chinese · Dark</th>
   </tr>
   <tr>
-    <td><img src="./docs/screenshots/readme/servers-light-zh-CN-1280x720.jpg" alt="MauLink server home in Simplified Chinese light theme" width="480"></td>
-    <td><img src="./docs/screenshots/readme/servers-dark-zh-CN-1280x720.jpg" alt="MauLink server home in Simplified Chinese dark theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-light-zh-CN-1280x720.jpg?v=709ce87" alt="MauLink server home in Simplified Chinese light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-zh-CN-1280x720.jpg?v=709ce87" alt="MauLink server home in Simplified Chinese dark theme" width="480"></td>
   </tr>
   <tr>
     <th>English · Light</th>
     <th>English · Dark</th>
   </tr>
   <tr>
-    <td><img src="./docs/screenshots/readme/servers-light-en-1280x720.jpg" alt="MauLink server home in English light theme" width="480"></td>
-    <td><img src="./docs/screenshots/readme/servers-dark-en-1280x720.jpg" alt="MauLink server home in English dark theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-light-en-1280x720.jpg?v=709ce87" alt="MauLink server home in English light theme" width="480"></td>
+    <td><img src="./docs/screenshots/readme/servers-dark-en-1280x720.jpg?v=709ce87" alt="MauLink server home in English dark theme" width="480"></td>
   </tr>
 </table>
 
