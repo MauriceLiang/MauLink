@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-本项目已实现 Stable / Preview 渠道偏好、版本规则、Rust 更新协调器和浏览器 Mock 流程；当前应用版本为 `0.1.1-rc.34`。正式更新源计划使用 GitHub Releases 保存安装与 updater 产物，使用独立 HTTPS 地址保存 `stable.json` / `preview.json`。仓库尚未启用更新索引托管，也没有 Updater 公钥或签名私钥，因此安装包仍不能在线更新；首次启用时必须手动安装一个带受信更新配置的完整应用包。
+本项目已实现 Stable / Preview 渠道偏好、版本规则、Rust 更新协调器和浏览器 Mock 流程；当前应用版本为 `0.1.1-rc.35`。正式更新源计划使用 GitHub Releases 保存安装与 updater 产物，使用独立 HTTPS 地址保存 `stable.json` / `preview.json`。仓库尚未启用更新索引托管，也没有 Updater 公钥或签名私钥，因此安装包仍不能在线更新；首次启用时必须手动安装一个带受信更新配置的完整应用包。
 
 仓库已移除全部 GitHub Actions。合并后，PR、推送和 Tag 不会自动检查、构建、上传或发布；安装包由维护者在各平台手动编译并上传。手动上传 Release 不会部署更新索引，应用内更新仍保持未启用。正式安装包的手动流程见 [RELEASING.md](RELEASING.md)。
 
