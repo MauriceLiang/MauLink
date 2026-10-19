@@ -54,6 +54,10 @@ const accentColorKeys: Record<AccentColor, keyof typeof settingsMessages> = { bl
 const toastPositions: ToastPosition[] = ['topLeft', 'topCenter', 'topRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
 const toastPositionKeys: Record<ToastPosition, keyof typeof settingsMessages> = { topLeft: 'toastTopLeft', topCenter: 'toastTopCenter', topRight: 'toastTopRight', bottomLeft: 'toastBottomLeft', bottomCenter: 'toastBottomCenter', bottomRight: 'toastBottomRight' };
 const accentOptions: Exclude<AccentColor, 'custom'>[] = ['blue', 'indigo', 'purple', 'green', 'orange', 'red'];
+const fileVisibilityOptions = computed(() => [{ value: 'show', label: t('showOption') }, { value: 'hide', label: t('hideOption') }]);
+const showSizeColumnChoice = computed({ get: () => draft.showSizeColumn ? 'show' : 'hide', set: (value: string) => { draft.showSizeColumn = value === 'show'; } });
+const showFileSizesChoice = computed({ get: () => draft.showFileSizes ? 'show' : 'hide', set: (value: string) => { draft.showFileSizes = value === 'show'; } });
+const showFolderSizesChoice = computed({ get: () => draft.showFolderSizes ? 'show' : 'hide', set: (value: string) => { draft.showFolderSizes = value === 'show'; } });
 const customAccentColor = computed({ get: () => draft.customAccentColor ?? '#3B82F6', set: (value: string) => { draft.customAccentColor = value; } });
 const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessages; description: keyof typeof settingsMessages }> = {
   general: { title: 'general', description: 'generalDescription' },
@@ -244,10 +248,12 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
                 <BaseSelect v-model="draft.sidebarWidth" :label="t('sidebarWidth')" :options="[{value:'narrow',label:t('sidebarNarrow')},{value:'standard',label:t('sidebarStandard')},{value:'wide',label:t('sidebarWide')}]" />
                 <section class="settings-file-display-section" :aria-label="t('fileListDisplay')">
                   <h2>{{ t('fileListDisplay') }}</h2>
-                  <div class="settings-file-size-master"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /></div>
-                  <div v-if="draft.showSizeColumn" class="settings-file-size-options">
-                    <BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" />
-                    <div><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div>
+                  <div class="settings-file-display-options">
+                    <BaseSelect v-model="showSizeColumnChoice" :label="t('showSizeColumn')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" />
+                    <div v-if="draft.showSizeColumn" class="settings-file-size-options">
+                      <BaseSelect v-model="showFileSizesChoice" :label="t('showFileSizes')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" />
+                      <div><BaseSelect v-model="showFolderSizesChoice" :label="t('showFolderSizes')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div>
+                    </div>
                   </div>
                 </section>
               </div>

@@ -13,6 +13,7 @@ export const settingsMessages = {
   reloadSettingsTitle: ['重新加载设置？', 'Reload settings?'],
   reloadSettingsDescription: ['重新加载会放弃保存失败的更改，并重新读取已保存设置。', 'Reloading will discard changes that failed to save and reload saved settings.'],
   confirmReload: ['重新加载', 'Reload'],
+  showOption: ['显示', 'Show'], hideOption: ['隐藏', 'Hide'],
   showSizeColumn: ['显示大小列', 'Show size column'], showFileSizes: ['显示文件大小', 'Show file sizes'], showFolderSizes: ['显示文件夹大小', 'Show folder sizes'], folderSizeNote: ['按需递归统计目录中的文件大小，目录较大时需要一些时间；遇到无法读取的子目录时显示 —。', 'Folder sizes are calculated on demand by scanning files recursively. Large folders may take time; folders with unreadable descendants show —.'],
   confirmDisconnect: ['断开连接前确认', 'Confirm before disconnecting'], transferConfirmation: ['正在运行的传输仍需单独确认后才能取消。', 'Running transfers always require a separate confirmation before cancellation.'],
   theme: ['主题', 'Theme'], system: ['跟随系统', 'System'], light: ['浅色', 'Light'], dark: ['深色', 'Dark'], themeNote: ['更改后自动保存；系统主题随操作系统外观变化。', 'Changes are saved automatically. System theme follows operating system appearance.'], uiDensity: ['界面密度', 'UI density'], densityStandard: ['标准', 'Standard'], densityCompact: ['紧凑', 'Compact'], sidebarWidth: ['侧边栏宽度', 'Sidebar width'], sidebarNarrow: ['窄', 'Narrow'], sidebarStandard: ['标准', 'Standard'], sidebarWide: ['宽', 'Wide'], languageNote: ['更改后自动保存并更新界面语言。服务器名称与远程内容保持原样。', 'Changes are saved automatically and update the interface language. Server names and remote content remain unchanged.'],

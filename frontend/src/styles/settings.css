@@ -1,12 +1,6 @@
-.settings-file-size-master .base-toggle-field { gap: 12px; }
-.settings-file-size-master .base-toggle-field > label { font-size: 15px; font-weight: 600; }
-.settings-file-size-master .base-switch { width: 42px; height: 24px; }
-.settings-file-size-master .base-switch-thumb { width: 18px; height: 18px; }
-.settings-file-size-master .base-switch-thumb[data-state="checked"] { transform: translateX(18px); }
-.settings-file-size-options { display: grid; gap: 16px; margin: 18px 0 0 28px; }
-.settings-file-size-options .base-toggle-field { gap: 10px; }
-.settings-file-size-options .base-toggle-field > label { font-size: 13px; }
-.settings-file-size-options p { margin: 6px 0 0 44px; font-size: 12px; }
+.settings-file-display-options, .settings-file-size-options { display: grid; gap: 12px; }
+.settings-file-size-options { margin: 0; }
+.settings-file-size-options p { margin: 6px 0 0; font-size: 12px; }
 .settings-accent-field { min-width: 0; margin: 18px 0; padding: 0; border: 0; }
 .settings-accent-field legend { margin-bottom: 10px; color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
 .settings-accent-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -118,7 +112,7 @@
 .settings-appearance-control { display: grid; align-content: start; gap: 8px; }
 .settings-file-display-section { min-width: 0; align-self: start; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .settings-file-display-section h2 { margin-bottom: 12px; }
-.settings-file-display-section .settings-file-size-options { gap: 12px; margin-left: 22px; }
+.settings-file-display-section .settings-file-size-options { gap: 12px; margin-left: 0; }
 .settings-app-icon-settings { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 18px; padding-top: 16px; border-top: 1px solid var(--color-divider); }
 .update-settings { display: grid; gap: 12px; margin-top: 24px; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .update-settings:focus { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
