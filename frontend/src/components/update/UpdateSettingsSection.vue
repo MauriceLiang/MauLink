@@ -82,6 +82,18 @@ function deferInstall() { emit('install-deferred'); }
     <div class="update-settings__channel-row">
       <BaseSelect v-model="channelModel" :label="t('updateChannel')" :options="channelOptions" :disabled="channelDisabled" />
       <p>{{ channel === 'preview' ? t('previewWarning') : t('stableDescription') }}</p>
+      <div v-if="channelSaved !== false" class="update-settings__actions">
+        <BaseButton v-if="['idle', 'upToDate', 'channelEmpty', 'blocked', 'error'].includes(state.phase)" variant="secondary" :disabled="installBusy" @click="check">{{ t('check') }}</BaseButton>
+        <template v-else-if="state.phase === 'available'">
+          <BaseButton variant="secondary" :disabled="installBusy" @click="dismiss">{{ t('later') }}</BaseButton>
+          <BaseButton variant="primary" :disabled="installBusy" @click="download">{{ t('download') }}</BaseButton>
+        </template>
+        <template v-else-if="state.phase === 'downloaded'">
+          <BaseButton variant="secondary" :disabled="installBusy" @click="deferInstall">{{ t('installLater') }}</BaseButton>
+          <BaseButton variant="primary" :disabled="installBusy" @click="requestInstall">{{ t('installAndRestart') }}</BaseButton>
+        </template>
+        <BaseButton v-else-if="state.phase === 'confirmingInstall'" variant="secondary" :disabled="installBusy" @click="props.controller.cancelInstallRequest()">{{ t('continueWorking') }}</BaseButton>
+      </div>
     </div>
     <p v-if="channelSaved !== false && state.phase === 'blocked'" class="update-settings__status" role="status" aria-live="polite">
       {{ t('blockedVersion', { current: state.currentVersion, target: state.latestVersion ?? '—' }) }}
@@ -106,19 +118,6 @@ function deferInstall() { emit('install-deferred'); }
         <div class="update-settings__progress-fill" :class="{ 'is-indeterminate': percentage === null }" :style="percentage === null ? undefined : { width: `${percentage}%` }" />
       </div>
       <span>{{ percentage === null ? downloadedLabel : `${downloadedLabel} · ${percentage}%` }}</span>
-    </div>
-
-    <div v-if="channelSaved !== false" class="update-settings__actions">
-      <BaseButton v-if="['idle', 'upToDate', 'channelEmpty', 'blocked', 'error'].includes(state.phase)" variant="secondary" :disabled="installBusy" @click="check">{{ t('check') }}</BaseButton>
-      <template v-else-if="state.phase === 'available'">
-        <BaseButton variant="secondary" :disabled="installBusy" @click="dismiss">{{ t('later') }}</BaseButton>
-        <BaseButton variant="primary" :disabled="installBusy" @click="download">{{ t('download') }}</BaseButton>
-      </template>
-      <template v-else-if="state.phase === 'downloaded'">
-        <BaseButton variant="secondary" :disabled="installBusy" @click="deferInstall">{{ t('installLater') }}</BaseButton>
-        <BaseButton variant="primary" :disabled="installBusy" @click="requestInstall">{{ t('installAndRestart') }}</BaseButton>
-      </template>
-      <BaseButton v-else-if="state.phase === 'confirmingInstall'" variant="secondary" :disabled="installBusy" @click="props.controller.cancelInstallRequest()">{{ t('continueWorking') }}</BaseButton>
     </div>
   </section>
 </template>
