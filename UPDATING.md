@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-本分支在现有应用身份下实现 Stable / Preview 渠道偏好、版本规则、Rust 更新协调器和浏览器 Mock 流程；应用版本保持 `0.1.1-rc.8`。正式更新源采用 GitHub Releases 保存安装与 updater 产物，GitHub Pages 保存独立的 `stable.json` / `preview.json`。仓库当前尚未启用 GitHub Pages，也没有 Updater 公钥或签名私钥，因此现有安装包仍不能在线更新；首次启用时必须手动安装一个带受信更新配置的完整应用包。
+本项目已实现 Stable / Preview 渠道偏好、版本规则、Rust 更新协调器和浏览器 Mock 流程；当前应用版本为 `0.1.1-rc.33`。正式更新源计划使用 GitHub Releases 保存安装与 updater 产物，使用独立 HTTPS 地址保存 `stable.json` / `preview.json`。仓库尚未启用更新索引托管，也没有 Updater 公钥或签名私钥，因此安装包仍不能在线更新；首次启用时必须手动安装一个带受信更新配置的完整应用包。
 
-Release 工作流已增量配置三平台 updater 产物、签名检查和发布后 Pages 索引部署。本次分支变更不会触发发布；合入 `main` 后，只有应用版本变化且 Pages 与签名配置齐全时才会自动创建并公开 Release。正式包的其余流程见 [RELEASING.md](RELEASING.md)。
+仓库已移除全部 GitHub Actions。合并后，PR、推送和 Tag 不会自动检查、构建、上传或发布；安装包由维护者在各平台手动编译并上传。手动上传 Release 不会部署更新索引，应用内更新仍保持未启用。正式安装包的手动流程见 [RELEASING.md](RELEASING.md)。
 
 ## 版本和渠道规则
 
@@ -26,20 +26,19 @@ Release 工作流已增量配置三平台 updater 产物、签名检查和发布
 ## GitHub 更新源
 
 - 客户端构建时将 `MAULINK_UPDATER_INDEX_BASE_URL` 编译进 Tauri 配置，默认值为 `https://mauriceliang.github.io/MauLink/updates/`，渠道地址为 `stable.json` 与 `preview.json`。将来迁移到自有 HTTPS 主机时，可为新客户端改用新的索引基址；已安装客户端仍只信任其构建时写入的地址和公钥。
-- 版本递增合并到 `main` 后，Release 工作流会为 macOS ARM64 / Intel 生成 `.app.tar.gz` 和 `.sig`，为 Windows x64 生成 MSI 与 `.sig`；三个安装包及 updater 产物一并进入对应 GitHub Release。签名验证和公开下载链接检查通过后，工作流只推进该版本所属渠道的 Pages 索引。
+- GitHub Actions 发布工作流已移除。手动编译并上传普通安装包不会生成 Tauri updater 签名或更新索引；若未来启用应用内更新，必须另行人工生成并校验每个平台的签名更新包，再安全托管索引和下载文件。
 - 索引生成按 SemVer 排序。较低版本不能覆盖较高版本；同一版本若下载地址或签名不同则失败。索引从实际 Release 资产读取签名内容，不使用占位签名。
 - 每个平台包的 `.sig` 是 Tauri Updater 签名，不等同于 Apple Developer ID / 公证或 Windows Authenticode 签名。
 - 当前 `0.1.1-rc.8` 没有编译更新公钥和地址，因此不能通过在线更新升级到首个启用 Updater 的版本。
 
-### 仓库管理员首次配置
+### 未来启用在线更新前的发布准备
 
-1. 打开 GitHub 仓库 `Settings → Pages → Build and deployment`，将 `Source` 设为 `GitHub Actions`。当前仓库 API 状态为 `has_pages=false`，所以发布前置检查会阻止构建，直到 Pages 已启用。该 Pages 站点专用于 updater 索引；Actions 部署会以本工作流产物替换站点内容。若以后要在同一 Pages 站点托管网页，需先把网页构建产物一并纳入部署。
-2. 在 `Settings → Environments` 创建 `maulink-updater-release`，将允许分支限制到 `main`，并配置 required reviewers。签名私钥只放入该 Environment 的 `TAURI_SIGNING_PRIVATE_KEY` secret；如密钥有口令，再添加 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。不要将密钥交给 PR、Packaging Smoke 或仓库文件。
-3. 在仓库 Actions Variables 添加 `MAULINK_UPDATER_PUBLIC_KEY`（Updater 公钥正文）。可选添加 `MAULINK_UPDATER_INDEX_BASE_URL`，默认 Pages 地址见上。迁移到自有主机时，客户端的基址通过此变量传入下一个签名版本。
-4. 在可信设备生成并离线备份一对 Updater 密钥；私钥由负责人保管，不粘贴到聊天。公钥首次随启用 Updater 的客户端发布后不能随意替换。
-5. 配置完成后，准备一个新的 Preview 版本以发布首个启用 Updater 的安装包，再手动安装验证。不要重用 `v0.1.1-rc.8` 或覆盖任何已发布 Tag。
+1. 先确定更新索引的 HTTPS 托管方式。当前没有 GitHub Actions 部署流程；如使用 GitHub Pages，需选用人工可维护的分支来源，或改用自有 HTTPS 主机。
+2. 由维护者在可信设备生成并离线备份 Updater 密钥。私钥不得写入仓库、PR、Release 说明或聊天；公钥和索引基址须编译进新客户端。
+3. 手动构建带受信更新配置的 Preview 客户端，为各平台生成 updater 包和 `.sig`，验证签名及下载后再手动上传 Release 和索引。普通 `.dmg` / `.msi` 安装包不能替代签名更新资产。
+4. 先发布并手动安装新的 Preview 客户端，再用更高版本在真实设备验证更新。不要重用已有 Tag 或覆盖已发布附件。
 
-如果后续把索引迁移到自有服务器，除了修改客户端基址，还要把 `deploy-update-index` 从 GitHub Pages 发布改成对应服务器的受保护上传步骤；GitHub Release 中的二进制链接与 minisign 公钥可以保持不变。更新地址编译在客户端中，旧版本仍会访问 GitHub Pages，因此迁移时要保留该索引作为兼容入口，或先发布并安装切换到新地址的过渡版本。
+如果后续把索引迁移到自有服务器，需更新客户端编译时的索引基址，并设计受保护的人工上传步骤。更新地址编译在客户端中；旧版本仍会访问原索引，因此迁移时需保留原索引作为兼容入口，或先发布并安装切换到新地址的过渡版本。
 
 ## 降级安全状态
 
@@ -49,8 +48,8 @@ SQLite 当前 schema 为 7，但项目尚无按发行版本记录的兼容性策
 
 ## 启用在线更新前的负责人操作
 
-1. 按上节启用 GitHub Pages 与受保护的 `maulink-updater-release` Environment，并配置公钥变量和签名私钥 Secrets。
-2. 版本递增合入 `main` 后，由已有自动发布工作流生成并公开 Release，再验证 Stable / Preview 对应的 Pages HTTPS 索引和下载链接。
+1. 选定 HTTPS 索引托管方式，准备并保护 Updater 签名私钥；把公钥与更新地址编译进新客户端。
+2. 维护者手动构建带更新配置的签名安装包和 updater 资产，逐一验证 `.sig`、下载地址和索引内容，再手动发布 Release 与 Stable / Preview 索引。
 3. 先完整安装首个带 updater 配置的版本，再用更高版本在 macOS ARM64、macOS Intel 和 Windows x64 实机验证跨渠道升级、签名拒绝、安装器接管及数据库/凭据留存。无法使用真实设备的项目标记 `BLOCKED`。
 4. 降级需另行实现可审查的版本兼容策略与一致性备份，并完成 Windows MSI 和 macOS 替换安装矩阵。在这些条件通过前，保持当前拒绝降级的门禁。
 
@@ -66,9 +65,9 @@ SQLite 当前 schema 为 7，但项目尚无按发行版本记录的兼容性策
 | P1 版本策略与渠道持久化 | PASS | 严格 JS 版本规则、Rust 渠道/候选版本检查、可空设置和 MSI 版本映射测试。 |
 | P2 渠道 UI 与 Native 控制器 | PASS WITH MOCK | UI、受控 Rust 命令和 Mock 已接入；当前无生产 endpoint / 公钥，真实服务仍未启用。 |
 | P3 降级安全门禁 | PARTIAL / BLOCKED | 较低 SemVer 在下载前阻断，MSI overlay 显式允许降级；版本兼容策略、SQLite 一致性备份和 MSI/macOS 实机验证未完成。 |
-| P4 签名打包与发布自动化 | READY / BLOCKED | 工作流和精确产物清单已配置；需负责人启用 Pages、设置受保护 Environment、提供公钥变量及私钥 Secrets 后才能实际签名构建。 |
-| P5 双渠道 HTTPS 索引 | READY / BLOCKED | 已增加 SemVer 防回退索引生成和 GitHub Pages 部署；Pages 当前未启用，尚无真实索引、签名包或 HTTPS 读回证据。 |
+| P4 签名打包与发布流程 | BLOCKED | GitHub Actions 已移除；需要维护者确定密钥托管与人工签名构建流程，并在真实平台验收。 |
+| P5 双渠道 HTTPS 索引 | BLOCKED | 尚无真实索引、签名包、人工部署流程或 HTTPS 读回证据。 |
 | P6 真实安装与数据回归 | BLOCKED | 需要较高版本的真实签名包，以及 macOS ARM64、Intel 和 Windows x64 设备。 |
-| P7 收尾与交付 | IN PROGRESS | 本文和 `RELEASING.md` 已更新；Web 验收、推送和本地重建在本次交付记录中报告。 |
+| P7 收尾与交付 | IN PROGRESS | 本文和 `RELEASING.md` 已更新；当前分支移除 GitHub Actions，版本提交仍需由维护者手动编译与发布。 |
 
-正式安装包、Release 工作流和操作系统代码签名状态见 [RELEASING.md](RELEASING.md)。
+正式安装包的手动构建、上传和操作系统代码签名状态见 [RELEASING.md](RELEASING.md)。
