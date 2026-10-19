@@ -30,6 +30,8 @@ secrets.json
 credentials.json
 UI/
 docs/
+AGENTS.md
+output
 
 # Keep the README screenshots and their active visual regression baseline.
 !docs/
