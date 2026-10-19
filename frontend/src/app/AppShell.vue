@@ -601,7 +601,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKeydown); void
 </script>
 
 <template>
-  <div class="application-shell" :class="{ 'terminal-focused': focused, 'is-explorer-hidden': !sidebarVisible }" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
+  <div class="application-shell" :class="{ 'terminal-focused': focused, 'is-explorer-hidden': !sidebarVisible }" :data-platform="info?.platform.trim().toLowerCase()" :data-sidebar-width="terminalPreferences.record.value?.value.sidebarWidth ?? 'standard'">
     <TopBar v-model:query="query" :shortcut="shortcut" :settings-enabled="!readOnly" :explorer-visible="sidebarVisible" @about="requestSettingsLeave(() => { about = true; })" @settings="openSettings()" @palette="paletteOpen = true" @toggle-explorer="toggleSidebar" />
     <div class="shell-content" :class="{ 'is-explorer-hidden': !sidebarVisible }">
       <SettingsSidebar v-if="settingsOpen" :section="settingsInitialSection" :busy="settingsSidebarBusy" @update:section="settingsInitialSection = $event" @back="requestSettingsLeave()" />
