@@ -20,6 +20,7 @@
 .server-overview-title-line { flex-wrap: wrap; gap: 10px; }
 .server-overview-title-line h1 { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 21px; font-weight: 650; letter-spacing: -.02em; line-height: 1.3; }
 .server-overview-endpoint { margin: 0; color: var(--color-text-secondary); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.server-overview-title-line h1, .server-overview-endpoint, .server-overview-info-item dd, .server-overview-status-item dd, .server-overview-route-detail { -webkit-user-select: text; user-select: text; }
 .server-overview-actions .connection-panel { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0; animation: none; }
 .server-overview-actions .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .server-overview-actions .connection-actions .base-button { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
