@@ -160,3 +160,11 @@ macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify`
 - Codex 内置浏览器在暗色 Settings harness 中复核通用设置：连接行为、界面语言和软件更新均取消独立卡片边框与底色，以纵向间距区分内容；逐行设置和选择控件的位置保持不变。
 - 本地 Settings harness 仅验证 Mock 页面的视觉布局；未运行测试套件，真实 Core 持久化和更新服务未验证。
 - 页面截图保存在 `/private/tmp/maulink-general-settings-no-module-frames.png`。
+
+## 滚动边界抑制（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- 所有滚动容器在滚动到顶部或底部时停止滚动链和过界回弹；容器内部的正常滚动仍保留，包括终端滚动区。
+- 在本地 Settings harness 检查页面主滚动区域的计算样式为 `overscroll-behavior: none`，并在长设置页滚动到上下边界复核位置被限制在内容范围内。
+- 浏览器验证不等同于 macOS 原生 WebView 的触控板/触屏物理回弹验收；未运行测试套件。
