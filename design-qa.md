@@ -152,3 +152,11 @@ macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify`
 - “断开连接前确认”改为“需要确认 / 直接断开”选择控件；浏览器中确认两项均可选，并将临时交互值恢复为原来的“需要确认”。本页没有开关控件。
 - 本地 Settings harness 仅验证 Mock 页面布局与选择交互，不代表 Core 持久化或真实更新服务验证。未运行测试套件。
 - `npm --prefix frontend run type-check`、`git diff --check` 通过。视觉记录截图保存在 `/private/tmp/maulink-general-settings-layout.png`。
+
+## 通用设置移除模块外框（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在暗色 Settings harness 中复核通用设置：连接行为、界面语言和软件更新均取消独立卡片边框与底色，以纵向间距区分内容；逐行设置和选择控件的位置保持不变。
+- 本地 Settings harness 仅验证 Mock 页面的视觉布局；未运行测试套件，真实 Core 持久化和更新服务未验证。
+- 页面截图保存在 `/private/tmp/maulink-general-settings-no-module-frames.png`。

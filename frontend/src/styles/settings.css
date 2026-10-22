@@ -102,8 +102,8 @@
 .settings-workspace__scroll { min-height: 0; overflow-y: auto; padding: 22px 32px 30px; }
 .settings-workspace__body { width: min(840px, 100%); margin-inline: auto; }
 .settings-workspace-section { display: grid; gap: 14px; animation: settings-section-in var(--motion-normal) var(--ease-enter); }
-.settings-general-section { gap: 10px; }
-.settings-general-section .settings-preference-group { grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); align-items: center; column-gap: 24px; row-gap: 0; min-width: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.settings-general-section { gap: 18px; }
+.settings-general-section .settings-preference-group { grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); align-items: center; column-gap: 24px; row-gap: 0; min-width: 0; padding: 8px 0; }
 .settings-general-row__copy { display: grid; min-width: 0; gap: 6px; }
 .settings-general-row__copy h2 { margin: 0; }
 .settings-general-row__copy p { margin: 0; }
@@ -120,7 +120,7 @@
 .settings-file-display-section h2 { margin-bottom: 12px; }
 .settings-file-display-section .settings-file-size-options { gap: 12px; margin-left: 0; }
 .settings-app-icon-settings { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 18px; }
-.update-settings { display: grid; gap: 16px; margin-top: 4px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.update-settings { display: grid; gap: 16px; margin-top: 0; padding: 8px 0; }
 .update-settings:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 3px; }
 .update-settings__heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
 .update-settings__heading h2, .update-settings__heading p, .update-settings__notes h3, .update-settings__notes p { margin: 0; }
