@@ -15,7 +15,6 @@ import BaseAlert from '../../components/base/BaseAlert.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
 import BaseIcon from '../../components/base/BaseIcon.vue';
 import BaseSelect from '../../components/base/BaseSelect.vue';
-import BaseSwitch from '../../components/base/BaseSwitch.vue';
 import BaseDialog from '../../components/base/BaseDialog.vue';
 import SecuritySettingsSection from '../../components/security/SecuritySettingsSection.vue';
 import UpdateSettingsSection from '../../components/update/UpdateSettingsSection.vue';
@@ -55,6 +54,14 @@ const toastPositions: ToastPosition[] = ['topLeft', 'topCenter', 'topRight', 'bo
 const toastPositionKeys: Record<ToastPosition, keyof typeof settingsMessages> = { topLeft: 'toastTopLeft', topCenter: 'toastTopCenter', topRight: 'toastTopRight', bottomLeft: 'toastBottomLeft', bottomCenter: 'toastBottomCenter', bottomRight: 'toastBottomRight' };
 const accentOptions: Exclude<AccentColor, 'custom'>[] = ['blue', 'indigo', 'purple', 'green', 'orange', 'red'];
 const fileVisibilityOptions = computed(() => [{ value: 'show', label: t('showOption') }, { value: 'hide', label: t('hideOption') }]);
+const disconnectBehaviorChoice = computed<'confirm' | 'direct'>({
+  get: () => draft.confirmBeforeDisconnect ? 'confirm' : 'direct',
+  set: value => { draft.confirmBeforeDisconnect = value === 'confirm'; },
+});
+const disconnectBehaviorOptions = computed(() => [
+  { value: 'confirm' as const, label: t('disconnectConfirmOption') },
+  { value: 'direct' as const, label: t('disconnectDirectOption') },
+]);
 const showSizeColumnChoice = computed({ get: () => draft.showSizeColumn ? 'show' : 'hide', set: (value: string) => { draft.showSizeColumn = value === 'show'; } });
 const showFileSizesChoice = computed({ get: () => draft.showFileSizes ? 'show' : 'hide', set: (value: string) => { draft.showFileSizes = value === 'show'; } });
 const showFolderSizesChoice = computed({ get: () => draft.showFolderSizes ? 'show' : 'hide', set: (value: string) => { draft.showFolderSizes = value === 'show'; } });
@@ -227,15 +234,19 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
         <form class="terminal-settings-form" @submit.prevent>
           <fieldset v-if="regularSection && section !== 'terminal'" :disabled="preferences.busy.value || !preferences.record.value">
             <section v-if="section === 'general'" class="settings-workspace-section settings-general-section">
-              <div class="settings-preference-group">
-                <h2>{{ t('connectionBehavior') }}</h2>
-                <BaseSwitch v-model="draft.confirmBeforeDisconnect" :label="t('confirmDisconnect')" :disabled="preferences.busy.value || !preferences.record.value" />
-                <p>{{ t('transferConfirmation') }}</p>
+              <div class="settings-preference-group settings-general-row">
+                <div class="settings-general-row__copy">
+                  <h2>{{ t('connectionBehavior') }}</h2>
+                  <p>{{ t('transferConfirmation') }}</p>
+                </div>
+                <BaseSelect v-model="disconnectBehaviorChoice" class="settings-general-row__control" :label="t('confirmDisconnect')" :options="disconnectBehaviorOptions" :disabled="preferences.busy.value || !preferences.record.value" />
               </div>
-              <div class="settings-preference-group">
-                <h2>{{ t('applicationLanguage') }}</h2>
-                <BaseSelect v-model="draft.language" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" />
-                <p>{{ t('languageNote') }}</p>
+              <div class="settings-preference-group settings-general-row">
+                <div class="settings-general-row__copy">
+                  <h2>{{ t('applicationLanguage') }}</h2>
+                  <p>{{ t('languageNote') }}</p>
+                </div>
+                <BaseSelect v-model="draft.language" class="settings-general-row__control" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" :disabled="preferences.busy.value || !preferences.record.value" />
               </div>
             </section>
             <section v-else-if="section === 'appearance'" class="settings-workspace-section">

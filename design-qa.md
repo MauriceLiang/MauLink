@@ -143,3 +143,12 @@ macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify`
 - 更新卡片保持中性边框；默认/鼠标焦点状态不显示主题色外圈，键盘焦点仍保留可见提示。更新逻辑未改动。
 - 本地 harness 仅验证界面布局和焦点样式，不代表真实更新服务行为验证。未运行测试套件。
 - `npm --prefix frontend run type-check`、`git diff --check` 通过。
+
+## 通用设置改为逐行选择布局（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在 1368 × 906 Settings harness 中复核通用设置：连接行为与界面语言各占一整行，说明文字和选择控件左右对齐；软件更新区位于其下方。
+- “断开连接前确认”改为“需要确认 / 直接断开”选择控件；浏览器中确认两项均可选，并将临时交互值恢复为原来的“需要确认”。本页没有开关控件。
+- 本地 Settings harness 仅验证 Mock 页面布局与选择交互，不代表 Core 持久化或真实更新服务验证。未运行测试套件。
+- `npm --prefix frontend run type-check`、`git diff --check` 通过。视觉记录截图保存在 `/private/tmp/maulink-general-settings-layout.png`。
