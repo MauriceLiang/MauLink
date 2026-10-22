@@ -15,7 +15,6 @@ import BaseAlert from '../../components/base/BaseAlert.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
 import BaseIcon from '../../components/base/BaseIcon.vue';
 import BaseSelect from '../../components/base/BaseSelect.vue';
-import BaseSwitch from '../../components/base/BaseSwitch.vue';
 import BaseDialog from '../../components/base/BaseDialog.vue';
 import SecuritySettingsSection from '../../components/security/SecuritySettingsSection.vue';
 import UpdateSettingsSection from '../../components/update/UpdateSettingsSection.vue';
@@ -54,14 +53,24 @@ const accentColorKeys: Record<AccentColor, keyof typeof settingsMessages> = { bl
 const toastPositions: ToastPosition[] = ['topLeft', 'topCenter', 'topRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
 const toastPositionKeys: Record<ToastPosition, keyof typeof settingsMessages> = { topLeft: 'toastTopLeft', topCenter: 'toastTopCenter', topRight: 'toastTopRight', bottomLeft: 'toastBottomLeft', bottomCenter: 'toastBottomCenter', bottomRight: 'toastBottomRight' };
 const accentOptions: Exclude<AccentColor, 'custom'>[] = ['blue', 'indigo', 'purple', 'green', 'orange', 'red'];
+const fileVisibilityOptions = computed(() => [{ value: 'show', label: t('showOption') }, { value: 'hide', label: t('hideOption') }]);
+const disconnectBehaviorChoice = computed<'confirm' | 'direct'>({
+  get: () => draft.confirmBeforeDisconnect ? 'confirm' : 'direct',
+  set: value => { draft.confirmBeforeDisconnect = value === 'confirm'; },
+});
+const disconnectBehaviorOptions = computed(() => [
+  { value: 'confirm' as const, label: t('disconnectConfirmOption') },
+  { value: 'direct' as const, label: t('disconnectDirectOption') },
+]);
+const showSizeColumnChoice = computed({ get: () => draft.showSizeColumn ? 'show' : 'hide', set: (value: string) => { draft.showSizeColumn = value === 'show'; } });
+const showFileSizesChoice = computed({ get: () => draft.showFileSizes ? 'show' : 'hide', set: (value: string) => { draft.showFileSizes = value === 'show'; } });
+const showFolderSizesChoice = computed({ get: () => draft.showFolderSizes ? 'show' : 'hide', set: (value: string) => { draft.showFolderSizes = value === 'show'; } });
 const customAccentColor = computed({ get: () => draft.customAccentColor ?? '#3B82F6', set: (value: string) => { draft.customAccentColor = value; } });
 const sectionCopy: Record<SettingsSection, { title: keyof typeof settingsMessages; description: keyof typeof settingsMessages }> = {
   general: { title: 'general', description: 'generalDescription' },
   security: { title: 'securityPrivacy', description: 'securityDescription' },
-  appearance: { title: 'appearance', description: 'appearanceDescription' },
-  files: { title: 'files', description: 'filesDescription' },
+  appearance: { title: 'appearanceDisplay', description: 'appearanceDescription' },
   terminal: { title: 'terminal', description: 'terminalDescription' },
-  language: { title: 'language', description: 'languageDescription' },
 };
 const title = computed(() => t(sectionCopy[props.section].title));
 const description = computed(() => t(sectionCopy[props.section].description));
@@ -224,18 +233,51 @@ defineExpose({ requestLeave, prepareForUpdateInstall, get busy() { return busy.v
       <div class="settings-workspace__body">
         <form class="terminal-settings-form" @submit.prevent>
           <fieldset v-if="regularSection && section !== 'terminal'" :disabled="preferences.busy.value || !preferences.record.value">
-            <section v-if="section === 'general'" class="settings-workspace-section"><BaseSwitch v-model="draft.confirmBeforeDisconnect" :label="t('confirmDisconnect')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('transferConfirmation') }}</p></section>
-            <section v-else-if="section === 'appearance'" class="settings-workspace-section">
-              <BaseSelect v-model="draft.theme" :label="t('theme')" :options="[{value:'system',label:t('system')},{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" /><p>{{ t('themeNote') }}</p>
-              <BaseSelect v-model="draft.uiDensity" :label="t('uiDensity')" :options="[{value:'standard',label:t('densityStandard')},{value:'compact',label:t('densityCompact')}]" />
-              <BaseSelect v-model="draft.sidebarWidth" :label="t('sidebarWidth')" :options="[{value:'narrow',label:t('sidebarNarrow')},{value:'standard',label:t('sidebarStandard')},{value:'wide',label:t('sidebarWide')}]" />
-              <fieldset class="settings-toast-position-fieldset"><legend>{{ t('toastPosition') }}</legend><div class="settings-toast-position-options"><label v-for="position in toastPositions" :key="position" class="settings-toast-position-option"><input v-model="draft.toastPosition" type="radio" name="toastPosition" :value="position" /><span>{{ t(toastPositionKeys[position]) }}</span></label></div><div class="settings-toast-preview" :data-position="draft.toastPosition" role="img" :aria-label="t('toastPositionPreview')"><div class="settings-toast-preview-card"><BaseIcon name="success" /><span><strong>{{ t('toastPreviewTitle') }}</strong><small>{{ t('toastPreviewDescription') }}</small></span></div></div><p class="settings-toast-position-note">{{ t('toastPositionNote') }}</p></fieldset>
-              <fieldset class="settings-accent-field"><legend>{{ t('accentColor') }}</legend><div class="settings-accent-options" role="radiogroup" :aria-label="t('accentColor')"><label v-for="color in accentOptions" :key="color" class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" :value="color" /><span class="settings-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }" aria-hidden="true"></span><span>{{ t(accentColorKeys[color]) }}</span></label><label class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" value="custom" /><span class="settings-accent-swatch settings-accent-custom-swatch" :style="{ '--accent-option-color': customAccentColor }" aria-hidden="true"></span><span>{{ t('accentCustom') }}</span></label></div><label v-if="draft.accentColor === 'custom'" class="settings-custom-accent"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label><p>{{ t('accentColorNote') }}</p></fieldset>
-              <BaseSelect v-model="draft.appIconStyle" :label="t('appIconStyle')" :options="[{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
-              <img class="settings-app-icon-preview" :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="64" height="64" /><p>{{ t('appIconNote') }}</p>
+            <section v-if="section === 'general'" class="settings-workspace-section settings-general-section">
+              <div class="settings-preference-group settings-general-row">
+                <div class="settings-general-row__copy">
+                  <h2>{{ t('connectionBehavior') }}</h2>
+                  <p>{{ t('transferConfirmation') }}</p>
+                </div>
+                <BaseSelect v-model="disconnectBehaviorChoice" class="settings-general-row__control" :label="t('confirmDisconnect')" :options="disconnectBehaviorOptions" :disabled="preferences.busy.value || !preferences.record.value" />
+              </div>
+              <div class="settings-preference-group settings-general-row">
+                <div class="settings-general-row__copy">
+                  <h2>{{ t('applicationLanguage') }}</h2>
+                  <p>{{ t('languageNote') }}</p>
+                </div>
+                <BaseSelect v-model="draft.language" class="settings-general-row__control" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" :disabled="preferences.busy.value || !preferences.record.value" />
+              </div>
             </section>
-            <section v-else-if="section === 'files'" class="settings-workspace-section"><div class="settings-file-size-master"><BaseSwitch v-model="draft.showSizeColumn" :label="t('showSizeColumn')" :disabled="preferences.busy.value || !preferences.record.value" /></div><div v-if="draft.showSizeColumn" class="settings-file-size-options"><BaseSwitch v-model="draft.showFileSizes" :label="t('showFileSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><div><BaseSwitch v-model="draft.showFolderSizes" :label="t('showFolderSizes')" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div></div></section>
-            <section v-else-if="section === 'language'" class="settings-workspace-section"><BaseSelect v-model="draft.language" :label="t('language')" :options="[{value:'zh-CN',label:'中文'},{value:'en',label:'English'}]" /><p>{{ t('languageNote') }}</p></section>
+            <section v-else-if="section === 'appearance'" class="settings-workspace-section">
+              <div class="settings-app-icon-settings">
+                <div>
+                  <BaseSelect v-model="draft.appIconStyle" :label="t('appIconStyle')" :options="[{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
+                  <p>{{ t('appIconNote') }}</p>
+                </div>
+                <img class="settings-app-icon-preview" :src="draft.appIconStyle === 'dark' ? logoDark : logoLight" :alt="t('appIconPreview')" width="64" height="64" />
+              </div>
+              <fieldset class="settings-accent-field"><legend>{{ t('accentColor') }}</legend><div class="settings-accent-options" role="radiogroup" :aria-label="t('accentColor')"><label v-for="color in accentOptions" :key="color" class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" :value="color" /><span class="settings-accent-swatch" :style="{ '--accent-option-color': accentPresetColors[color] }" aria-hidden="true"></span><span>{{ t(accentColorKeys[color]) }}</span></label><label class="settings-accent-option"><input v-model="draft.accentColor" type="radio" name="accentColor" value="custom" /><span class="settings-accent-swatch settings-accent-custom-swatch" :style="{ '--accent-option-color': customAccentColor }" aria-hidden="true"></span><span>{{ t('accentCustom') }}</span></label></div><label v-if="draft.accentColor === 'custom'" class="settings-custom-accent"><span>{{ t('customAccentColor') }}</span><input v-model="customAccentColor" type="color" :aria-label="t('customAccentColor')" /><code>{{ customAccentColor.toUpperCase() }}</code></label><p>{{ t('accentColorNote') }}</p></fieldset>
+              <div class="settings-appearance-control-grid">
+                <div class="settings-appearance-control">
+                  <BaseSelect v-model="draft.theme" :label="t('theme')" :options="[{value:'system',label:t('system')},{value:'light',label:t('light')},{value:'dark',label:t('dark')}]" />
+                  <p>{{ t('themeNote') }}</p>
+                </div>
+                <BaseSelect v-model="draft.uiDensity" :label="t('uiDensity')" :options="[{value:'standard',label:t('densityStandard')},{value:'compact',label:t('densityCompact')}]" />
+                <BaseSelect v-model="draft.sidebarWidth" :label="t('sidebarWidth')" :options="[{value:'narrow',label:t('sidebarNarrow')},{value:'standard',label:t('sidebarStandard')},{value:'wide',label:t('sidebarWide')}]" />
+                <section class="settings-file-display-section" :aria-label="t('fileListDisplay')">
+                  <h2>{{ t('fileListDisplay') }}</h2>
+                  <div class="settings-file-display-options">
+                    <BaseSelect v-model="showSizeColumnChoice" :label="t('showSizeColumn')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" />
+                    <div v-if="draft.showSizeColumn" class="settings-file-size-options">
+                      <BaseSelect v-model="showFileSizesChoice" :label="t('showFileSizes')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" />
+                      <div><BaseSelect v-model="showFolderSizesChoice" :label="t('showFolderSizes')" :options="fileVisibilityOptions" :disabled="preferences.busy.value || !preferences.record.value" /><p>{{ t('folderSizeNote') }}</p></div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+              <fieldset class="settings-toast-position-fieldset"><legend>{{ t('toastPosition') }}</legend><div class="settings-toast-position-options"><label v-for="position in toastPositions" :key="position" class="settings-toast-position-option"><input v-model="draft.toastPosition" type="radio" name="toastPosition" :value="position" /><span>{{ t(toastPositionKeys[position]) }}</span></label></div><div class="settings-toast-preview" :data-position="draft.toastPosition" role="img" :aria-label="t('toastPositionPreview')"><div class="settings-toast-preview-card"><BaseIcon name="success" /><span><strong>{{ t('toastPreviewTitle') }}</strong><small>{{ t('toastPreviewDescription') }}</small></span></div></div><p class="settings-toast-position-note">{{ t('toastPositionNote') }}</p></fieldset>
+            </section>
           </fieldset>
           <UpdateSettingsSection v-if="section === 'general' && updater" :controller="updater" :current-version="currentVersion ?? '—'" :channel="resolvedUpdateChannel" :channel-saved="updateChannelSaved" :install-busy="updateInstallBusy || preferences.busy.value || !preferences.record.value" @update:channel="draft.updateChannel = $event" @install-request="emit('updateInstallRequest')" @install-deferred="emit('updateInstallDeferred')" />
           <section v-show="section === 'terminal'" class="settings-workspace-section"><TerminalSettingsSection ref="terminalSection" :settings="draft" :saved-settings="savedSettings" :copy-on-select="copyOnSelect" :reset-key="resetKey" :busy="preferences.busy.value || !preferences.record.value" :background-images="backgroundImages" @update:settings="updateTerminalSettings" @update:copy-on-select="copyOnSelect = $event" /></section>

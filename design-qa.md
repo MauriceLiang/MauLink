@@ -88,3 +88,83 @@ The V3.3 verifier passed all 159 candidate images and confirmed candidate/baseli
 ## P8 桌面打包复核（2026-10-15）
 
 macOS 15.7.9 / Apple Silicon 已生成 `0.1.1-rc.8` arm64 DMG。`hdiutil verify` 与挂载后的 bundle/code-signature 检查通过；当前是 ad-hoc 签名且无 Apple 公证凭据。`open -n` 返回 `kLSNoExecutableErr (-10827)`，CUA 未获准控制此 app，因此原生窗口启动仍未验收。Windows MSI、macOS x64、真实 SSH/SFTP 与 Core 重启持久化未在当前主机验证。完整记录见 `docs/redesign-v33/00-audit.md`。
+
+## 外观与显示页面改版（2026-10-19）
+
+**结果：PASS（Web 视觉范围；通知位置单选项的浏览器自动化点击未完成）。**
+
+- 参考：本任务附带的第一张“外观与显示”设计图。
+- 实现：Codex 内置浏览器，本地 visual harness；视口 1368 × 906。CUA 截图在本轮以内联图像捕获并进行对照；该接口未提供仓库可用的截图文件路径。
+- 页面改为标题与恢复默认操作区、左侧分组设置、右侧实时预览；设置导航补充语义图标。
+- 浏览器复核主题浅/深切换与右侧预览同步、紧凑密度与预览摘要同步，以及恢复默认值。滚动后确认文件列表和通知位置区域排版正常。
+- `npm run type-check`、`npm run build`、`git diff --check` 均通过。Vite 构建有主 JS chunk 超过 500 kB 的提示，不影响构建完成。
+- 未运行测试套件。通知位置选项未能通过浏览器辅助功能自动点击，因此不记录为交互 PASS；1368 × 906 首屏低于设计图高度，底部通知区通过滚动复核。
+
+## 外观页样式复原（2026-10-19）
+
+**最终结果：PASS（Web 视觉范围）。**
+
+- 参考：本轮用户附带的终端设置页面截图。
+- Codex 内置浏览器在 1368 × 906 视口复核外观页：共享设置标题栏保留单行标题与说明，设置内容以居中单列排列；与终端设置页的间距、宽度和基础控件风格一致。
+- 移除了额外页面标题区、右侧模拟预览和恢复默认按钮；现有主题、密度、侧栏、文件列表、通知、主题色和应用图标控件仍保留。滚动检查确认后续控件未被裁切。
+- 仅验证本地 visual harness 的页面结构和视觉排版；未改动设置行为，也未运行测试套件。
+
+## 文件列表显示选项改为下拉（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器打开本地 Settings harness，外观页中“显示大小列 / 显示文件大小 / 显示文件夹大小”均以与上方主题、密度相同的下拉控件展示，选项为“显示 / 隐藏”。
+- 交互复核：将“显示大小列”切换为“隐藏”后，依赖的文件及文件夹大小选项收起；恢复为“显示”后两个选项恢复，初始值也恢复。
+- Legacy SettingsDialog 中相同设置同步使用下拉控件。只验证本地内存 Mock，不代表真实 Core 重启持久化验证；未运行测试套件。
+- `npm run type-check`、`npm run build` 和 `git diff --check` 均通过。Vite 仍提示主 JS chunk 超过 500 kB。
+
+## 外观页应用图标与主题色顺序调整（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器打开本地 Settings harness，确认应用图标样式位于外观页顶部，主题色选项紧随其下，其余控件顺序保持不变。
+- 应用图标设置上方的分隔线已移除；只验证本地 Mock 页面结构与视觉排版，未运行测试套件。
+- `npm run type-check`、`npm run build` 和 `git diff --check` 通过。Vite 仍提示主 JS chunk 超过 500 kB。
+
+## 通用设置更新区布局调整（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器复核通用设置页：连接行为和界面语言区块之间的横向分隔线已移除，区块间距保留。
+- 更新卡片将版本与安装渠道整理为紧凑元信息；更新渠道、说明及当前主要操作在宽屏下同一行呈现，窄屏断点下改为纵向布局。
+- 本地 Settings harness 仅提供 Mock 设置与更新状态；本次仅验证静态页面结构和当前空闲状态的视觉布局，不代表真实更新服务行为验证。未运行测试套件。
+- `npm --prefix frontend run type-check`、`npm --prefix frontend run build`、`git diff --check` 均通过。Vite 仍提示主 JS chunk 超过 500 kB。
+
+## 通用设置布局与更新区焦点样式（2026-10-19）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在 1368 × 906 Settings harness 中复核通用设置页：连接行为与界面语言并排显示，软件更新独立占据下方整行；两个上方区块高度对齐。
+- 更新卡片保持中性边框；默认/鼠标焦点状态不显示主题色外圈，键盘焦点仍保留可见提示。更新逻辑未改动。
+- 本地 harness 仅验证界面布局和焦点样式，不代表真实更新服务行为验证。未运行测试套件。
+- `npm --prefix frontend run type-check`、`git diff --check` 通过。
+
+## 通用设置改为逐行选择布局（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在 1368 × 906 Settings harness 中复核通用设置：连接行为与界面语言各占一整行，说明文字和选择控件左右对齐；软件更新区位于其下方。
+- “断开连接前确认”改为“需要确认 / 直接断开”选择控件；浏览器中确认两项均可选，并将临时交互值恢复为原来的“需要确认”。本页没有开关控件。
+- 本地 Settings harness 仅验证 Mock 页面布局与选择交互，不代表 Core 持久化或真实更新服务验证。未运行测试套件。
+- `npm --prefix frontend run type-check`、`git diff --check` 通过。视觉记录截图保存在 `/private/tmp/maulink-general-settings-layout.png`。
+
+## 通用设置移除模块外框（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- Codex 内置浏览器在暗色 Settings harness 中复核通用设置：连接行为、界面语言和软件更新均取消独立卡片边框与底色，以纵向间距区分内容；逐行设置和选择控件的位置保持不变。
+- 本地 Settings harness 仅验证 Mock 页面的视觉布局；未运行测试套件，真实 Core 持久化和更新服务未验证。
+- 页面截图保存在 `/private/tmp/maulink-general-settings-no-module-frames.png`。
+
+## 滚动边界抑制（2026-10-22）
+
+**结果：PASS（Browser UI 范围）。**
+
+- 所有滚动容器在滚动到顶部或底部时停止滚动链和过界回弹；容器内部的正常滚动仍保留，包括终端滚动区。
+- 在本地 Settings harness 检查页面主滚动区域的计算样式为 `overscroll-behavior: none`，并在长设置页滚动到上下边界复核位置被限制在内容范围内。
+- 浏览器验证不等同于 macOS 原生 WebView 的触控板/触屏物理回弹验收；未运行测试套件。

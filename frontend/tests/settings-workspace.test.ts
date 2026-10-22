@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import SettingsWorkspace from '../src/app/settings/SettingsWorkspace.vue';
+import type { SettingsSection } from '../src/app/settings/settings-navigation';
 import { createIpcClient } from '../src/ipc/client';
 import { createMockIpc } from '../src/ipc/mock';
 import { createSettingsApi } from '../src/ipc/settings';
@@ -31,7 +32,7 @@ function settingsFixture(options: { conflict?: () => boolean; changed?: (record:
   return { current: () => structuredClone(record), update, apply, preferences };
 }
 
-function mountWorkspace(section: 'general' | 'security' | 'appearance' | 'files' | 'terminal' | 'language' = 'appearance', options: { conflict?: () => boolean; backgroundImages?: BackgroundImagesApi } = {}) {
+function mountWorkspace(section: SettingsSection = 'appearance', options: { conflict?: () => boolean; backgroundImages?: BackgroundImagesApi } = {}) {
   const fixture = settingsFixture(options);
   const backgroundImages = options.backgroundImages ?? {
     select: vi.fn(async () => null), get: vi.fn(), resolve: vi.fn(), delete: vi.fn(async () => {}),
@@ -59,7 +60,8 @@ describe('settings workspace page', () => {
   it('automatically saves regular preferences after the debounce and across sections', async () => {
     const { wrapper, fixture } = mountWorkspace();
     await flushPromises();
-    expect(wrapper.get('h1').text()).toBe('外观');
+    expect(wrapper.get('h1').text()).toBe('外观与显示');
+    expect(wrapper.get('.settings-file-display-section').text()).toContain('显示大小列');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     await changeSelect('主题', '深色');
     expect(fixture.current().value.theme).toBe('system');
@@ -70,19 +72,24 @@ describe('settings workspace page', () => {
     expect(fixture.update).toHaveBeenCalledExactlyOnceWith({ expectedRevision: 1, value: { ...defaultSettings, theme: 'dark' } });
     expect(fixture.current()).toMatchObject({ revision: 2, value: { theme: 'dark' } });
 
-    await wrapper.setProps({ section: 'language' });
+    await wrapper.setProps({ section: 'general' });
     await flushPromises();
+    await changeSelect('语言', 'English');
+    await waitForAutoSave();
+    expect(fixture.update).toHaveBeenCalledTimes(2);
+    expect(fixture.current()).toMatchObject({ revision: 3, value: { theme: 'dark', language: 'en' } });
+
     await wrapper.setProps({ section: 'appearance' });
     await flushPromises();
     expect(wrapper.get('[role="combobox"]').text()).toContain('深色');
     await changeSelect('界面密度', '紧凑');
     await waitForAutoSave();
-    expect(fixture.update).toHaveBeenCalledTimes(2);
-    expect(fixture.update.mock.calls[1]![0]).toEqual({
-      expectedRevision: 2,
-      value: { ...defaultSettings, theme: 'dark', uiDensity: 'compact' },
+    expect(fixture.update).toHaveBeenCalledTimes(3);
+    expect(fixture.update.mock.calls[2]![0]).toEqual({
+      expectedRevision: 3,
+      value: { ...defaultSettings, theme: 'dark', language: 'en', uiDensity: 'compact' },
     });
-    expect(fixture.current()).toMatchObject({ revision: 3, value: { theme: 'dark', uiDensity: 'compact' } });
+    expect(fixture.current()).toMatchObject({ revision: 4, value: { theme: 'dark', language: 'en', uiDensity: 'compact' } });
   });
 
   it('saves pending regular edits before leaving the settings page', async () => {
